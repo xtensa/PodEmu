@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">PodEmu</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="action_menu_settings">Settings</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_about">About</string>
+    <string name="title_activity_settings">PodEmu Settings</string>
+    <string name="dialog_select_controlled_app">Select Application</string>
+</resources>
