@@ -9,7 +9,7 @@
     <ScrollView
         android:id="@+id/main_sv"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
+        android:layout_height="270dp"
         android:stackFromBottom="true"
         android:transcriptMode="alwaysScroll">
             <TextView android:text="@string/hello_world"

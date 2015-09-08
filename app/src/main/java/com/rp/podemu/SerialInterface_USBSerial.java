@@ -90,7 +90,7 @@ public class SerialInterface_USBSerial implements SerialInterface
 
         try {
             numBytesRead = port.read(buffer, 1);
-            Log.d("RPP", "Read " + numBytesRead + " bytes.");
+            //Log.d("RPP", "Read " + numBytesRead + " bytes.");
         }
         catch (IOException e)
         {
