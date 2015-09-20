@@ -43,6 +43,8 @@
 
     <uses-sdk android:minSdkVersion="12"  android:targetSdkVersion="23" />
     <uses-feature android:name="android.hardware.usb.host" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
 
 </manifest>
 

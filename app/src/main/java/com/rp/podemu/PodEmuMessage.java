@@ -9,6 +9,8 @@ public class PodEmuMessage
     private String album;
     private String track;
     private String trackID;
+    private String genre="Unknown Genre";
+    private String composer="Unknown Composer";
     private int lengthSec;
     private int positionMS;
     private boolean isPlaying;
@@ -21,22 +23,45 @@ public class PodEmuMessage
 
     public String getArtist()  { return artist; }
     public String getAlbum()   { return album; }
-    public String getTrack()   { return track; }
+    public String getTrackName()   { return track; }
     public String getTrackID() { return trackID; }
+    public String getGenre() { return genre; }
+    public String getComposer() { return composer; }
     public int getLength()     { return lengthSec; }
-    public int getPositionMS() { return positionMS; }
     public boolean isPlaying() { return isPlaying; }
     public int getAction()     { return action; }
     public long getTimeSent() { return timeSent; }
 
     public void setArtist(String artist)   { this.artist = artist; }
     public void setAlbum(String album)     { this.album = album;   }
-    public void setTrack(String track)     { this.track = track;    }
+    public void setTrackName(String track)     { this.track = track;    }
     public void setTrackID(String trackID) { this.trackID = trackID;  }
     public void setLength(int length)      { this.lengthSec = length;    }
     public void setPositionMS(int positionMS)    { this.positionMS = positionMS;  }
     public void setIsPlaying(boolean isPlaying)  { this.isPlaying = isPlaying;  }
     public void setAction(int action)            { this.action = action; }
     public void setTimeSent(long timeSent) { this.timeSent = timeSent; }
+
+    /**
+     * Calculating exact position of the played song in MS.
+     * We don't need to bother if the song was paused as we receive updated
+     * postion once it is paused or unpaused.
+     * @return position in miliseconds
+     */
+    public int getPositionMS()
+    {
+        int position;
+
+        // if playback is active then calculate real position, otherwise return last known position
+        if(isPlaying)
+        {
+            position = positionMS + (int) (System.currentTimeMillis() - timeSent);
+        }
+        else
+        {
+            position=positionMS;
+        }
+        return position;
+    }
 }
 

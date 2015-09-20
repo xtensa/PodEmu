@@ -45,7 +45,7 @@ public class SerialInterface_USBSerial implements SerialInterface
         port = ports.get(0);
         try {
             port.open(connection);
-            port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+            port.setParameters(57600, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
         }
         catch (IOException e)
         {
@@ -89,7 +89,7 @@ public class SerialInterface_USBSerial implements SerialInterface
         if(!isConnected()) return 0;
 
         try {
-            numBytesRead = port.read(buffer, 1);
+            numBytesRead = port.read( buffer, 0);
             //Log.d("RPP", "Read " + numBytesRead + " bytes.");
         }
         catch (IOException e)

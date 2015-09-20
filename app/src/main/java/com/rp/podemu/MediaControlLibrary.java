@@ -10,8 +10,10 @@ import android.view.View;
  */
 public class MediaControlLibrary
 {
+
     public static void action_next()
     {
+
         new Thread(new Runnable()
         {
             @Override
@@ -19,6 +21,20 @@ public class MediaControlLibrary
             {
                 Instrumentation inst = new Instrumentation();
                 inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_NEXT);
+            }
+        }).start();
+
+    }
+
+    public static void action_prev()
+    {
+        new Thread(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                Instrumentation inst = new Instrumentation();
+                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
             }
         }).start();
 
@@ -40,7 +56,7 @@ public class MediaControlLibrary
 
     }
 
-    public static void action_prev()
+    public static void action_stop()
     {
         new Thread(new Runnable()
         {
@@ -48,9 +64,54 @@ public class MediaControlLibrary
             public void run()
             {
                 Instrumentation inst = new Instrumentation();
-                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_STOP);
             }
         }).start();
-
     }
+
+    public static void action_skip_backward()
+    {
+        new Thread(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                Instrumentation inst = new Instrumentation();
+                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
+            }
+        }).start();
+    }
+
+    public static void action_skip_forward()
+    {
+        new Thread(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                Instrumentation inst = new Instrumentation();
+                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD);
+            }
+        }).start();
+    }
+
+
+    /*
+    Inserting KEYCODE_MEDIA_SKIP_FORWARD or KEYCODE_MEDIA_SKIP_BACKWARD will throw the following error
+
+    09-12 23:42:56.013  27177-29132/com.rp.podemu W/dalvikvm﹕ threadid=13: thread exiting with uncaught exception (group=0x2b4e71f8)
+    09-12 23:42:56.023  27177-29132/com.rp.podemu E/AndroidRuntime﹕ FATAL EXCEPTION: Thread-6329
+        java.lang.SecurityException: Injecting to another application requires INJECT_EVENTS permission
+                at android.os.Parcel.readException(Parcel.java:1327)
+                at android.os.Parcel.readException(Parcel.java:1281)
+                at android.view.IWindowManager$Stub$Proxy.injectKeyEvent(IWindowManager.java:1178)
+                at android.app.Instrumentation.sendKeySync(Instrumentation.java:859)
+                at android.app.Instrumentation.sendKeyDownUpSync(Instrumentation.java:871)
+                at com.rp.podemu.MediaControlLibrary$6.run(MediaControlLibrary.java:93)
+                at java.lang.Thread.run(Thread.java:856)
+
+    could be fixed on rooted device
+    SOLUTION: http://stackoverflow.com/questions/5383401/android-inject-events-permission?rq=1
+ */
+
 }

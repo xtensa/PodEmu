@@ -88,4 +88,11 @@
               android:textSize="20dp"
         />
 
+    <com.rp.podemu.DockingLogoView
+        android:layout_width="176dp"
+        android:layout_height="176dp"
+        android:id="@+id/dockStationLogo"
+        android:layout_above="@id/button_next"
+        android:layout_alignParentRight="true"/>
+
 </RelativeLayout>

@@ -1,10 +1,12 @@
 package com.rp.podemu;
 
+import android.annotation.TargetApi;
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.os.Binder;
-import android.os.Handler;
-import android.os.IBinder;
+import android.os.*;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import java.util.Vector;
@@ -14,12 +16,13 @@ public class PodEmuService extends Service
 {
     private Thread bgThread=null;
     private Thread bufferThread=null;
+    private Thread pollingThread=null;
     private final IBinder localBinder = new LocalBinder();
     private static Handler mHandler;
     private Vector<PodEmuMessage> podEmuMessageVector=new Vector<>();
     private ByteFIFO inputBuffer=new ByteFIFO(2048); //assuming 2048 should be enough
     SerialInterface serialInterface;
-    OAPMessenger oapMessenger =new OAPMessenger();
+    OAPMessenger oapMessenger = new OAPMessenger();
 
     public class LocalBinder extends Binder
     {
@@ -54,7 +57,7 @@ public class PodEmuService extends Service
         podIfSend(str);
         str="Album: " + podEmuMessage.getAlbum() + "\n\r";
         podIfSend(str);
-        str="Track: " + podEmuMessage.getTrack() + "\n\r";
+        str="Track: " + podEmuMessage.getTrackName() + "\n\r";
         podIfSend(str);
         str="Length: " + podEmuMessage.getLength() + "\n\r";
         podIfSend(str);
@@ -73,6 +76,7 @@ public class PodEmuService extends Service
     void setHandler(Handler handler)
     {
         this.mHandler=handler;
+        oapMessenger.setHandler(handler);
     }
 
     @Override
@@ -81,10 +85,53 @@ public class PodEmuService extends Service
         return localBinder;
     }
 
+    @TargetApi(16)
     @Override
     public int onStartCommand(Intent intent, int flags, int startId)
     {
-        Log.d("RPPService", "Service started");
+        if(bufferThread!=null || bgThread!=null)
+        {
+            PodEmuLog.debug("Service already running...");
+            return Service.START_STICKY;
+        }
+
+
+
+// Creates an explicit intent for an Activity in your app
+        Intent resultIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, resultIntent, 0);
+
+        Notification notification =
+                new NotificationCompat.Builder(this)
+                        .setSmallIcon(R.drawable.notification_icon)
+                        .setContentTitle("PodEmu")
+                        .setContentText("iPod emulation is running")
+                        .setContentIntent(pendingIntent)
+                        .build();
+        startForeground(1, notification);
+
+//      System.currentTimeMillis()
+
+// The stack builder object will contain an artificial back stack for the
+// started Activity.
+// This ensures that navigating backward from the Activity leads out of
+// your application to the Home screen.
+/*        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+// Adds the back stack for the Intent (but not the Intent itself)
+        stackBuilder.addParentStack(MainActivity.class);
+// Adds the Intent that starts the Activity to the top of the stack
+        stackBuilder.addNextIntent(resultIntent);
+        PendingIntent resultPendingIntent =
+                stackBuilder.getPendingIntent(
+                        0,
+                        PendingIntent.FLAG_UPDATE_CURRENT
+                );
+        mBuilder.setContentIntent(resultPendingIntent);
+*/
+//        NotificationManager mNotificationManager =
+//                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+// mId allows you to update the notification later on.
+        //mNotificationManager.notify(1, mBuilder.build());
 
 
         if(bufferThread==null)
@@ -96,9 +143,12 @@ public class PodEmuService extends Service
                     try
                     {
                         serialInterface = new SerialInterface_USBSerial();
-                        int numBytesRead = 0;
+                        int numBytesRead;
                         byte buffer[] = new byte[258];
-                        Log.d("RPPService", "Buffer thread started.");
+                        PodEmuLog.error("Buffer thread started.");
+
+                        Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+                        //android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
 
                         while (true)
                         {
@@ -117,13 +167,36 @@ public class PodEmuService extends Service
                         }
                     } catch (InterruptedException e)
                     {
-                        Log.d("RPPService", "Buffer thread interrupted!");
-                        return;
+                        PodEmuLog.error("Buffer thread interrupted!");
                     }
                 }
             });
+            bufferThread.start();
         }
-        bufferThread.start();
+
+
+        if(pollingThread==null)
+        {
+            pollingThread = new Thread(new Runnable()
+            {
+                public void run()
+                {
+                    try
+                    {
+                        while (true)
+                        {
+                            if(oapMessenger.getPollingMode()) oapMessenger.oap_write_elapsed_time();
+                            Thread.sleep(500);
+                        }
+
+                    } catch (InterruptedException e)
+                    {
+                        PodEmuLog.error("Buffer thread interrupted!");
+                    }
+                }
+            });
+            pollingThread.start();
+        }
 
         if(bgThread==null)
         {
@@ -135,7 +208,7 @@ public class PodEmuService extends Service
                     {
                         int numBytesRead=0;
                         byte buffer[]=new byte[1];
-                        Log.d("RPPService", "Background thread started.");
+                        PodEmuLog.error("Background thread started.");
 
                         while (true)
                         {
@@ -160,9 +233,11 @@ public class PodEmuService extends Service
                             while(podEmuMessageVector.size()>0)
                             {
                                 PodEmuMessage podEmuMessage=podEmuMessageVector.get(0);
-                                podIfSend(podEmuMessage);
+                                //podIfSend(podEmuMessage);
+                                oapMessenger.update_currently_playing(podEmuMessage);
                                 podEmuMessageVector.remove(0);
                             }
+                            oapMessenger.flush();
 
                             if(numBytesRead==0)
                             {
@@ -172,18 +247,15 @@ public class PodEmuService extends Service
                     }
                     catch (InterruptedException e)
                     {
-                        Log.d("RPPService", "Background processing thread interrupted!");
-                        return;
+                        PodEmuLog.error("Background processing thread interrupted!");
                     }
                 }
 
             });
             bgThread.start();
         }
-        else
-        {
-            Log.d("RPPService","Service already running...");
-        }
+
+        PodEmuLog.error("Service started");
         return Service.START_STICKY;
     }
 
@@ -200,6 +272,7 @@ public class PodEmuService extends Service
         {
             bufferThread.interrupt();
         }
-        Log.d("RPPService", "Service destroyed");
+
+        PodEmuLog.error("Service destroyed");
     }
 }

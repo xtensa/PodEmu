@@ -1,21 +1,18 @@
 package com.rp.podemu;
 
-import java.lang.ref.WeakReference;
-import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.hardware.usb.UsbManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.os.Bundle;
-
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -24,20 +21,27 @@ import android.view.ViewTreeObserver;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.lang.ref.WeakReference;
 
-public class MainActivity extends Activity
+
+public class MainActivity extends AppCompatActivity
 {
 
 
     private static TextView mainText=null;
     private static TextView serialStatusText=null;
     private static TextView iPodStatusText=null;
+
+
+
     private String ctrlAppProcessName;
     private Intent serviceIntent;
     private SerialInterface serialInterface;
     private IntentFilter iF;
     private PodEmuService podEmuService;
     boolean serviceBound = false;
+    private PodEmuLog podEmuLog;
+
 
     //public static LooperThread looperThread;
 
@@ -124,6 +128,7 @@ public class MainActivity extends Activity
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        podEmuLog=new PodEmuLog(this);
 
 
         // Make scroll view automatically scroll to the bottom
@@ -147,6 +152,11 @@ public class MainActivity extends Activity
 
         serialInterface=new SerialInterface_USBSerial();
         serialInterface.init((UsbManager) getSystemService(Context.USB_SERVICE));
+
+//        LayoutInflater lif = getLayoutInflater();
+//        ViewGroup layout = (ViewGroup)lif.inflate(R.layout.board, null);
+        dockingLogoView = (DockingLogoView) findViewById(R.id.dockStationLogo);
+//        layout.addView((View)dockingLogoView);
 
         //    loadPreferences();
 
@@ -214,6 +224,7 @@ public class MainActivity extends Activity
 
         //looperThread = new LooperThread();
         //looperThread.start();
+
 
     }
 
@@ -294,7 +305,7 @@ public class MainActivity extends Activity
 
             podEmuMessage.setAlbum(album);
             podEmuMessage.setArtist(artist);
-            podEmuMessage.setTrack(track);
+            podEmuMessage.setTrackName(track);
             podEmuMessage.setTrackID(id);
             podEmuMessage.setLength(length);
             podEmuMessage.setIsPlaying(isPlaying);
@@ -310,7 +321,8 @@ public class MainActivity extends Activity
     };
 
 
-    private void loadPreferences() {
+    private void loadPreferences()
+    {
         SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS",Context.MODE_PRIVATE);
         ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "error loading");
 
@@ -428,9 +440,111 @@ public class MainActivity extends Activity
             MainActivity target = mainActivityWeakReference.get();
             // Gets the image task from the incoming Message object.
             //        PhotoTask photoTask = (PhotoTask) inputMessage.obj;
-            mainText.setText(mainText.getText() + "Received MSG");
+            //mainText.setText(mainText.getText() + "Received MSG");
+            if(inputMessage.arg1 == 1) // we received a picture block
+            {
+               dockingLogoView.process_picture_block((OAPMessenger.PictureBlock) inputMessage.obj);
+            }
         }
-    };
+    }
+
+    /*
+    800-28978/com.rp.podemu D/PodEmu﹕ Line 2: ERROR: first byte is not 0xFF. Received 0x32
+        09-18 22:41:54.614  28800-28978/com.rp.podemu D/PodEmu﹕ Line 2: Extended image message detected!!!
+        09-18 22:41:54.774  28800-28978/com.rp.podemu W/dalvikvm﹕ threadid=13: thread exiting with uncaught exception (group=0x2b4e71f8)
+    09-18 22:41:54.774  28800-28978/com.rp.podemu E/AndroidRuntime﹕ FATAL EXCEPTION: Thread-865
+    java.lang.ArrayIndexOutOfBoundsException: length=300; index=300
+    at com.rp.podemu.OAPMessenger.oap_receive_byte(OAPMessenger.java:176)
+    at com.rp.podemu.PodEmuService$2.run(PodEmuService.java:194)
+    at java.lang.Thread.run(Thread.java:856)
+        09-18 22:41:54.784  28800-28800/com.rp.podemu D/RPP﹕ onPause done
+    09-18 22:41:54.874  28800-28800/com.rp.podemu D/OpenGLRenderer﹕ Flushing caches (mode 0)
+    09-18 22:41:55.404  28800-28800/com.rp.podemu D/OpenGLRenderer﹕ Flushing caches (mode 1)
+    09-18 22:41:55.404  28800-28800/com.rp.podemu D/RPP﹕ onDestroy
+    09-18 22:41:55.424  28800-28977/com.rp.podemu W/dalvikvm﹕ threadid=12: thread exi
+*/
+
+/*
+    public class DockingLogoView extends View
+    {
+        private Bitmap mBitmap;
+        private Canvas mCanvas;
+        Context context;
+//        private Path mPath;
+        private Paint mPaint;
+
+        public DockingLogoView(Context c, AttributeSet attrs)
+        {
+            super(c, attrs);
+            context = c;
+            // we set a new Path
+//            mPath = new Path();
+            // and we set a new Paint with the desired attributes
+            mPaint = new Paint();
+            mPaint.setAntiAlias(true);
+            mPaint.setColor(Color.BLACK);
+            mPaint.setStyle(Paint.Style.STROKE);
+            mPaint.setStrokeJoin(Paint.Join.ROUND);
+//            mPaint.setStrokeWidth(4f);
+            mBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.RGB_565);
+
+        }
+
+        public DockingLogoView(Context context, AttributeSet attrs, int defStyle) {
+            super(context, attrs, defStyle);
+
+        }
+
+        public DockingLogoView(Context context) {
+            super(context);
+
+        }
+
+        @Override
+        public void onDraw(Canvas canvas)
+        {
+            // TODO Auto-generated method stub
+            super.onDraw(canvas);
+
+            int x = getWidth();
+            int y = getHeight();
+            int radius;
+            radius = 100;
+            Paint paint = new Paint();
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(Color.WHITE);
+            mCanvas.drawPaint(paint);
+            // Use Color.parseColor to define HTML colors
+            paint.setColor(Color.parseColor("#CD5C5C"));
+            mCanvas.drawCircle(x / 2, y / 2, radius, paint);
+        }
+
+        // TODO interpretting image data is better to move to OAPMessenger class
+        private void process_picture_block(OAPMessenger.PictureBlock pictureBlock)
+        {
+            byte data[]=pictureBlock.data;
+            int block_number=(data[0]<<8) | data[1];
+            int shift=2; // shift to start of image data
+            Bitmap mBitmap;
+            Canvas mCanvas;
+            //mBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+
+            if(block_number==0)
+            {
+                image_pos_col=0;
+                image_pos_row=0;
+                image_res_x=(data[3]<<8) | data[4];
+                image_res_y=(data[5]<<8) | data[6];
+                image_bytes_per_line=(data[7]<<24) | (data[8]<<16) | (data[9]<<8) | data[10];
+                shift=11;
+            }
+
+        }
+
+    }
+*/
+    DockingLogoView dockingLogoView;
+
 
     /** Defines callbacks for service binding, passed to bindService() */
     private ServiceConnection serviceConnection = new ServiceConnection()
