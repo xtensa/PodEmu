@@ -1,3 +1,27 @@
+/**
+
+ OAPMessenger.class is class that implements "30 pin" serial protocol
+ for iPod. It is based on the protocol description available here:
+ http://www.adriangame.co.uk/ipod-acc-pro.html
+
+ Copyright (C) 2015, Roman P., dev.roman [at] gmail
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software Foundation,
+ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+
+ */
+
 package com.rp.podemu;
 
 import android.content.Context;
@@ -14,7 +38,7 @@ public class PodEmuLog
 {
     /**
      * Debug levels:
-     * 1 - error
+     * 1 - log
      * 2 - debug
      * 3 - verbose debug
      */
@@ -36,10 +60,10 @@ public class PodEmuLog
         String dirname="PodEmuLogs";
         // Get the directory for the user's public pictures directory.
         File logdir = new File(Environment.getExternalStorageDirectory(), dirname);
-        PodEmuLog.error("Log dir: " + logdir.getPath());
+        PodEmuLog.log("Log dir: " + logdir.getPath());
         if (!logdir.mkdirs())
         {
-            error("Directory not created");
+            log("Directory not created");
         }
         logfile=new File(logdir,filename);
 
@@ -54,9 +78,13 @@ public class PodEmuLog
 
     }
 
-    public static void error(String str)
+    public static void log(String str, boolean isError)
     {
-        Log.d(TAG, str);
+        if(isError)
+            Log.e(TAG, str);
+        else
+            Log.d(TAG, str);
+
         if(logfileStream!=null)
         {
             byte msg[]=(System.currentTimeMillis() + ": " + TAG + " - " + str + "\n").getBytes();
@@ -72,17 +100,30 @@ public class PodEmuLog
         }
 
     }
+
+    public static void log(String str)
+    {
+        log(str, false);
+    }
+
     public static void debug(String str)
     {
         if(DEBUG_LEVEL<2) return;
-        error(str);
+        log(str);
 
     }
     public static void verbose(String str)
     {
         if(DEBUG_LEVEL<3) return;
-        error(str);
+        log(str);
     }
+
+    public static void error(String str)
+    {
+        log("ERROR: " + str, true);
+    }
+
+
 
 
 }

@@ -1,11 +1,39 @@
+/**
+
+ OAPMessenger.class is class that implements "30 pin" serial protocol
+ for iPod. It is based on the protocol description available here:
+ http://www.adriangame.co.uk/ipod-acc-pro.html
+
+ Copyright (C) 2015, Roman P., dev.roman [at] gmail
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software Foundation,
+ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+
+ */
+
 package com.rp.podemu;
 
 import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
-import android.os.*;
+import android.os.Binder;
+import android.os.Handler;
+import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
@@ -21,8 +49,11 @@ public class PodEmuService extends Service
     private static Handler mHandler;
     private Vector<PodEmuMessage> podEmuMessageVector=new Vector<>();
     private ByteFIFO inputBuffer=new ByteFIFO(2048); //assuming 2048 should be enough
-    SerialInterface serialInterface;
-    OAPMessenger oapMessenger = new OAPMessenger();
+    private SerialInterface serialInterface;
+    private OAPMessenger oapMessenger = new OAPMessenger();
+    private PodEmuIntentFilter iF = new PodEmuIntentFilter();
+    private int failedReadCount=0;
+
 
     public class LocalBinder extends Binder
     {
@@ -39,6 +70,10 @@ public class PodEmuService extends Service
         podEmuMessageVector.add(podEmuMessage);
     }
 
+    /**
+     * Function used purely for debugging serial interface and internal calls
+     * @param podEmuMessage - message to be posted to serial interface
+     */
     void podIfSend(PodEmuMessage podEmuMessage)
     {
         String str;
@@ -82,7 +117,15 @@ public class PodEmuService extends Service
     @Override
     public IBinder onBind(Intent intent)
     {
+        PodEmuLog.debug("Service bound");
         return localBinder;
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent)
+    {
+        PodEmuLog.debug("Service unbound");
+        return true;
     }
 
     @TargetApi(16)
@@ -134,6 +177,12 @@ public class PodEmuService extends Service
         //mNotificationManager.notify(1, mBuilder.build());
 
 
+        /*
+         * Buffer thread is used only to read from serial interface and put bytes into internal buffer.
+         * It is important for this thread to have the highest priority, because internal buffer
+         * of serial devices usually has only 255 bytes and not reading data fast enough can cause
+         * some bytes to be lost.
+         */
         if(bufferThread==null)
         {
             bufferThread = new Thread(new Runnable()
@@ -145,36 +194,58 @@ public class PodEmuService extends Service
                         serialInterface = new SerialInterface_USBSerial();
                         int numBytesRead;
                         byte buffer[] = new byte[258];
-                        PodEmuLog.error("Buffer thread started.");
+                        PodEmuLog.log("Buffer thread started.");
 
                         Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
                         //android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
 
                         while (true)
                         {
-                            // Reading incoming data
-                            while ((numBytesRead = serialInterface.read(buffer)) > 0)
+                            /*
+                            if(!serialInterface.isConnected())
                             {
-                                for (int j = 0; j < numBytesRead; j++)
-                                {
-                                    inputBuffer.add(buffer[j]);
-                                }
+                                PodEmuLog.error("Read attempt when interface is disconnected");
+                                Thread.sleep(300);
                             }
-                            if (numBytesRead == 0)
+                            else*/
+                            try
                             {
-                                Thread.sleep(10);
+                                // Reading incoming data
+                                while ((numBytesRead = serialInterface.read(buffer)) > 0)
+                                {
+                                    for (int j = 0; j < numBytesRead; j++)
+                                    {
+                                        inputBuffer.add(buffer[j]);
+                                    }
+                                }
+                                if (numBytesRead == 0)
+                                {
+                                    Thread.sleep(10);
+                                }
+                                failedReadCount=0;
+                            }
+                            catch (NullPointerException e)
+                            {
+                                PodEmuLog.error("Read attempt when interface is disconnected");
+                                Thread.sleep(100);
+                                failedReadCount++;
+//                                if(failedReadCount>15)
+                                    stopSelf();
                             }
                         }
                     } catch (InterruptedException e)
                     {
-                        PodEmuLog.error("Buffer thread interrupted!");
+                        PodEmuLog.log("Buffer thread interrupted!");
                     }
                 }
             });
             bufferThread.start();
         }
 
-
+        /*
+         * This is polling thread that will only post message 0x0027 to the serial interface if
+         * polling mode is enabled.
+         */
         if(pollingThread==null)
         {
             pollingThread = new Thread(new Runnable()
@@ -191,13 +262,16 @@ public class PodEmuService extends Service
 
                     } catch (InterruptedException e)
                     {
-                        PodEmuLog.error("Buffer thread interrupted!");
+                        PodEmuLog.log("Polling thread interrupted!");
                     }
                 }
             });
             pollingThread.start();
         }
 
+        /*
+         * this is main thread that reads data from internal buffer abd processes it byte by byte
+         */
         if(bgThread==null)
         {
             bgThread = new Thread(new Runnable()
@@ -208,7 +282,7 @@ public class PodEmuService extends Service
                     {
                         int numBytesRead=0;
                         byte buffer[]=new byte[1];
-                        PodEmuLog.error("Background thread started.");
+                        PodEmuLog.log("Background thread started.");
 
                         while (true)
                         {
@@ -247,7 +321,7 @@ public class PodEmuService extends Service
                     }
                     catch (InterruptedException e)
                     {
-                        PodEmuLog.error("Background processing thread interrupted!");
+                        PodEmuLog.log("Background processing thread interrupted!");
                     }
                 }
 
@@ -255,15 +329,25 @@ public class PodEmuService extends Service
             bgThread.start();
         }
 
-        PodEmuLog.error("Service started");
+        PodEmuLog.log("Service started");
         return Service.START_STICKY;
     }
 
 
     @Override
+    public void onCreate()
+    {
+        super.onCreate();
+        registerReceiver(mReceiver, iF);
+    }
+
+    @Override
     public void onDestroy()
     {
         super.onDestroy();
+
+        unregisterReceiver(mReceiver);
+
         if(bgThread!=null)
         {
             bgThread.interrupt();
@@ -272,7 +356,95 @@ public class PodEmuService extends Service
         {
             bufferThread.interrupt();
         }
+        if(pollingThread!=null)
+        {
+            pollingThread.interrupt();
+        }
 
-        PodEmuLog.error("Service destroyed");
+        if(serialInterface!=null) serialInterface.close();
+
+        PodEmuLog.log("Service destroyed");
     }
+
+
+
+    private BroadcastReceiver mReceiver = new BroadcastReceiver()
+    {
+        final class BroadcastTypes {
+            static final String SPOTIFY_PACKAGE = "com.spotify.music";
+            static final String PLAYBACK_STATE_CHANGED = SPOTIFY_PACKAGE + ".playbackstatechanged";
+            static final String QUEUE_CHANGED = SPOTIFY_PACKAGE + ".queuechanged";
+            static final String METADATA_CHANGED = SPOTIFY_PACKAGE + ".metadatachanged";
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent)
+        {
+            // will be used later to precisely determine position
+            long timeSentInMs = intent.getLongExtra("timeSent", 0L);
+            boolean isPlaying;
+            String artist;
+            String album;
+            String track;
+            String id;
+            int length;
+            int position;
+            int action_code=0;
+
+            String action = intent.getAction();
+            String cmd = intent.getStringExtra("command");
+
+            PodEmuLog.log("(S) Broadcast received: " + cmd + " - " + action);
+
+            if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
+            {
+                PodEmuLog.debug("(S) Detected SPOTIFY broadcast");
+
+                artist = intent.getStringExtra("artist");
+                album = intent.getStringExtra("album");
+                track = intent.getStringExtra("track");
+                id = intent.getStringExtra("id");
+                length = intent.getIntExtra("length", 0);
+                position = intent.getIntExtra("playbackPosition", 0);
+                isPlaying = intent.getBooleanExtra("playing", false);
+
+                if (action.equals(BroadcastTypes.METADATA_CHANGED))
+                {
+                    action_code=PodEmuMessage.ACTION_METADATA_CHANGED;
+                }
+                if (action.equals(BroadcastTypes.PLAYBACK_STATE_CHANGED))
+                {
+                    action_code=PodEmuMessage.ACTION_PLAYBACK_STATE_CHANGED;
+                }
+                if (action.equals(BroadcastTypes.QUEUE_CHANGED))
+                {
+                    action_code=PodEmuMessage.ACTION_QUEUE_CHANGED;
+                    // Sent only as a notification, your app may want to respond accordingly.
+                }
+
+                Log.d("RPP", isPlaying + " : " + artist + " : " + album + " : " + track + " : " + id + " : " + length);
+
+                PodEmuMessage podEmuMessage = new PodEmuMessage();
+                podEmuMessage.setAlbum(album);
+                podEmuMessage.setArtist(artist);
+                podEmuMessage.setTrackName(track);
+                podEmuMessage.setTrackID(id);
+                podEmuMessage.setLength(length);
+                podEmuMessage.setIsPlaying(isPlaying);
+                podEmuMessage.setPositionMS(position);
+                podEmuMessage.setTimeSent(timeSentInMs);
+                podEmuMessage.setAction(action_code);
+
+                oapMessenger.update_currently_playing(podEmuMessage);
+            }
+            else
+            {
+                // not supported broadcast so exiting
+                return;
+            }
+
+        }
+    };
+
+
 }

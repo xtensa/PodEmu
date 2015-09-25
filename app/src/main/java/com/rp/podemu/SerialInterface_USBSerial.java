@@ -1,8 +1,31 @@
+/**
+
+ OAPMessenger.class is class that implements "30 pin" serial protocol
+ for iPod. It is based on the protocol description available here:
+ http://www.adriangame.co.uk/ipod-acc-pro.html
+
+ Copyright (C) 2015, Roman P., dev.roman [at] gmail
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software Foundation,
+ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+
+ */
+
 package com.rp.podemu;
 
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
-import android.util.Log;
 
 import com.hoho.android.usbserial.driver.ProlificSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -37,6 +60,7 @@ public class SerialInterface_USBSerial implements SerialInterface
         if (connection == null)
         {
             // You probably need to call UsbManager.requestPermission(driver.getDevice(), ..)
+            PodEmuLog.log("Cannot establish serial connection!");
             return;
         }
 
@@ -49,7 +73,8 @@ public class SerialInterface_USBSerial implements SerialInterface
         }
         catch (IOException e)
         {
-            // TODO Deal with error.
+            // TODO Deal with error
+            PodEmuLog.error(e.getMessage());
         }
 
 
@@ -66,7 +91,7 @@ public class SerialInterface_USBSerial implements SerialInterface
         }
         catch (IOException e)
         {
-            // TODO Deal with error.
+            // TODO Deal with log.
         }
 
         // if we are here then there was exception and 0 bytes were read
@@ -94,7 +119,7 @@ public class SerialInterface_USBSerial implements SerialInterface
         }
         catch (IOException e)
         {
-            // TODO Deal with error.
+            // TODO Deal with log.
             return -1;
         }
         finally
@@ -115,18 +140,28 @@ public class SerialInterface_USBSerial implements SerialInterface
 
     public boolean isConnected()
     {
-        return (connection!=null);
+        return (connection!=null && port!=null);
     }
 
     public void close()
     {
+        if(connection!=null) connection.close();
+        connection=null;
+
+
         try
         {
-            if(port!=null)port.close();
+            if(port!=null) port.close();
         }
         catch (IOException e)
         {
+            PodEmuLog.error("Cannot close serial port. Force closing.");
             // TODO Deal with error.
         }
+        finally
+        {
+            port=null;
+        }
+
     }
 }

@@ -1,3 +1,27 @@
+/**
+
+ OAPMessenger.class is class that implements "30 pin" serial protocol
+ for iPod. It is based on the protocol description available here:
+ http://www.adriangame.co.uk/ipod-acc-pro.html
+
+ Copyright (C) 2015, Roman P., dev.roman [at] gmail
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software Foundation,
+ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+
+ */
+
 package com.rp.podemu;
 
 import android.content.BroadcastReceiver;
@@ -18,6 +42,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -28,20 +53,21 @@ public class MainActivity extends AppCompatActivity
 {
 
 
-    private static TextView mainText=null;
-    private static TextView serialStatusText=null;
-    private static TextView iPodStatusText=null;
+    private TextView mainText=null;
+    private TextView serialStatusText=null;
+    private TextView iPodStatusText=null;
+    private int iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
 
 
 
     private String ctrlAppProcessName;
     private Intent serviceIntent;
     private SerialInterface serialInterface;
-    private IntentFilter iF;
+    private PodEmuIntentFilter iF = new PodEmuIntentFilter();
     private PodEmuService podEmuService;
-    boolean serviceBound = false;
+    private boolean serviceBound = false;
     private PodEmuLog podEmuLog;
-
+    private PodEmuMessage currentlyPlaying=new PodEmuMessage();
 
     //public static LooperThread looperThread;
 
@@ -95,33 +121,75 @@ public class MainActivity extends AppCompatActivity
         MediaControlLibrary.action_prev();
     }
 
-    public void start_service(View v)
+    public void start_stop_service(View v)
     {
-        startService(serviceIntent);
-        if(bindService(serviceIntent, serviceConnection, 0))
+        if(serviceBound)
         {
-            Log.d("RPPService", "Service succesfully bound");
+            PodEmuLog.debug("Stop service initiated...");
+            stop_service(v);
         }
         else
         {
-            Log.d("RPPService", "Service NOT bound");
-
+            PodEmuLog.debug("Start service initiated...");
+            start_service(v);
         }
+    }
 
+    public void start_service(View v)
+    {
+        // reconnect usb
+        serialInterface.init((UsbManager) getSystemService(Context.USB_SERVICE));
+
+        if(serialInterface.isConnected())
+        {
+            startService(serviceIntent);
+            if (bindService(serviceIntent, serviceConnection, BIND_IMPORTANT))
+            {
+                PodEmuLog.log("Service succesfully bound");
+                serviceBound = true;
+            } else
+            {
+                PodEmuLog.log("Service NOT bound");
+            }
+
+            updateServiceButton();
+        }
+        updateSerialStatus();
     }
 
     public void stop_service(View v)
     {
-        if (serviceBound)
-        {
-            unbindService(serviceConnection);
-            serviceBound = false;
-        }
+        unbindService(serviceConnection);
         stopService(serviceIntent);
+        serviceBound = false;
+        updateSerialStatus();
+        updateServiceButton();
     }
 
 
+    private void updateServiceButton()
+    {
+        Button srvcButton=(Button) findViewById(R.id.button_start_stop_srvc);
+        if(serviceBound)
+            srvcButton.setText("STOP SRVC");
+        else
+            srvcButton.setText("START SRVC");
 
+    }
+
+/*
+* 05.273  25767-26208/com.rp.podemu D/PodEmu﹕ Buffer thread started.
+09-24 21:56:05.283  25767-26208/com.rp.podemu W/dalvikvm﹕ threadid=11: thread exiting with uncaught exception (group=0x2b4e71f8)
+09-24 21:56:05.293  25767-25767/com.rp.podemu D/PodEmu﹕ Service started
+09-24 21:56:05.293  25767-25767/com.rp.podemu D/PodEmu﹕ Service bound
+09-24 21:56:05.293  25767-26208/com.rp.podemu E/AndroidRuntime﹕ FATAL EXCEPTION: Thread-271
+    java.lang.NullPointerException
+            at com.hoho.android.usbserial.driver.ProlificSerialDriver$ProlificSerialPort.read(ProlificSerialDriver.java:373)
+            at com.rp.podemu.SerialInterface_USBSerial.read(SerialInterface_USBSerial.java:92)
+            at com.rp.podemu.PodEmuService$1.run(PodEmuService.java:175)
+            at java.lang.Thread.run(Thread.java:856)
+09-24 21:56:05.303  25767-26212/com.rp.podemu D/PodEmu﹕ Background thread started.
+09-24 21:56:05.353  25767-25767/com.rp.podemu D/RPP﹕ onPause done*/
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -151,7 +219,6 @@ public class MainActivity extends AppCompatActivity
            });
 
         serialInterface=new SerialInterface_USBSerial();
-        serialInterface.init((UsbManager) getSystemService(Context.USB_SERVICE));
 
 //        LayoutInflater lif = getLayoutInflater();
 //        ViewGroup layout = (ViewGroup)lif.inflate(R.layout.board, null);
@@ -160,55 +227,17 @@ public class MainActivity extends AppCompatActivity
 
         //    loadPreferences();
 
+
+        iF.addAction("android.hardware.usb.action.USB_DEVICE_ATTACHED");
+        iF.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
+
         Log.d("RPP", "onCreate");
-        iF = new IntentFilter();
-/*        iF.addAction("com.android.music.musicservicecommand");
-        iF.addAction("com.android.music.metachanged");
-        iF.addAction("com.android.music.playstatechanged");
-        iF.addAction("com.android.music.updateprogress");
-        iF.addAction("com.android.music.playbackcomplete");
-        iF.addAction("com.android.music.queuechanged");
-
-        iF.addAction("com.htc.music.metachanged");
-        iF.addAction("com.htc.music.musicservicecommand");
-        iF.addAction("com.htc.music.metachanged");
-        iF.addAction("com.htc.music.playstatechanged");
-        iF.addAction("com.htc.music.updateprogress");
-        iF.addAction("com.htc.music.playbackcomplete");
-        iF.addAction("com.htc.music.queuechanged");
-
-        iF.addAction("fm.last.android.metachanged");
-        iF.addAction("com.sec.android.app.music.metachanged");
-        iF.addAction("com.nullsoft.winamp.metachanged");
-        iF.addAction("com.amazon.mp3.metachanged");
-        iF.addAction("com.miui.player.metachanged");
-        iF.addAction("com.real.IMP.metachanged");
-        iF.addAction("com.sonyericsson.music.metachanged");
-        iF.addAction("com.rdio.android.metachanged");
-        iF.addAction("com.samsung.sec.android.MusicPlayer.metachanged");
-        iF.addAction("com.andrew.apollo.metachanged");
-*/
-        // for Spotify
-        //iF.addCategory("ComponentInfo");
-        //iF.addCategory("com.spotify.mobile.android.service.SpotifyIntentService");
-        //iF.addCategory("com.spotify.mobile.android.service.SpotifyService");
-        //iF.addAction("com.spotify.mobile.android.ui.widget.SpotifyWidget");
-        //iF.addAction("ComponentInfo");
-        //iF.addAction("com.spotify");
-        //iF.addAction("com.spotify.mobile.android.service.SpotifyIntentService");
-        //iF.addAction("com.spotify.mobile.android.service.SpotifyService");
-        //iF.addAction("com.spotify.mobile.android.ui");
-
-        iF.addAction("com.spotify.music.playbackstatechanged");
-        iF.addAction("com.spotify.music.metadatachanged");
-        iF.addAction("com.spotify.music.queuechanged");
-
         registerReceiver(mReceiver, iF);
         this.mainText = (TextView) this.findViewById(R.id.main_text);
         this.serialStatusText = (TextView) this.findViewById(R.id.serial_status_text);
         this.iPodStatusText = (TextView) this.findViewById(R.id.ipod_status_text);
 
-        registerReceiver(mReceiver, iF);
+//        registerReceiver(mReceiver, iF);
 
         //AudioManager manager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
         //if (!manager.isMusicActive())
@@ -255,11 +284,19 @@ public class MainActivity extends AppCompatActivity
             String action = intent.getAction();
             String cmd = intent.getStringExtra("command");
 
-
-            Log.d("RPP", cmd + " : " + action);
-            if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
+            PodEmuLog.log("(A) Broadcast received: " + cmd + " - " + action);
+            if(action.contains("USB_DEVICE_DETACHED"))
             {
-                Log.d("RPP", "Detected SPOTIFY broadcast");
+                if(serviceBound) stop_service(null);
+                serialInterface.close();
+                updateSerialStatus();
+
+                iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
+                updateIPodStatus();
+            }
+            else if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
+            {
+                PodEmuLog.debug("(A) Detected SPOTIFY broadcast");
 
                 artist = intent.getStringExtra("artist");
                 album = intent.getStringExtra("album");
@@ -284,6 +321,40 @@ public class MainActivity extends AppCompatActivity
                 }
 
                 Log.d("RPP", isPlaying + " : " + artist + " : " + album + " : " + track + " : " + id + " : " + length);
+
+                if(!action.equals(BroadcastTypes.QUEUE_CHANGED))
+                {
+                    mainText.setText("MEDIA: \n" +
+                            "     isPlaying:" + isPlaying + "\n" +
+                            "     Event: " + action + "\n" +
+                            "     Artist: " + artist + "\n" +
+                            "     Album: " + album + "\n" +
+                            "     Track: " + track + "\n" +
+                            "     ID: " + id + "\n" +
+                            "     Length: " + length + "\n" +
+                            "     Position: " + position + "\n");
+                }
+
+                PodEmuMessage podEmuMessage = new PodEmuMessage();
+                podEmuMessage.setAlbum(album);
+                podEmuMessage.setArtist(artist);
+                podEmuMessage.setTrackName(track);
+                podEmuMessage.setTrackID(id);
+                podEmuMessage.setLength(length);
+                podEmuMessage.setIsPlaying(isPlaying);
+                podEmuMessage.setPositionMS(position);
+                podEmuMessage.setTimeSent(timeSentInMs);
+                podEmuMessage.setAction(action_code);
+
+                currentlyPlaying.bulk_update(podEmuMessage);
+
+                // don't need to send - service has it's own broadcast receiver
+                /*
+                if(podEmuService!=null)
+                {
+                    podEmuService.registerMessage(podEmuMessage);
+                }
+                */
             }
             else
             {
@@ -291,32 +362,6 @@ public class MainActivity extends AppCompatActivity
                 return;
             }
 
-            PodEmuMessage podEmuMessage = new PodEmuMessage();
-            mainText.setText(mainText.getText() + "MEDIA: \n" +
-                             "     isPlaying:" + isPlaying + "\n" +
-                             "     Event: " + action + "\n" +
-                             "     Artist: " + artist + "\n" +
-                             "     Album: " + album + "\n" +
-                             "     Track: " + track + "\n" +
-                             "     ID: " + id + "\n" +
-                             "     Length: " + length + "\n" +
-                             "     Position: " + position + "\n");
-
-
-            podEmuMessage.setAlbum(album);
-            podEmuMessage.setArtist(artist);
-            podEmuMessage.setTrackName(track);
-            podEmuMessage.setTrackID(id);
-            podEmuMessage.setLength(length);
-            podEmuMessage.setIsPlaying(isPlaying);
-            podEmuMessage.setPositionMS(position);
-            podEmuMessage.setTimeSent(timeSentInMs);
-            podEmuMessage.setAction(action_code);
-
-            if(podEmuService!=null)
-            {
-                podEmuService.registerMessage(podEmuMessage);
-            }
         }
     };
 
@@ -324,7 +369,7 @@ public class MainActivity extends AppCompatActivity
     private void loadPreferences()
     {
         SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS",Context.MODE_PRIVATE);
-        ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "error loading");
+        ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "log loading");
 
     //    ((TextView) findViewById(R.id.main_text)).setText(ctrlAppProcessName);
     }
@@ -344,7 +389,7 @@ public class MainActivity extends AppCompatActivity
     {
         super.onResume();
     //    loadPreferences();
-
+        start_service(null);
         Log.d("RPP", "onResume done");
     }
 
@@ -360,7 +405,7 @@ public class MainActivity extends AppCompatActivity
     public void onDestroy()
     {
         super.onDestroy();
-        Log.d("RPP", "onDestroy");
+        PodEmuLog.debug("onDestroy");
         unregisterReceiver(mReceiver);
         //stopService(serviceIntent);
 
@@ -372,7 +417,6 @@ public class MainActivity extends AppCompatActivity
         // this is main thread looper, so no need to quit()
         //mHandler.getLooper().quit();
 
-        if(serialInterface!=null) serialInterface.close();
     }
 
     @Override
@@ -409,6 +453,15 @@ public class MainActivity extends AppCompatActivity
 
     private void updateIPodStatus()
     {
+        if(iPodConnected==OAPMessenger.IPOD_MODE_AIR)
+        {
+            this.iPodStatusText.setText("iPod status: AiR mode");
+        }
+        else if(iPodConnected==OAPMessenger.IPOD_MODE_SIMPLE)
+        {
+            this.iPodStatusText.setText("iPod status: simple mode");
+        }
+        else
         {
             this.iPodStatusText.setText("iPod status: NOT connected");
         }
@@ -441,108 +494,22 @@ public class MainActivity extends AppCompatActivity
             // Gets the image task from the incoming Message object.
             //        PhotoTask photoTask = (PhotoTask) inputMessage.obj;
             //mainText.setText(mainText.getText() + "Received MSG");
-            if(inputMessage.arg1 == 1) // we received a picture block
+            switch(inputMessage.arg1)
             {
-               dockingLogoView.process_picture_block((OAPMessenger.PictureBlock) inputMessage.obj);
+                case 1: // we received a picture block
+                {
+                    dockingLogoView.process_picture_block((OAPMessenger.PictureBlock) inputMessage.obj);
+                } break;
+                case 2: // iPod connection status changed
+                {
+                    iPodConnected=inputMessage.arg2;
+                    updateIPodStatus();
+                } break;
             }
         }
     }
 
-    /*
-    800-28978/com.rp.podemu D/PodEmu﹕ Line 2: ERROR: first byte is not 0xFF. Received 0x32
-        09-18 22:41:54.614  28800-28978/com.rp.podemu D/PodEmu﹕ Line 2: Extended image message detected!!!
-        09-18 22:41:54.774  28800-28978/com.rp.podemu W/dalvikvm﹕ threadid=13: thread exiting with uncaught exception (group=0x2b4e71f8)
-    09-18 22:41:54.774  28800-28978/com.rp.podemu E/AndroidRuntime﹕ FATAL EXCEPTION: Thread-865
-    java.lang.ArrayIndexOutOfBoundsException: length=300; index=300
-    at com.rp.podemu.OAPMessenger.oap_receive_byte(OAPMessenger.java:176)
-    at com.rp.podemu.PodEmuService$2.run(PodEmuService.java:194)
-    at java.lang.Thread.run(Thread.java:856)
-        09-18 22:41:54.784  28800-28800/com.rp.podemu D/RPP﹕ onPause done
-    09-18 22:41:54.874  28800-28800/com.rp.podemu D/OpenGLRenderer﹕ Flushing caches (mode 0)
-    09-18 22:41:55.404  28800-28800/com.rp.podemu D/OpenGLRenderer﹕ Flushing caches (mode 1)
-    09-18 22:41:55.404  28800-28800/com.rp.podemu D/RPP﹕ onDestroy
-    09-18 22:41:55.424  28800-28977/com.rp.podemu W/dalvikvm﹕ threadid=12: thread exi
-*/
 
-/*
-    public class DockingLogoView extends View
-    {
-        private Bitmap mBitmap;
-        private Canvas mCanvas;
-        Context context;
-//        private Path mPath;
-        private Paint mPaint;
-
-        public DockingLogoView(Context c, AttributeSet attrs)
-        {
-            super(c, attrs);
-            context = c;
-            // we set a new Path
-//            mPath = new Path();
-            // and we set a new Paint with the desired attributes
-            mPaint = new Paint();
-            mPaint.setAntiAlias(true);
-            mPaint.setColor(Color.BLACK);
-            mPaint.setStyle(Paint.Style.STROKE);
-            mPaint.setStrokeJoin(Paint.Join.ROUND);
-//            mPaint.setStrokeWidth(4f);
-            mBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.RGB_565);
-
-        }
-
-        public DockingLogoView(Context context, AttributeSet attrs, int defStyle) {
-            super(context, attrs, defStyle);
-
-        }
-
-        public DockingLogoView(Context context) {
-            super(context);
-
-        }
-
-        @Override
-        public void onDraw(Canvas canvas)
-        {
-            // TODO Auto-generated method stub
-            super.onDraw(canvas);
-
-            int x = getWidth();
-            int y = getHeight();
-            int radius;
-            radius = 100;
-            Paint paint = new Paint();
-            paint.setStyle(Paint.Style.FILL);
-            paint.setColor(Color.WHITE);
-            mCanvas.drawPaint(paint);
-            // Use Color.parseColor to define HTML colors
-            paint.setColor(Color.parseColor("#CD5C5C"));
-            mCanvas.drawCircle(x / 2, y / 2, radius, paint);
-        }
-
-        // TODO interpretting image data is better to move to OAPMessenger class
-        private void process_picture_block(OAPMessenger.PictureBlock pictureBlock)
-        {
-            byte data[]=pictureBlock.data;
-            int block_number=(data[0]<<8) | data[1];
-            int shift=2; // shift to start of image data
-            Bitmap mBitmap;
-            Canvas mCanvas;
-            //mBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-
-            if(block_number==0)
-            {
-                image_pos_col=0;
-                image_pos_row=0;
-                image_res_x=(data[3]<<8) | data[4];
-                image_res_y=(data[5]<<8) | data[6];
-                image_bytes_per_line=(data[7]<<24) | (data[8]<<16) | (data[9]<<8) | data[10];
-                shift=11;
-            }
-
-        }
-
-    }
-*/
     DockingLogoView dockingLogoView;
 
 
@@ -558,11 +525,15 @@ public class MainActivity extends AppCompatActivity
             podEmuService = binder.getService();
             serviceBound = true;
             podEmuService.setHandler(mHandler);
+
+            podEmuService.registerMessage(currentlyPlaying);
+            updateServiceButton();
         }
 
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             serviceBound = false;
+            updateServiceButton();
         }
     };
 
