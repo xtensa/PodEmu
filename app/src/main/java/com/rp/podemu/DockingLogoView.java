@@ -40,22 +40,18 @@ import android.view.View;
 public class DockingLogoView extends View
 {
     private Bitmap mBitmap, resizedBitmap;
-    private Canvas mCanvas;
-    Context context;
     private Paint mPaint;
+    private Canvas mCanvas;
+    private Context context;
     private String TAG="DockingLogoView";
 
     // two variables used to interpret picture block
-    public final static int IMAGE_RES_X=176; // should be square
-    public final static int IMAGE_RES_Y=176;
+    public final static int IMAGE_MAX_RES_X=176; // should be square
+    public final static int IMAGE_MAX_RES_Y=176;
 
-    private static int image_start_x=0;
-    private static int image_start_y=0;
-    private static int image_pos_x=0;
-    private static int image_pos_y=0;
-    private static int image_res_x=0;
-    private static int image_res_y=0;
-    private static int image_bytes_per_line=0;
+    public int IMAGE_SCALED_RES_X=IMAGE_MAX_RES_X; // should be square
+    public int IMAGE_SCALED_RES_Y=IMAGE_MAX_RES_Y;
+
 
 
     public DockingLogoView(Context c, AttributeSet attrs)
@@ -66,12 +62,47 @@ public class DockingLogoView extends View
         // and we set a new Paint with the desired attributes
         mPaint = new Paint();
         //mPaint.setAntiAlias(true);
-        mPaint.setColor(Color.WHITE);
         mPaint.setStyle(Paint.Style.FILL);
         //mPaint.setStrokeJoin(Paint.Join.ROUND);
         mPaint.setStrokeWidth(0);
         bringToFront();
         setWillNotDraw(false);
+
+        mBitmap=Bitmap.createBitmap(IMAGE_SCALED_RES_X, IMAGE_SCALED_RES_Y, Bitmap.Config.ARGB_8888 );
+        mCanvas = new Canvas(mBitmap);
+
+    }
+
+    public void setBitmap(Bitmap bitmap)
+    {
+        mBitmap=bitmap;
+        if(mBitmap!=null)
+        {
+            resizedBitmap = Bitmap.createScaledBitmap(mBitmap, IMAGE_SCALED_RES_X, IMAGE_SCALED_RES_Y, true);
+        }
+        invalidate();
+    }
+
+    public void setResizedBitmap(Bitmap bitmap)
+    {
+        resizedBitmap=bitmap;
+        invalidate();
+    }
+
+    public Bitmap getResizedBitmap()
+    {
+        return resizedBitmap;
+    }
+
+    public void resetBitmap()
+    {
+        if(mBitmap!=null)
+        {
+            mPaint.setColor(Color.WHITE);
+            mCanvas.drawRect(0, 0, mBitmap.getWidth(), mBitmap.getHeight(), mPaint);
+            resizedBitmap = Bitmap.createScaledBitmap(mBitmap, IMAGE_SCALED_RES_X, IMAGE_SCALED_RES_Y, true);
+            invalidate();
+        }
     }
 
 
@@ -86,11 +117,20 @@ public class DockingLogoView extends View
 
         if(resizedBitmap!=null)
         {
-            canvas.drawBitmap(resizedBitmap, 1, 1, mPaint);
-            //canvas.drawBitmap(mBitmap,1,1,mPaint);
+            canvas.drawBitmap(resizedBitmap, 0, 0, mPaint);
         }
 
-        Log.d("onDraw", "Yes " + x + " " + y);
+        else
+        {
+//            mPaint.setColor(Color.RED);
+//            mCanvas.drawRect(0,0,IMAGE_SCALED_RES_X,IMAGE_SCALED_RES_Y,mPaint);
+
+            canvas.drawBitmap(mBitmap, 1, 1, mPaint);
+        }
+
+
+        Log.d("onDraw", "img res: " + IMAGE_SCALED_RES_X + " " + IMAGE_SCALED_RES_Y);
+        Log.d("onDraw", "Scaled to " + x + " " + y);
 
 
     }
@@ -101,9 +141,13 @@ public class DockingLogoView extends View
     protected void onSizeChanged(int w, int h, int oldw, int oldh)
     {
         super.onSizeChanged(w, h, oldw, oldh);
+
+        IMAGE_SCALED_RES_X=w;
+        IMAGE_SCALED_RES_Y=h;
     }
 
-    // TODO interpretting image data is better to move to OAPMessenger class
+    /*
+    // TODO interpreting image data is better to move to OAPMessenger class
     public void process_picture_block(OAPMessenger.PictureBlock pictureBlock)
     {
         byte data[]=pictureBlock.data;
@@ -133,7 +177,8 @@ public class DockingLogoView extends View
                                             Math.max(image_res_x, image_res_y),
                                             Bitmap.Config.RGB_565);
             mCanvas = new Canvas(mBitmap);
-//        mCanvas.drawRect(0,0,IMAGE_RES_X,IMAGE_RES_Y,mPaint);
+            mPaint.setColor(Color.WHITE);
+            mCanvas.drawRect(0, 0, Math.max(image_res_x, image_res_y), Math.max(image_res_x, image_res_y), mPaint);
 
             shift=11;
             PodEmuLog.debug("Received image starting block:");
@@ -172,7 +217,6 @@ public class DockingLogoView extends View
             {
                 if(image_pos_y<image_res_y) image_pos_y++;
                 image_pos_x=0;
-                Log.d("RPPIMG","Started line "+image_pos_y);
             }
         }
 
@@ -180,10 +224,10 @@ public class DockingLogoView extends View
         //if(image_pos_y==image_res_y)
         if(mBitmap!=null)
         {
-            resizedBitmap = Bitmap.createScaledBitmap(mBitmap, IMAGE_RES_X, IMAGE_RES_X /*this is not a mistake*/, true);
+            resizedBitmap = Bitmap.createScaledBitmap(mBitmap, IMAGE_SCALED_RES_X, IMAGE_SCALED_RES_Y, true);
             invalidate();
         }
 
     }
-
+*/
 }

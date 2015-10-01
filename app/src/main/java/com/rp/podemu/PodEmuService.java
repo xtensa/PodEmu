@@ -31,6 +31,8 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -53,6 +55,7 @@ public class PodEmuService extends Service
     private OAPMessenger oapMessenger = new OAPMessenger();
     private PodEmuIntentFilter iF = new PodEmuIntentFilter();
     private int failedReadCount=0;
+    public Bitmap dockIconBitmap=null;
 
 
     public class LocalBinder extends Binder

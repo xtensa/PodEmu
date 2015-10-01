@@ -67,7 +67,7 @@ public class SettingsActivity extends AppCompatActivity
         //saving to shared preferances
         SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString("ControlledAppProcessName", appInfos.get(which).processName);
+        editor.putString("ControlledAppProcessName", appInfos.get(which).packageName);
         editor.commit();
 
         // loading information to the activity
@@ -90,7 +90,8 @@ public class SettingsActivity extends AppCompatActivity
 
 
         Intent intent = new Intent(Intent.ACTION_MAIN, null);
-        //intent.addCategory(Intent.CATEGORY_APP_MUSIC);
+        intent.addCategory(Intent.CATEGORY_APP_MUSIC);
+
         PackageManager pm = getPackageManager();
         String text="";
         List<ResolveInfo> packages = pm.queryIntentActivities(intent, 0);

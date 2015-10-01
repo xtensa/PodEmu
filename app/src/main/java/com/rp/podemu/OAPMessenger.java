@@ -25,6 +25,10 @@
 package com.rp.podemu;
 
 
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.os.Handler;
 import android.os.Message;
 
@@ -33,6 +37,7 @@ public class OAPMessenger
     private static final int READ=1;
     private static final int WRITE=2;
     public static final int IPOD_MODE_DISCONNECTED=0x00;
+    public static final int IPOD_MODE_UNKNOWN=0x00;
     public static final int IPOD_MODE_SIMPLE=0x02;
     public static final int IPOD_MODE_AIR=0x04;
     public static final byte IPOD_SUCCESS=0x00;
@@ -46,6 +51,17 @@ public class OAPMessenger
     private int line_ext_pos=2;
     private byte line_buf[] = new byte[6503]; // max should be 259 bytes
     private byte ext_image_buf[] = new byte[5];
+
+    // bitmap to store dock image
+    private Bitmap mBitmap;
+    private Canvas mCanvas;
+    private static int image_start_x=0;
+    private static int image_start_y=0;
+    private static int image_pos_x=0;
+    private static int image_pos_y=0;
+    private static int image_res_x=0;
+    private static int image_res_y=0;
+    private static int image_bytes_per_line=0;
 
 
     // definition of the in/out line if more than one instance of object created
@@ -75,7 +91,7 @@ public class OAPMessenger
                  * 0x03 - Request Mode Status
                  * 0x04 - Advanced Remote Mode (AiR)
                  */
-    private int ipod_mode = IPOD_MODE_SIMPLE;
+    private int ipod_mode = IPOD_MODE_UNKNOWN;
     private byte unknown_var=0x00;
     private boolean polling_mode=false;
     private byte shuffle_mode=0x00;
@@ -1074,10 +1090,10 @@ public class OAPMessenger
     private void oap_write_screen_resolution_34()
     {
         byte msg[]={0x00, 0x34, 0x00, 0x00, 0x00, 0x00, 0x01};
-        msg[2]=(byte)((DockingLogoView.IMAGE_RES_X>>8) & 0xff);
-        msg[3]=(byte)((DockingLogoView.IMAGE_RES_X) & 0xff);
-        msg[4]=(byte)((DockingLogoView.IMAGE_RES_Y>>8) & 0xff);
-        msg[5]=(byte)((DockingLogoView.IMAGE_RES_Y) & 0xff);
+        msg[2]=(byte)((DockingLogoView.IMAGE_MAX_RES_X>>8) & 0xff);
+        msg[3]=(byte)((DockingLogoView.IMAGE_MAX_RES_X) & 0xff);
+        msg[4]=(byte)((DockingLogoView.IMAGE_MAX_RES_Y>>8) & 0xff);
+        msg[5]=(byte)((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
         oap_write_cmd(msg);
     }
 
@@ -1107,10 +1123,10 @@ public class OAPMessenger
     private void oap_write_screen_resolution_3A()
     {
         byte msg[]={0x00, 0x3A, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x03};
-        msg[7] =msg[2]=(byte)((DockingLogoView.IMAGE_RES_X>>8) & 0xff);
-        msg[8] =msg[3]=(byte)((DockingLogoView.IMAGE_RES_X) & 0xff);
-        msg[7] =msg[4]=(byte)((DockingLogoView.IMAGE_RES_Y>>8) & 0xff);
-        msg[10]=msg[5]=(byte)((DockingLogoView.IMAGE_RES_Y) & 0xff);
+        msg[7] =msg[2]=(byte)((DockingLogoView.IMAGE_MAX_RES_X>>8) & 0xff);
+        msg[8] =msg[3]=(byte)((DockingLogoView.IMAGE_MAX_RES_X) & 0xff);
+        msg[7] =msg[4]=(byte)((DockingLogoView.IMAGE_MAX_RES_Y>>8) & 0xff);
+        msg[10]=msg[5]=(byte)((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
 
         oap_write_cmd(msg);
     }
@@ -1377,6 +1393,16 @@ public class OAPMessenger
         }
     };
 
+
+    private void oap_send_bitmap()
+    {
+        Message message = mHandler.obtainMessage(0);
+        message.arg1 = 1; //indication that we are sending a bitmap
+        message.obj=mBitmap;
+        mHandler.sendMessage(message);
+    }
+
+
     /**
      * Once image block is received this function is called to inform Main Activity
      * and to process this block
@@ -1385,15 +1411,85 @@ public class OAPMessenger
      */
     private void oap_receive_image_msg(byte[] data, int len)
     {
-        PictureBlock pictureBlock=new PictureBlock(data, len);
+        Paint mPaint;
+        mPaint = new Paint();
+        mPaint.setStyle(Paint.Style.FILL);
+        mPaint.setStrokeWidth(0);
 
-        Message message = mHandler.obtainMessage(0);
-        message.arg1 = 1; //indication that we are sending a picture block
-        message.obj=pictureBlock;
-        mHandler.sendMessage(message);
+        if(data.length<10)
+        {
+            PodEmuLog.log("Wrong image block received");
+            return;
+        }
 
+        int block_number=((data[0] & 0xff)<<8) | (data[1] & 0xff);
+        int shift=2; // shift to start of image data
+
+        if(block_number==0)
+        {
+            image_pos_x=0;
+            image_pos_y=0;
+            image_res_x=((data[3] & 0xff)<<8) | (data[4] & 0xff);
+            image_res_y=((data[5] & 0xff)<<8) | (data[6] & 0xff);
+
+            // calculate image position so that it is displayed centered
+            image_start_x=(Math.max(image_res_x, image_res_y) - image_res_x)/2;
+            image_start_y=(Math.max(image_res_x, image_res_y) - image_res_y)/2;
+
+            image_bytes_per_line=((data[7] & 0xff)<<24) | ((data[8] & 0xff)<<16) | ((data[9] & 0xff)<<8) | (data[10] & 0xff);
+            mBitmap = Bitmap.createBitmap(  Math.max(image_res_x, image_res_y),
+                    Math.max(image_res_x, image_res_y),
+                    Bitmap.Config.RGB_565);
+            mCanvas = new Canvas(mBitmap);
+            mPaint.setColor(Color.WHITE);
+            mCanvas.drawRect(0, 0, Math.max(image_res_x, image_res_y), Math.max(image_res_x, image_res_y), mPaint);
+
+            shift=11;
+            PodEmuLog.debug("Received image starting block:");
+            PodEmuLog.debug("              raw msg len=" + len);
+            PodEmuLog.debug("              image_res_x=" + image_res_x);
+            PodEmuLog.debug("              image_res_y=" + image_res_y);
+            PodEmuLog.debug("     image_bytes_per_line=" + image_bytes_per_line);
+        }
+
+        if(mCanvas==null)
+        {
+            return;
+        }
+
+
+        for(int i=shift;i<Math.min(len,data.length)-1;i+=2)
+        {
+            // draw pixels only if we are inside declared resolution
+            if(image_pos_x<image_res_x && image_pos_y<image_res_y)
+            {
+                int red = (data[i] & 0xff) >> 3; // take first 5 bits
+                int green = ((((data[i] & 0xff) << 8) | (data[i+1] & 0xff)) >> 5) & 0x3f; // take next 6 bits
+                int blue = data[i+1] & 0x1f; // take last 5 bits
+
+                //expanding colors to 8 bit
+                red <<= 3;
+                green <<= 2;
+                blue <<= 3;
+
+                mPaint.setColor(Color.rgb(red, green, blue));
+                mCanvas.drawPoint(image_start_x+image_pos_x, image_start_y+image_pos_y, mPaint);
+            }
+
+            image_pos_x++;
+            if(image_pos_x==image_bytes_per_line/2)
+            {
+                if(image_pos_y<image_res_y) image_pos_y++;
+                image_pos_x=0;
+            }
+        }
+
+        // write to serial success command
         byte msg[]={0x00, 0x01, 0x00, 0x00, 0x32};
         oap_write_cmd(msg);
+
+        // send updated bitmap to MainActivity
+        oap_send_bitmap();
     }
 
     /**

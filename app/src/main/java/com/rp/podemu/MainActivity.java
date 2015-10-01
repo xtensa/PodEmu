@@ -31,6 +31,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -53,9 +55,9 @@ public class MainActivity extends AppCompatActivity
 {
 
 
-    private TextView mainText=null;
+    private TextView ctrlAppStatusText=null;
     private TextView serialStatusText=null;
-    private TextView iPodStatusText=null;
+    private TextView dockStatusText=null;
     private int iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
 
 
@@ -159,11 +161,13 @@ public class MainActivity extends AppCompatActivity
 
     public void stop_service(View v)
     {
+        iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
         unbindService(serviceConnection);
         stopService(serviceIntent);
         serviceBound = false;
         updateSerialStatus();
         updateServiceButton();
+        updateIPodStatus();
     }
 
 
@@ -200,7 +204,7 @@ public class MainActivity extends AppCompatActivity
 
 
         // Make scroll view automatically scroll to the bottom
-        final ScrollView sv=(ScrollView) this.findViewById(R.id.main_sv);
+/*        final ScrollView sv=(ScrollView) this.findViewById(R.id.main_sv);
         sv.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener()
            {
                @Override
@@ -217,7 +221,7 @@ public class MainActivity extends AppCompatActivity
                    });
                }
            });
-
+*/
         serialInterface=new SerialInterface_USBSerial();
 
 //        LayoutInflater lif = getLayoutInflater();
@@ -233,9 +237,10 @@ public class MainActivity extends AppCompatActivity
 
         Log.d("RPP", "onCreate");
         registerReceiver(mReceiver, iF);
-        this.mainText = (TextView) this.findViewById(R.id.main_text);
-        this.serialStatusText = (TextView) this.findViewById(R.id.serial_status_text);
-        this.iPodStatusText = (TextView) this.findViewById(R.id.ipod_status_text);
+        this.ctrlAppStatusText = (TextView) this.findViewById(R.id.CTRL_app_status_text);
+        this.serialStatusText = (TextView) this.findViewById(R.id.SERIAL_status_text);
+        this.dockStatusText = (TextView) this.findViewById(R.id.DOCK_status_text);
+
 
 //        registerReceiver(mReceiver, iF);
 
@@ -324,15 +329,12 @@ public class MainActivity extends AppCompatActivity
 
                 if(!action.equals(BroadcastTypes.QUEUE_CHANGED))
                 {
-                    mainText.setText("MEDIA: \n" +
-                            "     isPlaying:" + isPlaying + "\n" +
-                            "     Event: " + action + "\n" +
-                            "     Artist: " + artist + "\n" +
-                            "     Album: " + album + "\n" +
-                            "     Track: " + track + "\n" +
-                            "     ID: " + id + "\n" +
-                            "     Length: " + length + "\n" +
-                            "     Position: " + position + "\n");
+                    ctrlAppStatusText.setText(
+                            "Artist: " + artist + "\n" +
+                            "Album: " + album + "\n" +
+                            "Track: " + track + "\n" +
+                            "Length: " + length + "\n"
+                    );
                 }
 
                 PodEmuMessage podEmuMessage = new PodEmuMessage();
@@ -443,11 +445,13 @@ public class MainActivity extends AppCompatActivity
     {
         if(serialInterface.isConnected())
         {
-            this.serialStatusText.setText("Serial status: connected");
+            this.serialStatusText.setTextColor(Color.rgb(0x00,0xff,0x00));
+            this.serialStatusText.setText("connected");
         }
         else
         {
-            this.serialStatusText.setText("Serial status: NOT connected");
+            this.serialStatusText.setTextColor(Color.rgb(0xff,0x00,0x00));
+            this.serialStatusText.setText("disconnected");
         }
     }
 
@@ -455,15 +459,24 @@ public class MainActivity extends AppCompatActivity
     {
         if(iPodConnected==OAPMessenger.IPOD_MODE_AIR)
         {
-            this.iPodStatusText.setText("iPod status: AiR mode");
+            this.dockStatusText.setTextColor(Color.rgb(0x00,0xff,0x00));
+            this.dockStatusText.setText("AiR mode");
         }
         else if(iPodConnected==OAPMessenger.IPOD_MODE_SIMPLE)
         {
-            this.iPodStatusText.setText("iPod status: simple mode");
+            this.dockStatusText.setTextColor(Color.rgb(0x00,0xff,0x00));
+            this.dockStatusText.setText("simple mode");
         }
         else
         {
-            this.iPodStatusText.setText("iPod status: NOT connected");
+            this.dockStatusText.setTextColor(Color.rgb(0xff, 0x00, 0x00));
+            this.dockStatusText.setText("disconnected");
+
+            if(podEmuService!=null && dockingLogoView!=null)
+            {
+                dockingLogoView.resetBitmap();
+                podEmuService.dockIconBitmap = dockingLogoView.getResizedBitmap();
+            }
         }
     }
 
@@ -498,7 +511,8 @@ public class MainActivity extends AppCompatActivity
             {
                 case 1: // we received a picture block
                 {
-                    dockingLogoView.process_picture_block((OAPMessenger.PictureBlock) inputMessage.obj);
+                    dockingLogoView.setBitmap((Bitmap)inputMessage.obj);
+                    podEmuService.dockIconBitmap=dockingLogoView.getResizedBitmap();
                 } break;
                 case 2: // iPod connection status changed
                 {
@@ -528,6 +542,11 @@ public class MainActivity extends AppCompatActivity
 
             podEmuService.registerMessage(currentlyPlaying);
             updateServiceButton();
+
+            if(podEmuService.dockIconBitmap!=null)
+            {
+                dockingLogoView.setResizedBitmap(podEmuService.dockIconBitmap);
+            }
         }
 
         @Override

@@ -31,4 +31,5 @@
     <string name="action_about">About</string>
     <string name="title_activity_settings">PodEmu Settings</string>
     <string name="dialog_select_controlled_app">Select Application</string>
+    <string name="SERIAL_status_hint">Please connect one of the following serial adapters: PL2303, CP21xx, FT232 or FT312</string>
 </resources>
