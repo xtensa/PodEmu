@@ -19,30 +19,19 @@
 
 package com.rp.podemu;
 
-import android.hardware.usb.UsbManager;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.view.Menu;
 
 
-public interface SerialInterface
+public class CreditsActivity extends AppCompatActivity
 {
-    void init(UsbManager manager);
 
-    int write(byte[] buffer, int numBytes);
+    @Override
+    protected void onCreate(Bundle savedInstanceState)
+    {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_credits);
+    }
 
-    int read(byte[] buffer);
-
-    String readString();
-
-    String getName();
-
-    int getVID();
-    int getPID();
-
-    void setBaudRate(int rate);
-    int getBaudRate();
-
-    boolean isConnected();
-
-    int getReadBufferSize();
-
-    void close();
 }

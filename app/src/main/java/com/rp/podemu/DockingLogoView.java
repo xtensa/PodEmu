@@ -1,9 +1,5 @@
 /**
 
- OAPMessenger.class is class that implements "30 pin" serial protocol
- for iPod. It is based on the protocol description available here:
- http://www.adriangame.co.uk/ipod-acc-pro.html
-
  Copyright (C) 2015, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
@@ -17,8 +13,7 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software Foundation,
- Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ along with this program. If not, see http://www.gnu.org/licenses/
 
  */
 
@@ -41,7 +36,6 @@ public class DockingLogoView extends View
 {
     private Bitmap mBitmap, resizedBitmap;
     private Paint mPaint;
-    private Canvas mCanvas;
     private Context context;
     private String TAG="DockingLogoView";
 
@@ -69,7 +63,6 @@ public class DockingLogoView extends View
         setWillNotDraw(false);
 
         mBitmap=Bitmap.createBitmap(IMAGE_SCALED_RES_X, IMAGE_SCALED_RES_Y, Bitmap.Config.ARGB_8888 );
-        mCanvas = new Canvas(mBitmap);
 
     }
 
@@ -96,9 +89,11 @@ public class DockingLogoView extends View
 
     public void resetBitmap()
     {
+        PodEmuLog.debug("Resetting logo");
         if(mBitmap!=null)
         {
             mPaint.setColor(Color.WHITE);
+            Canvas mCanvas = new Canvas(mBitmap);
             mCanvas.drawRect(0, 0, mBitmap.getWidth(), mBitmap.getHeight(), mPaint);
             resizedBitmap = Bitmap.createScaledBitmap(mBitmap, IMAGE_SCALED_RES_X, IMAGE_SCALED_RES_Y, true);
             invalidate();
@@ -109,11 +104,8 @@ public class DockingLogoView extends View
     @Override
     public void onDraw(Canvas canvas)
     {
-        // TODO Auto-generated method stub
         super.onDraw(canvas);
-
-        int x = getWidth();
-        int y = getHeight();
+        PodEmuLog.debug("onDraw");
 
         if(resizedBitmap!=null)
         {
@@ -127,11 +119,6 @@ public class DockingLogoView extends View
 
             canvas.drawBitmap(mBitmap, 1, 1, mPaint);
         }
-
-
-        Log.d("onDraw", "img res: " + IMAGE_SCALED_RES_X + " " + IMAGE_SCALED_RES_Y);
-        Log.d("onDraw", "Scaled to " + x + " " + y);
-
 
     }
 

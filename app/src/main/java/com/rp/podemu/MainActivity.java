@@ -1,9 +1,5 @@
 /**
 
- OAPMessenger.class is class that implements "30 pin" serial protocol
- for iPod. It is based on the protocol description available here:
- http://www.adriangame.co.uk/ipod-acc-pro.html
-
  Copyright (C) 2015, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
@@ -17,8 +13,7 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software Foundation,
- Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ along with this program. If not, see http://www.gnu.org/licenses/
 
  */
 
@@ -28,9 +23,10 @@ import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.hardware.usb.UsbManager;
@@ -38,14 +34,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewTreeObserver;
 import android.widget.Button;
-import android.widget.ScrollView;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.lang.ref.WeakReference;
@@ -55,9 +50,12 @@ public class MainActivity extends AppCompatActivity
 {
 
 
-    private TextView ctrlAppStatusText=null;
     private TextView serialStatusText=null;
+    private TextView serialStatusHint=null;
     private TextView dockStatusText=null;
+    private TextView ctrlAppStatusTitle=null;
+    private TextView ctrlAppStatusText=null;
+    private PodEmuLog podEmuLog;
     private int iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
 
 
@@ -68,7 +66,6 @@ public class MainActivity extends AppCompatActivity
     private PodEmuIntentFilter iF = new PodEmuIntentFilter();
     private PodEmuService podEmuService;
     private boolean serviceBound = false;
-    private PodEmuLog podEmuLog;
     private PodEmuMessage currentlyPlaying=new PodEmuMessage();
 
     //public static LooperThread looperThread;
@@ -139,19 +136,21 @@ public class MainActivity extends AppCompatActivity
 
     public void start_service(View v)
     {
+
         // reconnect usb
         serialInterface.init((UsbManager) getSystemService(Context.USB_SERVICE));
 
         if(serialInterface.isConnected())
         {
             startService(serviceIntent);
+
             if (bindService(serviceIntent, serviceConnection, BIND_IMPORTANT))
             {
-                PodEmuLog.log("Service succesfully bound");
+                PodEmuLog.debug("Service succesfully bound");
                 serviceBound = true;
             } else
             {
-                PodEmuLog.log("Service NOT bound");
+                PodEmuLog.debug("Service NOT bound");
             }
 
             updateServiceButton();
@@ -199,7 +198,11 @@ public class MainActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
+
+
+        PodEmuLog.debug("onCreate");
         setContentView(R.layout.activity_main);
+        // required to create logdir
         podEmuLog=new PodEmuLog(this);
 
 
@@ -229,16 +232,18 @@ public class MainActivity extends AppCompatActivity
         dockingLogoView = (DockingLogoView) findViewById(R.id.dockStationLogo);
 //        layout.addView((View)dockingLogoView);
 
+        // preferances are loaded onResume
         //    loadPreferences();
 
 
-        iF.addAction("android.hardware.usb.action.USB_DEVICE_ATTACHED");
+        //iF.addAction("android.hardware.usb.action.USB_DEVICE_ATTACHED");
         iF.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
 
-        Log.d("RPP", "onCreate");
         registerReceiver(mReceiver, iF);
+        this.ctrlAppStatusTitle = (TextView) this.findViewById(R.id.CTRL_app_status_title);
         this.ctrlAppStatusText = (TextView) this.findViewById(R.id.CTRL_app_status_text);
         this.serialStatusText = (TextView) this.findViewById(R.id.SERIAL_status_text);
+        this.serialStatusHint = (TextView) this.findViewById(R.id.SERIAL_status_hint);
         this.dockStatusText = (TextView) this.findViewById(R.id.DOCK_status_text);
 
 
@@ -289,8 +294,8 @@ public class MainActivity extends AppCompatActivity
             String action = intent.getAction();
             String cmd = intent.getStringExtra("command");
 
-            PodEmuLog.log("(A) Broadcast received: " + cmd + " - " + action);
-            if(action.contains("USB_DEVICE_DETACHED"))
+            PodEmuLog.debug("(A) Broadcast received: " + cmd + " - " + action);
+/*            if(action.contains("USB_DEVICE_DETACHED"))
             {
                 if(serviceBound) stop_service(null);
                 serialInterface.close();
@@ -299,7 +304,9 @@ public class MainActivity extends AppCompatActivity
                 iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
                 updateIPodStatus();
             }
-            else if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
+            else
+            */
+            if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
             {
                 PodEmuLog.debug("(A) Detected SPOTIFY broadcast");
 
@@ -325,9 +332,9 @@ public class MainActivity extends AppCompatActivity
                     // Sent only as a notification, your app may want to respond accordingly.
                 }
 
-                Log.d("RPP", isPlaying + " : " + artist + " : " + album + " : " + track + " : " + id + " : " + length);
+                PodEmuLog.debug(isPlaying + " : " + artist + " : " + album + " : " + track + " : " + id + " : " + length);
 
-                if(!action.equals(BroadcastTypes.QUEUE_CHANGED))
+                if(!action.contains(BroadcastTypes.QUEUE_CHANGED))
                 {
                     ctrlAppStatusText.setText(
                             "Artist: " + artist + "\n" +
@@ -370,19 +377,51 @@ public class MainActivity extends AppCompatActivity
 
     private void loadPreferences()
     {
-        SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS",Context.MODE_PRIVATE);
-        ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "log loading");
+        ImageView appLogo = (ImageView) findViewById(R.id.CTRL_app_icon);
+        SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+        ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
+        String enableDebug=sharedPref.getString("enableDebug", "false");
 
-    //    ((TextView) findViewById(R.id.main_text)).setText(ctrlAppProcessName);
+        if(enableDebug.equals("true"))
+            PodEmuLog.DEBUG_LEVEL=2;
+        else
+            PodEmuLog.DEBUG_LEVEL=0;
+
+        if(podEmuService!=null)
+        {
+            podEmuService.reloadBaudRate();
+        }
+
+        PackageManager pm = getPackageManager();
+        ApplicationInfo appInfo;
+
+        try
+        {
+            appInfo = pm.getApplicationInfo(ctrlAppProcessName, PackageManager.GET_META_DATA);
+
+            ctrlAppStatusTitle.setText("Controlled app: " + appInfo.loadLabel(pm));
+            ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0xff, 0xff));
+
+            appLogo.setImageDrawable(appInfo.loadIcon(pm));
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+            ctrlAppStatusTitle.setText("Cannot find app: " + ctrlAppProcessName);
+            ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
+
+            appLogo.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.questionmark)));
+        }
+
     }
 
 
     @Override
-    protected void onPause() {
+    protected void onPause()
+    {
         super.onPause();
     //    unregisterReceiver(mReceiver);
 
-        Log.d("RPP", "onPause done");
+        PodEmuLog.debug("onPause done");
     }
 
 
@@ -390,9 +429,9 @@ public class MainActivity extends AppCompatActivity
     public void onResume()
     {
         super.onResume();
-    //    loadPreferences();
+        loadPreferences();
         start_service(null);
-        Log.d("RPP", "onResume done");
+        PodEmuLog.debug("onResume done");
     }
 
 
@@ -445,13 +484,20 @@ public class MainActivity extends AppCompatActivity
     {
         if(serialInterface.isConnected())
         {
-            this.serialStatusText.setTextColor(Color.rgb(0x00,0xff,0x00));
+            this.serialStatusText.setTextColor(Color.rgb(0x00, 0xff, 0x00));
             this.serialStatusText.setText("connected");
+
+            this.serialStatusHint.setText(
+                    String.format("VID: 0x%04X, ", serialInterface.getVID()) +
+                            String.format("PID: 0x%04X\n", serialInterface.getPID()) +
+                            "Cable: " + serialInterface.getName());
         }
         else
         {
             this.serialStatusText.setTextColor(Color.rgb(0xff,0x00,0x00));
             this.serialStatusText.setText("disconnected");
+
+            this.serialStatusHint.setText(R.string.serial_status_hint);
         }
     }
 
@@ -472,11 +518,16 @@ public class MainActivity extends AppCompatActivity
             this.dockStatusText.setTextColor(Color.rgb(0xff, 0x00, 0x00));
             this.dockStatusText.setText("disconnected");
 
-            if(podEmuService!=null && dockingLogoView!=null)
+            if(dockingLogoView!=null)
             {
                 dockingLogoView.resetBitmap();
-                podEmuService.dockIconBitmap = dockingLogoView.getResizedBitmap();
+                if(podEmuService!=null)
+                {
+                    podEmuService.dockIconBitmap = dockingLogoView.getResizedBitmap();
+                }
             }
+
+
         }
     }
 
@@ -518,6 +569,10 @@ public class MainActivity extends AppCompatActivity
                 {
                     iPodConnected=inputMessage.arg2;
                     updateIPodStatus();
+                } break;
+                case 3: // serial connection status changed
+                {
+                    updateSerialStatus();
                 } break;
             }
         }

@@ -1,9 +1,5 @@
 /**
 
- OAPMessenger.class is class that implements "30 pin" serial protocol
- for iPod. It is based on the protocol description available here:
- http://www.adriangame.co.uk/ipod-acc-pro.html
-
  Copyright (C) 2015, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
@@ -17,8 +13,7 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software Foundation,
- Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ along with this program. If not, see http://www.gnu.org/licenses/
 
  */
 
@@ -28,21 +23,97 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 
 import com.hoho.android.usbserial.driver.ProlificSerialDriver;
+import com.hoho.android.usbserial.driver.UsbId;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-/**
- * Created by rp on 9/4/15.
- */
+
 public class SerialInterface_USBSerial implements SerialInterface
 {
+    private static Map<Integer, String> deviceList = new LinkedHashMap<>();
+    private static Map<Integer, Integer> deviceBufferSizes = new LinkedHashMap<>();
 
-    static private UsbDeviceConnection connection;
-    static private UsbSerialPort port;
+    private static UsbDeviceConnection connection;
+    private static UsbSerialPort port;
+
+    private static int baudRate=57600;
+
+    public void setBaudRate(int rate)
+    {
+        if(rate<9600) rate=9600;
+        if(rate>115200) rate=115200;
+        baudRate=rate;
+    }
+
+    public int getBaudRate()
+    {
+        return baudRate;
+    }
+
+    public SerialInterface_USBSerial()
+    {
+        deviceList.put((UsbId.VENDOR_FTDI << 16) + UsbId.FTDI_FT232R, "FTDI FT232R");
+        deviceList.put((UsbId.VENDOR_FTDI << 16) + UsbId.FTDI_FT231X, "FTDI FT231X");
+
+        deviceList.put((UsbId.VENDOR_ATMEL << 16) + UsbId.ATMEL_LUFA_CDC_DEMO_APP, "Atmel Lufa");
+
+        deviceList.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_UNO, "Arduino Uno");
+        deviceList.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_MEGA_2560, "Arduino Mega2560");
+        deviceList.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_SERIAL_ADAPTER, "Arduino Serial Adapter");
+        deviceList.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_MEGA_ADK, "Arduino ADK");
+        deviceList.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_MEGA_2560_R3, "Arduino Mega2560 R3");
+        deviceList.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_UNO_R3, "Arduino Uno R3");
+        deviceList.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_MEGA_ADK_R3, "Arduino ADK R3");
+        deviceList.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_SERIAL_ADAPTER_R3, "Arduino Serial Adapter R3");
+        deviceList.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_LEONARDO, "Arduino Leonardo");
+
+        deviceList.put((UsbId.VENDOR_VAN_OOIJEN_TECH << 16) + UsbId.VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL, "Van Ooijen Tech TEENSYDUINO");
+
+        deviceList.put((UsbId.VENDOR_LEAFLABS << 16) + UsbId.LEAFLABS_MAPLE, "Leaf Labs Maple");
+
+        deviceList.put((UsbId.VENDOR_SILABS << 16) + UsbId.SILABS_CP2102, "SiLabs CP2102");
+        deviceList.put((UsbId.VENDOR_SILABS << 16) + UsbId.SILABS_CP2105, "SiLabs CP2105");
+        deviceList.put((UsbId.VENDOR_SILABS << 16) + UsbId.SILABS_CP2108, "SiLabs CP2108");
+        deviceList.put((UsbId.VENDOR_SILABS << 16) + UsbId.SILABS_CP2110, "SiLabs CP2110");
+
+        deviceList.put((UsbId.VENDOR_PROLIFIC << 16) + UsbId.PROLIFIC_PL2303, "Prolific PL2303");
+        
+        
+        // read buffer sizes
+        deviceBufferSizes.put((UsbId.VENDOR_FTDI << 16) + UsbId.FTDI_FT232R, 128);
+        deviceBufferSizes.put((UsbId.VENDOR_FTDI << 16) + UsbId.FTDI_FT231X, 512);
+
+        deviceBufferSizes.put((UsbId.VENDOR_ATMEL << 16) + UsbId.ATMEL_LUFA_CDC_DEMO_APP, 512);
+
+        deviceBufferSizes.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_UNO, 512);
+        deviceBufferSizes.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_MEGA_2560, 512);
+        deviceBufferSizes.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_SERIAL_ADAPTER, 512);
+        deviceBufferSizes.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_MEGA_ADK, 512);
+        deviceBufferSizes.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_MEGA_2560_R3, 512);
+        deviceBufferSizes.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_UNO_R3, 512);
+        deviceBufferSizes.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_MEGA_ADK_R3, 512);
+        deviceBufferSizes.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_SERIAL_ADAPTER_R3, 512);
+        deviceBufferSizes.put((UsbId.VENDOR_ARDUINO << 16) + UsbId.ARDUINO_LEONARDO, 512);
+
+        deviceBufferSizes.put((UsbId.VENDOR_VAN_OOIJEN_TECH << 16) + UsbId.VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL, 512);
+
+        deviceBufferSizes.put((UsbId.VENDOR_LEAFLABS << 16) + UsbId.LEAFLABS_MAPLE, 512);
+
+        deviceBufferSizes.put((UsbId.VENDOR_SILABS << 16) + UsbId.SILABS_CP2102, 576);
+        deviceBufferSizes.put((UsbId.VENDOR_SILABS << 16) + UsbId.SILABS_CP2105, 288);
+        deviceBufferSizes.put((UsbId.VENDOR_SILABS << 16) + UsbId.SILABS_CP2108, 1536);
+        deviceBufferSizes.put((UsbId.VENDOR_SILABS << 16) + UsbId.SILABS_CP2110, 480);
+
+        deviceBufferSizes.put((UsbId.VENDOR_PROLIFIC << 16) + UsbId.PROLIFIC_PL2303, 258);
+
+    }
+    
 
     public void init(UsbManager manager)
     {
@@ -69,7 +140,7 @@ public class SerialInterface_USBSerial implements SerialInterface
         port = ports.get(0);
         try {
             port.open(connection);
-            port.setParameters(57600, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+            port.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
         }
         catch (IOException e)
         {
@@ -163,5 +234,33 @@ public class SerialInterface_USBSerial implements SerialInterface
             port=null;
         }
 
+    }
+
+    public int getVID()
+    {
+        return port.getDriver().getDevice().getVendorId();
+    }
+
+    public int getPID()
+    {
+        return port.getDriver().getDevice().getProductId();
+    }
+
+
+    public String getName()
+    {
+        int pid=port.getDriver().getDevice().getProductId();
+        int vid=port.getDriver().getDevice().getVendorId();
+        int key=(vid << 16) + pid;
+
+        if(deviceList.containsKey(key))
+            return deviceList.get(key);
+        else
+            return "Unknown device";
+    }
+
+    public int getReadBufferSize()
+    {
+        return 600;
     }
 }

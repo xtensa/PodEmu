@@ -17,8 +17,7 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software Foundation,
- Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ along with this program. If not, see http://www.gnu.org/licenses/
 
  */
 
@@ -227,7 +226,7 @@ public class OAPMessenger
             checksum = oap_calc_checksum(line_buf, line_cmd_len);
             if (line_buf[line_cmd_len - 1] != checksum)
             {
-                PodEmuLog.debug("Line " + line + String.format(": ERROR: checksum log. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
+                PodEmuLog.debug("Line " + line + String.format(": ERROR: checksum error. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
             }
             else
             {
@@ -329,7 +328,7 @@ public class OAPMessenger
             }
             else
             {
-                PodEmuLog.log(String.format("Mode switching: unrecognized command 0x%04X received", cmd));
+                PodEmuLog.debug(String.format("ERROR: Mode switching: unrecognized command 0x%04X received", cmd));
             }
         }
 
@@ -1198,7 +1197,7 @@ public class OAPMessenger
      */
     void oap_print_char(int rw, byte b, int num)
     {
-        PodEmuLog.verbose("Line " + line + ": len=" + line_cmd_len + " cnt=" + num + " " + String.format(": %s: %02X", (rw == READ ? "RCV" : "WRITE"), b));
+        PodEmuLog.debug("Line " + line + ": len=" + line_cmd_len + " cnt=" + num + " " + String.format(": %s: %02X", (rw == READ ? "RCV" : "WRITE"), b));
 
         // TODO write char to logfile
         //write(fd_log, tmp, strlen(tmp));
@@ -1289,7 +1288,7 @@ public class OAPMessenger
 
         if(len>254)
         {
-            PodEmuLog.log("ERROR: Message length cannot be greater than 255");
+            PodEmuLog.debug("ERROR: Message length cannot be greater than 255");
             return;
         }
 
@@ -1418,7 +1417,7 @@ public class OAPMessenger
 
         if(data.length<10)
         {
-            PodEmuLog.log("Wrong image block received");
+            PodEmuLog.debug("ERROR: Wrong image block received");
             return;
         }
 

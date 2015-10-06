@@ -1,9 +1,5 @@
 /**
 
- OAPMessenger.class is class that implements "30 pin" serial protocol
- for iPod. It is based on the protocol description available here:
- http://www.adriangame.co.uk/ipod-acc-pro.html
-
  Copyright (C) 2015, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
@@ -17,8 +13,7 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software Foundation,
- Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ along with this program. If not, see http://www.gnu.org/licenses/
 
  */
 
@@ -31,11 +26,12 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
@@ -56,6 +52,7 @@ public class PodEmuService extends Service
     private PodEmuIntentFilter iF = new PodEmuIntentFilter();
     private int failedReadCount=0;
     public Bitmap dockIconBitmap=null;
+    private static String baudRate;
 
 
     public class LocalBinder extends Binder
@@ -131,6 +128,12 @@ public class PodEmuService extends Service
         return true;
     }
 
+    public void reloadBaudRate()
+    {
+        SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+        baudRate = sharedPref.getString("BaudRate", "57600");
+    }
+
     @TargetApi(16)
     @Override
     public int onStartCommand(Intent intent, int flags, int startId)
@@ -141,7 +144,7 @@ public class PodEmuService extends Service
             return Service.START_STICKY;
         }
 
-
+        reloadBaudRate();
 
 // Creates an explicit intent for an Activity in your app
         Intent resultIntent = new Intent(this, MainActivity.class);
@@ -196,8 +199,14 @@ public class PodEmuService extends Service
                     {
                         serialInterface = new SerialInterface_USBSerial();
                         int numBytesRead;
-                        byte buffer[] = new byte[258];
-                        PodEmuLog.log("Buffer thread started.");
+
+                        // some devices have problem reading less then internal chip buffer
+                        // size (due to android bug 28023), therefore we need to set
+                        // expected buffer size equal to internal buffer size of the device
+                        byte buffer[] = new byte[serialInterface.getReadBufferSize()];
+                        PodEmuLog.debug("Buffer thread started.");
+
+                        serialInterface.setBaudRate(Integer.parseInt(baudRate));
 
                         Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
                         //android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
@@ -238,7 +247,7 @@ public class PodEmuService extends Service
                         }
                     } catch (InterruptedException e)
                     {
-                        PodEmuLog.log("Buffer thread interrupted!");
+                        PodEmuLog.debug("Buffer thread interrupted!");
                     }
                 }
             });
@@ -265,7 +274,7 @@ public class PodEmuService extends Service
 
                     } catch (InterruptedException e)
                     {
-                        PodEmuLog.log("Polling thread interrupted!");
+                        PodEmuLog.debug("Polling thread interrupted!");
                     }
                 }
             });
@@ -285,7 +294,7 @@ public class PodEmuService extends Service
                     {
                         int numBytesRead=0;
                         byte buffer[]=new byte[1];
-                        PodEmuLog.log("Background thread started.");
+                        PodEmuLog.debug("Background thread started.");
 
                         while (true)
                         {
@@ -324,7 +333,7 @@ public class PodEmuService extends Service
                     }
                     catch (InterruptedException e)
                     {
-                        PodEmuLog.log("Background processing thread interrupted!");
+                        PodEmuLog.debug("Background processing thread interrupted!");
                     }
                 }
 
@@ -332,7 +341,7 @@ public class PodEmuService extends Service
             bgThread.start();
         }
 
-        PodEmuLog.log("Service started");
+        PodEmuLog.debug("Service started");
         return Service.START_STICKY;
     }
 
@@ -341,7 +350,9 @@ public class PodEmuService extends Service
     public void onCreate()
     {
         super.onCreate();
+        iF.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
         registerReceiver(mReceiver, iF);
+        reloadBaudRate();
     }
 
     @Override
@@ -366,7 +377,7 @@ public class PodEmuService extends Service
 
         if(serialInterface!=null) serialInterface.close();
 
-        PodEmuLog.log("Service destroyed");
+        PodEmuLog.debug("Service destroyed");
     }
 
 
@@ -397,9 +408,23 @@ public class PodEmuService extends Service
             String action = intent.getAction();
             String cmd = intent.getStringExtra("command");
 
-            PodEmuLog.log("(S) Broadcast received: " + cmd + " - " + action);
+            PodEmuLog.debug("(S) Broadcast received: " + cmd + " - " + action);
 
-            if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
+            if(action.contains("USB_DEVICE_DETACHED"))
+            {
+                serialInterface.close();
+
+                Message message = mHandler.obtainMessage(0);
+                message.arg1 = 2; // indicate ipod connection status changed
+                message.arg2 = OAPMessenger.IPOD_MODE_DISCONNECTED;
+                mHandler.sendMessage(message);
+
+                message = mHandler.obtainMessage(0);
+                message.arg1 = 3; // indicate serial connection status changed
+                mHandler.sendMessage(message);
+
+                stopSelf();
+            } else if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
             {
                 PodEmuLog.debug("(S) Detected SPOTIFY broadcast");
 
@@ -425,7 +450,7 @@ public class PodEmuService extends Service
                     // Sent only as a notification, your app may want to respond accordingly.
                 }
 
-                Log.d("RPP", isPlaying + " : " + artist + " : " + album + " : " + track + " : " + id + " : " + length);
+                PodEmuLog.debug(isPlaying + " : " + artist + " : " + album + " : " + track + " : " + id + " : " + length);
 
                 PodEmuMessage podEmuMessage = new PodEmuMessage();
                 podEmuMessage.setAlbum(album);

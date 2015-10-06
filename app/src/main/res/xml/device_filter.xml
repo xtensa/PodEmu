@@ -2,28 +2,89 @@
 
 <!--
 
- OAPMessenger.class is class that implements "30 pin" serial protocol
- for iPod. It is based on the protocol description available here:
- http://www.adriangame.co.uk/ipod-acc-pro.html
-
  Copyright (C) 2015, Roman P., dev.roman [at] gmail
 
- This program is free software; you can redistribute it and/or modify
+ This program is free software;  you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 3 of the License, or
+ the Free Software Foundation;  either version 3 of the License, or
  (at your option) any later version.
 
  This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
+ but WITHOUT ANY WARRANTY;  without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software Foundation,
- Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ along with this program. If not, see http://www.gnu.org/licenses/
 
 -->
 
 <resources>
-    <usb-device vendor-id="1659" product-id="8963"/>
+
+    <!--
+    VENDOR_FTDI = 0x0403; 1027
+    FTDI_FT232R = 0x6001; 24577
+    FTDI_FT231X = 0x6015; 24597
+    -->
+    <usb-device vendor-id="1027" product-id="24577" />
+    <usb-device vendor-id="1027" product-id="24597" />
+
+    <!--
+    VENDOR_ATMEL = 0x03EB; 148887
+    ATMEL_LUFA_CDC_DEMO_APP = 0x2044; 8260
+    -->
+    <usb-device vendor-id="148887" product-id="8260" />
+
+    <!--
+    VENDOR_ARDUINO = 0x2341; 9025
+    ARDUINO_UNO = 0x0001; 1
+    ARDUINO_MEGA_2560 = 0x0010; 16
+    ARDUINO_SERIAL_ADAPTER = 0x003b; 59
+    ARDUINO_MEGA_ADK = 0x003f; 63
+    ARDUINO_MEGA_2560_R3 = 0x0042; 66
+    ARDUINO_UNO_R3 = 0x0043; 67
+    ARDUINO_MEGA_ADK_R3 = 0x0044; 68
+    ARDUINO_SERIAL_ADAPTER_R3 = 0x0044; 68
+    ARDUINO_LEONARDO = 0x8036; 32822
+    -->
+    <usb-device vendor-id="9025" product-id="1" />
+    <usb-device vendor-id="9025" product-id="16" />
+    <usb-device vendor-id="9025" product-id="59" />
+    <usb-device vendor-id="9025" product-id="63" />
+    <usb-device vendor-id="9025" product-id="66" />
+    <usb-device vendor-id="9025" product-id="67" />
+    <usb-device vendor-id="9025" product-id="68" />
+    <usb-device vendor-id="9025" product-id="68" />
+    <usb-device vendor-id="9025" product-id="32822" />
+
+    <!--
+    VENDOR_VAN_OOIJEN_TECH = 0x16c0; 5824
+    VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL = 0x0483; 1155
+    -->
+    <usb-device vendor-id="5824" product-id="1155" />
+
+    <!--
+    VENDOR_LEAFLABS = 0x1eaf; 7855
+    LEAFLABS_MAPLE = 0x0004; 4
+    -->
+    <usb-device vendor-id="7855" product-id="4" />
+
+    <!--
+    VENDOR_SILABS = 0x10c4; 4292
+    SILABS_CP2102 = 0xea60; 60000
+    SILABS_CP2105 = 0xea70; 60016
+    SILABS_CP2108 = 0xea71; 60017
+    SILABS_CP2110 = 0xea80; 60032
+    -->
+    <usb-device vendor-id="4292" product-id="60000" />
+    <usb-device vendor-id="4292" product-id="60016" />
+    <usb-device vendor-id="4292" product-id="60017" />
+    <usb-device vendor-id="4292" product-id="60032" />
+
+    <!--
+    VENDOR_PROLIFIC = 0x067b; 1659
+    PROLIFIC_PL2303 = 0x2303; 8963
+    -->
+    <usb-device vendor-id="1659" product-id="8963" />
+
 </resources>

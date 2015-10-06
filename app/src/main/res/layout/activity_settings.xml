@@ -1,9 +1,5 @@
 <!--
 
- OAPMessenger.class is class that implements "30 pin" serial protocol
- for iPod. It is based on the protocol description available here:
- http://www.adriangame.co.uk/ipod-acc-pro.html
-
  Copyright (C) 2015, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
@@ -17,43 +13,58 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software Foundation,
- Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ along with this program. If not, see http://www.gnu.org/licenses/
 
 -->
 
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     android:paddingBottom="@dimen/activity_vertical_margin"
-    tools:context="com.rp.podemu.SettingsActivity">
+    tools:context="com.rp.podemu.SettingsActivity"
+    android:background="@color/settingsBackground"
+    >
+
+    <ScrollView
+        android:id="@+id/main_sv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:stackFromBottom="true"
+        android:transcriptMode="alwaysScroll">
+
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="0dp"
+            >
+
+
 
     <RelativeLayout
         android:id="@+id/ctrlAppLayout"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:onClick="chooseCtrlApp">
+        android:onClick="selectCtrlApp">
 
         <TextView android:text="Controlled Application"
             android:id="@+id/ctrlAppTitle"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:onClick="chooseCtrlApp"
             android:clickable="true"
             android:padding="4dp"
-            android:textColor="@android:color/tertiary_text_light"
+            android:textColor="@color/settingsItemTitle"
             android:layout_alignParentTop="true"
             android:layout_alignParentLeft="true"
             android:layout_alignParentStart="true" />
 
         <ImageView
-            android:layout_width="wrap_content"
+            android:layout_width="70dp"
             android:layout_height="wrap_content"
-            android:onClick="chooseCtrlApp"
             android:id="@+id/ctrlAppIcon"
             android:layout_below="@id/ctrlAppTitle"
             android:padding="4dp"
@@ -62,28 +73,404 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:onClick="chooseCtrlApp"
             android:id="@+id/ctrlAppName"
             android:layout_below="@id/ctrlAppTitle"
             android:layout_toRightOf="@id/ctrlAppIcon"
             android:paddingTop="6dp"
             android:paddingLeft="8dp"
             android:textStyle="bold"
+            android:textColor="@color/settingsItemText"
             android:text="[please select application]"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:onClick="chooseCtrlApp"
             android:id="@+id/ctrlAppHint"
             android:layout_below="@id/ctrlAppName"
             android:layout_toRightOf="@id/ctrlAppIcon"
             android:paddingTop="5dp"
             android:paddingLeft="8dp"
-            android:textColor="@android:color/secondary_text_dark"
+            android:textColor="@color/settingsItemHint"
             android:textStyle="italic"
             android:text="Default application to be controlled by PodEmu"/>
 
     </RelativeLayout>
+
+<!-- BAUD RATE  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+    <RelativeLayout
+        android:id="@+id/baudRateLayout"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:onClick="selectBaudRate"
+        android:layout_below="@id/ctrlAppLayout"
+        android:layout_marginTop="7dp"
+        >
+
+        <TextView android:text="Baud Rate"
+                  android:id="@+id/baudRateTitle"
+                  android:layout_width="fill_parent"
+                  android:layout_height="wrap_content"
+                  android:clickable="true"
+                  android:padding="4dp"
+                  android:textColor="@color/settingsItemTitle"
+                  android:layout_alignParentTop="true"
+                  android:layout_alignParentLeft="true"
+                  android:layout_alignParentStart="true" />
+
+        <ImageView
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:id="@+id/baudRateIcon"
+            android:layout_below="@id/baudRateTitle"
+            android:padding="4dp"
+            android:src="@drawable/ic_action_monitor"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/baudRateValue"
+            android:layout_below="@id/baudRateTitle"
+            android:layout_toRightOf="@id/baudRateIcon"
+            android:paddingTop="6dp"
+            android:paddingLeft="8dp"
+            android:textStyle="bold"
+            android:textColor="@color/settingsItemText"
+            android:text="[baud rate not defined]"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/baudRateHint"
+            android:layout_below="@id/baudRateValue"
+            android:layout_toRightOf="@id/baudRateIcon"
+            android:paddingTop="5dp"
+            android:paddingLeft="8dp"
+            android:textColor="@color/settingsItemHint"
+            android:textStyle="italic"
+            android:text="Baud rate for communication with the docking station. Most common baud rate is 57600. You need to reconnect the cable for the setting to take effect."/>
+
+    </RelativeLayout>
+
+            <!-- Enable debug  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+            <RelativeLayout
+                android:id="@+id/enableDebugLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="toggleDebug"
+                android:layout_below="@id/baudRateLayout"
+                android:layout_marginTop="7dp"
+                >
+
+                <TextView android:text="Debug information"
+                          android:id="@+id/enableDebugTitle"
+                          android:layout_width="fill_parent"
+                          android:layout_height="wrap_content"
+                          android:clickable="true"
+                          android:padding="4dp"
+                          android:textColor="@color/settingsItemTitle"
+                          android:layout_alignParentTop="true"
+                          android:layout_alignParentLeft="true"
+                          android:layout_alignParentStart="true" />
+
+                <ImageView
+                    android:layout_width="70dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/enableDebugIcon"
+                    android:layout_below="@id/enableDebugTitle"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_news"/>
+
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/enableDebugValue"
+                    android:layout_below="@id/enableDebugTitle"
+                    android:layout_toRightOf="@id/enableDebugIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Debug disabled"/>
+
+                <CheckedTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/enableDebugHint"
+                    android:layout_below="@id/enableDebugValue"
+                    android:layout_toRightOf="@id/enableDebugIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/enable_debug_hint"
+                    android:checkMark="?android:attr/listChoiceIndicatorMultiple"
+                    />
+
+
+            </RelativeLayout>
+
+            <!-- View debug  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+            <RelativeLayout
+                android:id="@+id/viewDebugLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="viewDebug"
+                android:layout_below="@id/enableDebugLayout"
+                android:layout_marginTop="7dp"
+                >
+
+
+                <ImageView
+                    android:layout_width="70dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/viewDebugIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_eye_open"/>
+
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/viewDebugValue"
+                    android:layout_toRightOf="@id/viewDebugIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="View debug"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/viewDebugHint"
+                    android:layout_below="@id/viewDebugValue"
+                    android:layout_toRightOf="@id/viewDebugIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/view_debug_hint"
+                    />
+
+
+            </RelativeLayout>
+
+            <!-- Send debug  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+            <RelativeLayout
+                android:id="@+id/sendDebugLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="sendDebug"
+                android:layout_below="@id/viewDebugLayout"
+                android:layout_marginTop="7dp"
+                >
+
+
+                <ImageView
+                    android:layout_width="70dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/sendDebugIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_send"/>
+
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/sendDebugValue"
+                    android:layout_toRightOf="@id/sendDebugIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Send debug to the developer"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/sendDebugHint"
+                    android:layout_below="@id/sendDebugValue"
+                    android:layout_toRightOf="@id/sendDebugIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/send_debug_hint"
+                    />
+
+
+            </RelativeLayout>
+
+
+<!-- erase debug  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+            <RelativeLayout
+                android:id="@+id/eraseDebugLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="eraseDebug"
+                android:layout_below="@id/sendDebugLayout"
+                android:layout_marginTop="7dp"
+                >
+
+
+                <ImageView
+                    android:layout_width="70dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/eraseDebugIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_trash"/>
+
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/eraseDebugValue"
+                    android:layout_toRightOf="@id/eraseDebugIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Erase debug information"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/eraseDebugHint"
+                    android:layout_below="@id/eraseDebugValue"
+                    android:layout_toRightOf="@id/eraseDebugIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/erase_debug_hint"
+                    />
+
+
+            </RelativeLayout>
+
+<!-- ABOUT  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+            <!-- License  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+            <RelativeLayout
+                android:id="@+id/licenseLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="showLicense"
+                android:layout_below="@id/eraseDebugLayout"
+                android:layout_marginTop="7dp"
+                >
+
+                <TextView android:text="About"
+                          android:id="@+id/aboutTitle"
+                          android:layout_width="fill_parent"
+                          android:layout_height="wrap_content"
+                          android:clickable="true"
+                          android:padding="4dp"
+                          android:textColor="@color/settingsItemTitle"
+                          android:layout_alignParentTop="true"
+                          android:layout_alignParentLeft="true"
+                          android:layout_alignParentStart="true" />
+
+
+                <ImageView
+                    android:layout_width="70dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/licenseIcon"
+                    android:padding="4dp"
+                    android:layout_below="@id/aboutTitle"
+                    android:src="@drawable/ic_action_paste"/>
+
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/licenseValue"
+                    android:layout_toRightOf="@id/licenseIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:layout_below="@id/aboutTitle"
+                    android:text="License"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/licenseHint"
+                    android:layout_below="@id/licenseValue"
+                    android:layout_toRightOf="@id/licenseIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/license_hint"
+                    />
+
+
+            </RelativeLayout>
+
+            <!-- License  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+            <RelativeLayout
+                android:id="@+id/creditsLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="showCredits"
+                android:layout_below="@id/licenseLayout"
+                android:layout_marginTop="7dp"
+                >
+
+
+                <ImageView
+                    android:layout_width="70dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/creditsIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_users"/>
+
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/creditsValue"
+                    android:layout_toRightOf="@id/creditsIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Credits"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/creditsHint"
+                    android:layout_below="@id/creditsValue"
+                    android:layout_toRightOf="@id/creditsIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/credits_hint"
+                    />
+
+
+            </RelativeLayout>
+
+        </RelativeLayout>
+    </ScrollView>
 
 </RelativeLayout>

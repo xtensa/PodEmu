@@ -22,32 +22,34 @@ package com.rp.podemu;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.content.pm.PackageManager;
-import android.support.v4.app.DialogFragment;
 import android.content.DialogInterface;
-import android.content.pm.ApplicationInfo;
 import android.os.Bundle;
+import android.support.v4.app.DialogFragment;
+
 import java.util.ArrayList;
 import java.util.Vector;
 
-/**
- * Created by rp on 8/28/15.
- */
-public class ControlledAppDialogFragment extends DialogFragment // implements DialogInterface.OnClickListener
+
+public class BaudRateDialogFragment extends DialogFragment // implements DialogInterface.OnClickListener
 {
-    private ArrayList<ApplicationInfo> applicationInfos;
+    private ArrayList<Integer> baudRateList;
     // Use this instance of the interface to deliver action events
+
+    public BaudRateDialogFragment()
+    {
+
+    }
 
     /* The activity that creates an instance of this dialog fragment must
      * implement this interface in order to receive event callbacks.
      * Each method passes the DialogFragment in case the host needs to query it. */
-    public interface ControlledAppDialogListener
+    public interface BaudRateDialogListener
     {
-        void onCtrlAppSelected(DialogInterface dialog, int which);
+        void onBaudRateSelected(DialogInterface dialog, int which);
     }
 
     // Use this instance of the interface to deliver action events
-    ControlledAppDialogListener mListener;
+    BaudRateDialogListener mListener;
 
     // Override the Fragment.onAttach() method to instantiate the NoticeDialogListener
     @Override
@@ -56,29 +58,33 @@ public class ControlledAppDialogFragment extends DialogFragment // implements Di
         // Verify that the host activity implements the callback interface
         try {
             // Instantiate the NoticeDialogListener so we can send events to the host
-            mListener = (ControlledAppDialogListener) activity;
+            mListener = (BaudRateDialogListener) activity;
         } catch (ClassCastException e) {
             // The activity doesn't implement the interface, throw exception
             throw new ClassCastException(activity.toString()
-                    + " must implement ControlledAppDialogListener");
+                    + " must implement BaudRateDialogFragment");
         }
     }
 
 
-    public void setApplicationInfos(ArrayList<ApplicationInfo> appInfos, int j)
+    public void setBaudRateList(ArrayList<Integer> b)
     {
-        applicationInfos=appInfos;
-     }
+        baudRateList=b;
+    }
 
+    public ArrayList<Integer> getBaudRateList()
+    {
+        return baudRateList;
+    }
 
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState)
     {
         //PackageManager pm = super.getPackageManager();
         Vector<String> appNames = new Vector<String>();
-        for (ApplicationInfo appInfo : applicationInfos)
+        for (Integer i : baudRateList)
         {
-            appNames.add(new String(appInfo.name));
+            appNames.add(i.toString());
         }
 
         // converting Vector appNames to String[] appNamesStr
@@ -86,12 +92,12 @@ public class ControlledAppDialogFragment extends DialogFragment // implements Di
 
         // Use the Builder class for convenient dialog construction
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle(R.string.dialog_select_controlled_app)
+        builder.setTitle("Select Baud Rate")
                 .setItems(appNamesStr, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         // The 'which' argument contains the index position
                         // of the selected item
-                        mListener.onCtrlAppSelected(dialog, which);
+                        mListener.onBaudRateSelected(dialog, which);
                     }
                 });
         // Create the AlertDialog object and return it

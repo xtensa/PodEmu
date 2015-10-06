@@ -1,9 +1,5 @@
 /**
 
- OAPMessenger.class is class that implements "30 pin" serial protocol
- for iPod. It is based on the protocol description available here:
- http://www.adriangame.co.uk/ipod-acc-pro.html
-
  Copyright (C) 2015, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
@@ -17,8 +13,7 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software Foundation,
- Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ along with this program. If not, see http://www.gnu.org/licenses/
 
  */
 
@@ -42,15 +37,17 @@ public class PodEmuLog
      * 2 - debug
      * 3 - verbose debug
      */
-    public final static int DEBUG_LEVEL=2;
+    public static int DEBUG_LEVEL=2;
     public static Context context;
 
     public final static String TAG="PodEmu";
+    private static File logdir;
 
 
     private static FileOutputStream logfileStream;
     private static File logfile;
-    private String filename="PodEmu_" + System.currentTimeMillis() + ".log";
+    //private static String filename="PodEmu_" + System.currentTimeMillis() + ".log";
+    private static String filename="PodEmu_debug.txt";
 
     public PodEmuLog(Context c)
     {
@@ -59,7 +56,7 @@ public class PodEmuLog
 
         String dirname="PodEmuLogs";
         // Get the directory for the user's public pictures directory.
-        File logdir = new File(Environment.getExternalStorageDirectory(), dirname);
+        logdir = new File(Environment.getExternalStorageDirectory(), dirname);
         PodEmuLog.log("Log dir: " + logdir.getPath());
         if (!logdir.mkdirs())
         {
@@ -69,7 +66,21 @@ public class PodEmuLog
 
         try
         {
-            logfileStream = new FileOutputStream(logfile);
+            logfileStream = new FileOutputStream(logfile,true);
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+    }
+
+    public static void eraseDebug()
+    {
+        logfile.delete();
+        try
+        {
+            logfileStream = new FileOutputStream(logfile,true);
         }
         catch (Exception e)
         {
@@ -124,6 +135,9 @@ public class PodEmuLog
     }
 
 
-
+    public static String getLogFileName()
+    {
+        return logdir.getPath() + "/" + filename;
+    }
 
 }
