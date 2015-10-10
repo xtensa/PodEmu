@@ -61,5 +61,5 @@ This application is very similar to PodMode application that already [exists out
 
  - USB Serial For Android: https://github.com/mik3y/usb-serial-for-android
  - ByteFIFO class: http://www.java2s.com/Code/Java/Threads/ByteFIFO.htm
- - Android Developer Icons: http://www.opoloo.com/
+ - Android Developer Icons: http://www.androidicons.com/
  - Question mark icon: http://www.clipartpanda.com/categories/animated-question-mark-for-powerpoint
