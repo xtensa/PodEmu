@@ -74,6 +74,8 @@ public class SettingsActivity extends AppCompatActivity
         // loading information to the activity
         setCtrlApplicationInfo();
 
+        PodEmuLog.debug("Selected app: " + appInfos.get(which).packageName);
+
     }
 
 
@@ -242,6 +244,17 @@ public class SettingsActivity extends AppCompatActivity
         ControlledAppDialogFragment ctrlAppDialog = new ControlledAppDialogFragment();
         ctrlAppDialog.setApplicationInfos(appInfos, appInfos.size());
         ctrlAppDialog.show(getSupportFragmentManager(), "new_tag");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Information")
+                .setMessage("Please note that the change will take effect after PodEmu service restart or cable reconnect.")
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // continue with delete
+                    }
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
     }
 
     public void selectBaudRate(View v)
@@ -279,6 +292,7 @@ public class SettingsActivity extends AppCompatActivity
 
             editor.putString("enableDebug", "true");
             PodEmuLog.DEBUG_LEVEL=2;
+            PodEmuLog.printSystemInfo();
         }
 
         editor.apply();
@@ -400,14 +414,15 @@ public class SettingsActivity extends AppCompatActivity
             enableDebugHint.setChecked(false);
         }
 
-        enableDebugHint.setText(R.string.enable_debug_hint + " Logs will be saved to the following file: " + PodEmuLog.getLogFileName());
+        enableDebugHint.setText(getResources().getString(R.string.enable_debug_hint) +
+                " Logs will be saved to the following file: " + PodEmuLog.getLogFileName());
     }
 
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu)
     {
-        getMenuInflater().inflate(R.menu.menu_settings, menu);
+        //getMenuInflater().inflate(R.menu.menu_settings, menu);
         return true;
     }
 

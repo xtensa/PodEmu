@@ -19,6 +19,8 @@
 
 package com.rp.podemu;
 
+import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
 
 /**
@@ -26,49 +28,148 @@ import android.content.IntentFilter;
  */
 public class PodEmuIntentFilter extends IntentFilter
 {
-    
-    public PodEmuIntentFilter()
+
+    public PodEmuIntentFilter(String processName)
     {
-/*        this.addAction("com.android.music.musicservicecommand");
-        this.addAction("com.android.music.metachanged");
-        this.addAction("com.android.music.playstatechanged");
-        this.addAction("com.android.music.updateprogress");
-        this.addAction("com.android.music.playbackcomplete");
-        this.addAction("com.android.music.queuechanged");
-
-        this.addAction("com.htc.music.metachanged");
-        this.addAction("com.htc.music.musicservicecommand");
-        this.addAction("com.htc.music.metachanged");
-        this.addAction("com.htc.music.playstatechanged");
-        this.addAction("com.htc.music.updateprogress");
-        this.addAction("com.htc.music.playbackcomplete");
-        this.addAction("com.htc.music.queuechanged");
-
-        this.addAction("fm.last.android.metachanged");
-        this.addAction("com.sec.android.app.music.metachanged");
-        this.addAction("com.nullsoft.winamp.metachanged");
-        this.addAction("com.amazon.mp3.metachanged");
-        this.addAction("com.miui.player.metachanged");
-        this.addAction("com.real.IMP.metachanged");
-        this.addAction("com.sonyericsson.music.metachanged");
-        this.addAction("com.rdio.android.metachanged");
-        this.addAction("com.samsung.sec.android.MusicPlayer.metachanged");
-        this.addAction("com.andrew.apollo.metachanged");
-*/
-        // for Spotthisy
-        //this.addCategory("ComponentInfo");
-        //this.addCategory("com.spotify.mobile.android.service.SpotifyIntentService");
-        //this.addCategory("com.spotify.mobile.android.service.SpotifyService");
-        //this.addAction("com.spotify.mobile.android.ui.widget.SpotifyWidget");
-        //this.addAction("ComponentInfo");
-        //this.addAction("com.spotify");
-        //this.addAction("com.spotify.mobile.android.service.SpotthisyIntentService");
-        //this.addAction("com.spotify.mobile.android.service.SpotthisyService");
-        //this.addAction("com.spotify.mobile.android.ui");
-
-        this.addAction("com.spotify.music.playbackstatechanged");
+        if(processName.contains("com.spotify.music"))
+        {
+            this.addAction("com.spotify.music.playbackstatechanged");
             this.addAction("com.spotify.music.metadatachanged");
             this.addAction("com.spotify.music.queuechanged");
+        }
+        else
+        {
+            this.addAction("com.android.music.musicservicecommand");
+            this.addAction("com.android.music.metachanged");
+            this.addAction("com.android.music.playstatechanged");
+            this.addAction("com.android.music.updateprogress");
+            this.addAction("com.android.music.playbackcomplete");
+            this.addAction("com.android.music.queuechanged");
+
+            this.addAction("com.htc.music.metachanged");
+            this.addAction("com.htc.music.musicservicecommand");
+            this.addAction("com.htc.music.metachanged");
+            this.addAction("com.htc.music.playstatechanged");
+            this.addAction("com.htc.music.updateprogress");
+            this.addAction("com.htc.music.playbackcomplete");
+            this.addAction("com.htc.music.queuechanged");
+
+            this.addAction("fm.last.android.metachanged");
+            this.addAction("com.sec.android.app.music.metachanged");
+            this.addAction("com.nullsoft.winamp.metachanged");
+            this.addAction("com.amazon.mp3.metachanged");
+            this.addAction("com.miui.player.metachanged");
+            this.addAction("com.real.IMP.metachanged");
+            this.addAction("com.sonyericsson.music.metachanged");
+            this.addAction("com.rdio.android.metachanged");
+            this.addAction("com.samsung.sec.android.MusicPlayer.metachanged");
+            this.addAction("com.andrew.apollo.metachanged");
+        }
 
     }
+
+    final class BroadcastTypes {
+        static final String SPOTIFY_PACKAGE = "com.spotify.music";
+        static final String SPOTIFY_PLAYBACK_STATE_CHANGED = ".playbackstatechanged";
+        static final String SPOTIFY_QUEUE_CHANGED = ".queuechanged";
+        static final String SPOTIFY_METADATA_CHANGED = ".metadatachanged";
+
+
+        static final String ANDROID_METADATA_CHANGED="metachanged";
+        static final String ANDROID_PLAYBACK_STATE_CHANGED="playstatechanged";
+        static final String ANDROID_UPDATE_PROGRESS="updateprogress";
+        static final String ANDROID_PLAYBACK_COMPLETE="playbackcomplete";
+        static final String ANDROID_QUEUE_CHANGED="queuechanged";
+    }
+
+
+    public static PodEmuMessage processBroadcast(Context context, Intent intent)
+    {
+        PodEmuMessage podEmuMessage = new PodEmuMessage();
+        // will be used later to precisely determine position
+        long timeSentInMs = intent.getLongExtra("timeSent", 0L);
+        boolean isPlaying;
+        String artist;
+        String album;
+        String track;
+        String id;
+        int length;
+        int position;
+        int action_code=0;
+
+        String PLAYBACK_STATE_CHANGED, METADATA_CHANGED, QUEUE_CHANGED, PLAYBACK_COMPLETE, UPDATE_PROGRESS;
+
+        String action = intent.getAction();
+        String cmd = intent.getStringExtra("command");
+
+        PodEmuLog.debug("(" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
+        PodEmuLog.debug("(" + context.getClass() + ") " + intent.getExtras());
+
+
+        if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
+        {
+            PodEmuLog.debug("Detected SPOTIFY broadcast");
+
+            length = intent.getIntExtra("length", 0);
+            position = intent.getIntExtra("playbackPosition", 0);
+            id = intent.getStringExtra("id");
+
+            METADATA_CHANGED=BroadcastTypes.SPOTIFY_METADATA_CHANGED;
+            PLAYBACK_STATE_CHANGED=BroadcastTypes.SPOTIFY_PLAYBACK_STATE_CHANGED;
+            QUEUE_CHANGED=BroadcastTypes.SPOTIFY_QUEUE_CHANGED;
+            PLAYBACK_COMPLETE="pattern that will never match :)";
+            UPDATE_PROGRESS="pattern that will never match :)";
+        }
+        else
+        {
+            length = (int) intent.getLongExtra("duration", 0);
+            position = (int) intent.getLongExtra("position", 0);
+            id = String.valueOf(intent.getLongExtra("id",0));
+
+            METADATA_CHANGED=BroadcastTypes.ANDROID_METADATA_CHANGED;
+            PLAYBACK_STATE_CHANGED=BroadcastTypes.ANDROID_PLAYBACK_STATE_CHANGED;
+            QUEUE_CHANGED=BroadcastTypes.ANDROID_QUEUE_CHANGED;
+            PLAYBACK_COMPLETE=BroadcastTypes.ANDROID_PLAYBACK_COMPLETE;
+            UPDATE_PROGRESS=BroadcastTypes.ANDROID_UPDATE_PROGRESS;
+        }
+
+
+        if (action.contains(METADATA_CHANGED))
+        {
+            action_code=PodEmuMessage.ACTION_METADATA_CHANGED;
+        }
+        if (action.contains(PLAYBACK_STATE_CHANGED)
+                || action.contains(PLAYBACK_COMPLETE)
+                || action.contains(UPDATE_PROGRESS))
+        {
+            action_code=PodEmuMessage.ACTION_PLAYBACK_STATE_CHANGED;
+        }
+        if (action.contains(QUEUE_CHANGED))
+        {
+            action_code=PodEmuMessage.ACTION_QUEUE_CHANGED;
+            // Sent only as a notification, your app may want to respond accordingly.
+        }
+
+        artist = intent.getStringExtra("artist");
+        album = intent.getStringExtra("album");
+        track = intent.getStringExtra("track");
+
+        isPlaying = intent.getBooleanExtra("playing", false);
+
+        PodEmuLog.debug(isPlaying + " : " + artist + " : " + album + " : " + track + " : " + id + " : " + length);
+
+        podEmuMessage.setAlbum(album);
+        podEmuMessage.setArtist(artist);
+        podEmuMessage.setTrackName(track);
+        podEmuMessage.setTrackID(id);
+        podEmuMessage.setLength(length);
+        podEmuMessage.setIsPlaying(isPlaying);
+        podEmuMessage.setPositionMS(position);
+        podEmuMessage.setTimeSent(timeSentInMs);
+        podEmuMessage.setAction(action_code);
+
+        return podEmuMessage;
+    }
+
+
 }

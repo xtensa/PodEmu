@@ -332,6 +332,173 @@ public class OAPMessenger
             }
         }
 
+
+        if(mode==0x02 && ipod_mode==0x02) // simple mode
+        {
+
+            switch(cmd)
+            {
+
+                /*
+                 * @cmd 0x00 0x01
+                 * Play
+                 */
+                case 0x0001: MediaControlLibrary.action_play(); break;
+
+
+                /*
+                 * @cmd 0x00 0x02
+                 * Vol+
+                 */
+
+
+                /*
+                 * @cmd 0x00 0x04
+                 * Vol-
+                 */
+
+
+                /*
+                 * @cmd 0x00 0x08
+                 * Skip>
+                 */
+                case 0x0008: MediaControlLibrary.action_next(); break;
+
+
+                /*
+                 * @cmd 0x00 0x10
+                 * Skip<
+                 */
+                case 0x0010: MediaControlLibrary.action_prev(); break;
+
+
+                /*
+                 * @cmd 0x00 0x20
+                 * Next Album
+                 */
+
+
+                /*
+                 * @cmd 0x00 0x40
+                 * Previous Album
+                 */
+
+
+                /*
+                 * @cmd 0x00 0x80
+                 * Stop
+                 */
+                case 0x0080: MediaControlLibrary.action_stop(); break;
+
+                case 0x0000:
+                {
+                    /*
+                     * @cmd 0x00 0x00
+                     * Button Released
+                     */
+                    if(params.length==0)
+                    {
+                        // do nothing
+                    }
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x01
+                     * Play
+                     */
+                    else if (params.length==1 && params[0]==(byte)0x01)
+                    {
+                        MediaControlLibrary.action_play();
+                    }
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x02
+                     * Pause
+                     */
+                    else if (params.length==1 && params[0]==(byte)0x02)
+                    {
+                        MediaControlLibrary.action_pause();
+                    }
+
+                    /*
+                     * @cmd 0x00 0x00 0x04
+                     * Mute (toggle)
+                     */
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x20
+                     * Next Playlist
+                     */
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x40
+                     * Previous Playlist
+                     */
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x80
+                     * Toggles Shuffle
+                     */
+                    else if (params.length==1 && params[0]==(byte)0x80)
+                    {
+                        // TODO implement shuffle
+                    }
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x00 0x01
+                     * Toggles Repeat
+                     */
+                    else if (params.length==1 && params[0]==(byte)0x00 && params[1]==(byte)0x01)
+                    {
+                        // TODO implement repeat
+                    }
+
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x00 0x04
+                     * Ipod Off
+                     */
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x00 0x08
+                     * Ipod On
+                     */
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x00 0x40
+                     * Menu Button
+                     */
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x00 0x80
+                     * OK/Select
+                     */
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x00 0x00 0x01
+                     * Scroll Up
+                     */
+
+
+                    /*
+                     * @cmd 0x00 0x00 0x00 0x00 0x02
+                     * Scroll Down
+                     */
+                } break;
+
+            }
+
+        }
         if(mode==0x04 && ipod_mode==0x04) // AiR mode
         {
             switch(cmd)
@@ -1354,6 +1521,10 @@ public class OAPMessenger
         currentlyPlaying.bulk_update(msg);
     }
 
+    public PodEmuMessage get_currently_playing()
+    {
+        return currentlyPlaying;
+    }
 
     /**
      * sends currently playing information to iPod

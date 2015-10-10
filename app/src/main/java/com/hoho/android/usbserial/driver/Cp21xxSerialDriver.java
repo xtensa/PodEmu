@@ -28,6 +28,8 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.util.Log;
 
+import com.rp.podemu.PodEmuLog;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -189,6 +191,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                     // We *should* use UsbRequest, except it has a bug/api oversight
                     // where there is no way to determine the number of bytes read
                     // in response :\ -- http://b.android.com/28023
+                    PodEmuLog.debug("CP sucks");
                     return 0;
                 }
                 System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);

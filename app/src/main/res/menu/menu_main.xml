@@ -30,6 +30,7 @@
         android:id="@+id/action_menu_settings"
         android:title="@string/action_menu_settings"
         android:orderInCategory="100"
+        android:icon="@android:drawable/ic_menu_preferences"
         app:showAsAction="always"
         />
 </menu>

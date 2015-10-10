@@ -120,7 +120,7 @@
                   android:layout_alignParentStart="true" />
 
         <ImageView
-            android:layout_width="70dp"
+            android:layout_width="@dimen/settings_icon_size"
             android:layout_height="wrap_content"
             android:id="@+id/baudRateIcon"
             android:layout_below="@id/baudRateTitle"
@@ -177,7 +177,7 @@
                           android:layout_alignParentStart="true" />
 
                 <ImageView
-                    android:layout_width="70dp"
+                    android:layout_width="@dimen/settings_icon_size"
                     android:layout_height="wrap_content"
                     android:id="@+id/enableDebugIcon"
                     android:layout_below="@id/enableDebugTitle"
@@ -228,7 +228,7 @@
 
 
                 <ImageView
-                    android:layout_width="70dp"
+                    android:layout_width="@dimen/settings_icon_size"
                     android:layout_height="wrap_content"
                     android:id="@+id/viewDebugIcon"
                     android:padding="4dp"
@@ -276,7 +276,7 @@
 
 
                 <ImageView
-                    android:layout_width="70dp"
+                    android:layout_width="@dimen/settings_icon_size"
                     android:layout_height="wrap_content"
                     android:id="@+id/sendDebugIcon"
                     android:padding="4dp"
@@ -325,7 +325,7 @@
 
 
                 <ImageView
-                    android:layout_width="70dp"
+                    android:layout_width="@dimen/settings_icon_size"
                     android:layout_height="wrap_content"
                     android:id="@+id/eraseDebugIcon"
                     android:padding="4dp"
@@ -386,7 +386,7 @@
 
 
                 <ImageView
-                    android:layout_width="70dp"
+                    android:layout_width="@dimen/settings_icon_size"
                     android:layout_height="wrap_content"
                     android:id="@+id/licenseIcon"
                     android:padding="4dp"
@@ -436,7 +436,7 @@
 
 
                 <ImageView
-                    android:layout_width="70dp"
+                    android:layout_width="@dimen/settings_icon_size"
                     android:layout_height="wrap_content"
                     android:id="@+id/creditsIcon"
                     android:padding="4dp"

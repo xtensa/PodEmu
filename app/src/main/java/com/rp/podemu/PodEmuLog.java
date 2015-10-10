@@ -20,11 +20,18 @@
 package com.rp.podemu;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
 
 /**
  * Created by rp on 9/10/15.
@@ -140,4 +147,44 @@ public class PodEmuLog
         return logdir.getPath() + "/" + filename;
     }
 
+    public static void printSystemInfo()
+    {
+        String uname;
+        try
+        {
+            Process process = Runtime.getRuntime().exec("uname -a");
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            uname=bufferedReader.readLine();
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+            uname="uname failed";
+        }
+
+
+
+        log(
+                "\nBoard: " + Build.BOARD +
+                "\nBrand: " + Build.BRAND +
+                "\nBoard: " + Build.BOARD +
+                "\nDevice: " + Build.DEVICE +
+                "\nDisplay: " + Build.DISPLAY +
+                "\nHardware: " + Build.HARDWARE +
+                "\nManufacturer: " + Build.MANUFACTURER +
+                "\nModel: " + Build.MODEL +
+                "\nProduct: " + Build.PRODUCT +
+                "\nAPI level: " + Build.VERSION.SDK_INT +
+                "\n" + uname
+        );
+    }
+
+
+    public static void printStackTrace(Exception e)
+    {
+        Writer writer = new StringWriter();
+        PrintWriter printWriter = new PrintWriter(writer);
+        e.printStackTrace(printWriter);
+        error(writer.toString());
+    }
 }

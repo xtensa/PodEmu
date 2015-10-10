@@ -59,11 +59,10 @@ public class MainActivity extends AppCompatActivity
     private int iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
 
 
-
     private String ctrlAppProcessName;
     private Intent serviceIntent;
     private SerialInterface serialInterface;
-    private PodEmuIntentFilter iF = new PodEmuIntentFilter();
+    private PodEmuIntentFilter iF;
     private PodEmuService podEmuService;
     private boolean serviceBound = false;
     private PodEmuMessage currentlyPlaying=new PodEmuMessage();
@@ -86,33 +85,10 @@ public class MainActivity extends AppCompatActivity
         MediaControlLibrary.action_next();
     }
 
-    static int tmp=0,tmp2=40;
     public void action_play_pause(View v)
     {
         MediaControlLibrary.action_play_pause();
 
-        // reading from serial interface
-        //String tmp_str;
-        //mainText.setText((String) mainText.getText() + "\nREAD: " + serialInterface.readString());
-/*        do
-        {
-            tmp_str = serialInterface.readString();
-            tmp += tmp_str.length();
-        }while(tmp_str.length()>0 && tmp<tmp2);
-        tmp2=tmp+40;
-        mainText.setText(mainText.getText() + "\nREAD: " + tmp + "bytes");
-        serialInterface.write("TST".getBytes(),3);
-*/
-
-
-        /*
-        wrong way
-
-        Intent downIntent = new Intent(Intent.ACTION_MEDIA_BUTTON, null);
-        KeyEvent downEvent = new KeyEvent( KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
-        downIntent.putExtra(Intent.EXTRA_KEY_EVENT, downEvent);
-        sendOrderedBroadcast(downIntent, null);
-        */
     }
 
     public void action_prev(View v)
@@ -137,36 +113,54 @@ public class MainActivity extends AppCompatActivity
     public void start_service(View v)
     {
 
-        // reconnect usb
-        serialInterface.init((UsbManager) getSystemService(Context.USB_SERVICE));
-
-        if(serialInterface.isConnected())
+        try
         {
-            startService(serviceIntent);
+            // reconnect usb
+            serialInterface.init((UsbManager) getSystemService(Context.USB_SERVICE));
 
-            if (bindService(serviceIntent, serviceConnection, BIND_IMPORTANT))
+            if (serialInterface.isConnected())
             {
-                PodEmuLog.debug("Service succesfully bound");
-                serviceBound = true;
-            } else
-            {
-                PodEmuLog.debug("Service NOT bound");
+                startService(serviceIntent);
+
+                if (bindService(serviceIntent, serviceConnection, BIND_IMPORTANT))
+                {
+                    PodEmuLog.debug("Service succesfully bound");
+                    serviceBound = true;
+                } else
+                {
+                    PodEmuLog.debug("Service NOT bound");
+                }
+
+                updateServiceButton();
             }
-
-            updateServiceButton();
+            updateSerialStatus();
         }
-        updateSerialStatus();
+        catch(Exception e)
+        {
+            PodEmuLog.printStackTrace(e);
+            throw e;
+        }
+
     }
 
     public void stop_service(View v)
     {
-        iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
-        unbindService(serviceConnection);
-        stopService(serviceIntent);
-        serviceBound = false;
-        updateSerialStatus();
-        updateServiceButton();
-        updateIPodStatus();
+        try
+        {
+            iPodConnected = OAPMessenger.IPOD_MODE_DISCONNECTED;
+            unbindService(serviceConnection);
+            stopService(serviceIntent);
+            serviceBound = false;
+            updateSerialStatus();
+            updateServiceButton();
+            updateIPodStatus();
+        }
+        catch(Exception e)
+        {
+            PodEmuLog.printStackTrace(e);
+            throw e;
+        }
+
     }
 
 
@@ -180,33 +174,21 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-/*
-* 05.273  25767-26208/com.rp.podemu D/PodEmu﹕ Buffer thread started.
-09-24 21:56:05.283  25767-26208/com.rp.podemu W/dalvikvm﹕ threadid=11: thread exiting with uncaught exception (group=0x2b4e71f8)
-09-24 21:56:05.293  25767-25767/com.rp.podemu D/PodEmu﹕ Service started
-09-24 21:56:05.293  25767-25767/com.rp.podemu D/PodEmu﹕ Service bound
-09-24 21:56:05.293  25767-26208/com.rp.podemu E/AndroidRuntime﹕ FATAL EXCEPTION: Thread-271
-    java.lang.NullPointerException
-            at com.hoho.android.usbserial.driver.ProlificSerialDriver$ProlificSerialPort.read(ProlificSerialDriver.java:373)
-            at com.rp.podemu.SerialInterface_USBSerial.read(SerialInterface_USBSerial.java:92)
-            at com.rp.podemu.PodEmuService$1.run(PodEmuService.java:175)
-            at java.lang.Thread.run(Thread.java:856)
-09-24 21:56:05.303  25767-26212/com.rp.podemu D/PodEmu﹕ Background thread started.
-09-24 21:56:05.353  25767-25767/com.rp.podemu D/RPP﹕ onPause done*/
-
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
 
+        try
+        {
+            PodEmuLog.debug("onCreate");
+            setContentView(R.layout.activity_main);
+            // required to create logdir
+            podEmuLog = new PodEmuLog(this);
+            podEmuLog.printSystemInfo();
 
-        PodEmuLog.debug("onCreate");
-        setContentView(R.layout.activity_main);
-        // required to create logdir
-        podEmuLog=new PodEmuLog(this);
 
-
-        // Make scroll view automatically scroll to the bottom
+            // Make scroll view automatically scroll to the bottom
 /*        final ScrollView sv=(ScrollView) this.findViewById(R.id.main_sv);
         sv.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener()
            {
@@ -225,150 +207,61 @@ public class MainActivity extends AppCompatActivity
                }
            });
 */
-        serialInterface=new SerialInterface_USBSerial();
+            serialInterface = new SerialInterface_USBSerial();
 
 //        LayoutInflater lif = getLayoutInflater();
 //        ViewGroup layout = (ViewGroup)lif.inflate(R.layout.board, null);
-        dockingLogoView = (DockingLogoView) findViewById(R.id.dockStationLogo);
+            dockingLogoView = (DockingLogoView) findViewById(R.id.dockStationLogo);
 //        layout.addView((View)dockingLogoView);
 
-        // preferances are loaded onResume
-        //    loadPreferences();
+//        loadPreferences();
 
+            this.ctrlAppStatusTitle = (TextView) this.findViewById(R.id.CTRL_app_status_title);
+            this.ctrlAppStatusText = (TextView) this.findViewById(R.id.CTRL_app_status_text);
+            this.serialStatusText = (TextView) this.findViewById(R.id.SERIAL_status_text);
+            this.serialStatusHint = (TextView) this.findViewById(R.id.SERIAL_status_hint);
+            this.dockStatusText = (TextView) this.findViewById(R.id.DOCK_status_text);
 
-        //iF.addAction("android.hardware.usb.action.USB_DEVICE_ATTACHED");
-        iF.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
+            //AudioManager manager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
+            //if (!manager.isMusicActive())
+            //{
+            //    this.mainText.setText("Not playing...");
+            //}
 
-        registerReceiver(mReceiver, iF);
-        this.ctrlAppStatusTitle = (TextView) this.findViewById(R.id.CTRL_app_status_title);
-        this.ctrlAppStatusText = (TextView) this.findViewById(R.id.CTRL_app_status_text);
-        this.serialStatusText = (TextView) this.findViewById(R.id.SERIAL_status_text);
-        this.serialStatusHint = (TextView) this.findViewById(R.id.SERIAL_status_hint);
-        this.dockStatusText = (TextView) this.findViewById(R.id.DOCK_status_text);
+            // Start background service
+            serviceIntent = new Intent(this, PodEmuService.class);
 
-
-//        registerReceiver(mReceiver, iF);
-
-        //AudioManager manager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
-        //if (!manager.isMusicActive())
-        //{
-        //    this.mainText.setText("Not playing...");
-        //}
-
-        // Start background service
-        serviceIntent = new Intent(this, PodEmuService.class);
-
-        updateSerialStatus();
-        updateIPodStatus();
-
-        //looperThread = new LooperThread();
-        //looperThread.start();
-
+            updateSerialStatus();
+            updateIPodStatus();
+        }
+        catch(Exception e)
+        {
+            PodEmuLog.printStackTrace(e);
+            throw e;
+        }
 
     }
 
 
     private BroadcastReceiver mReceiver = new BroadcastReceiver()
     {
-        final class BroadcastTypes {
-            static final String SPOTIFY_PACKAGE = "com.spotify.music";
-            static final String PLAYBACK_STATE_CHANGED = SPOTIFY_PACKAGE + ".playbackstatechanged";
-            static final String QUEUE_CHANGED = SPOTIFY_PACKAGE + ".queuechanged";
-            static final String METADATA_CHANGED = SPOTIFY_PACKAGE + ".metadatachanged";
-        }
 
         @Override
         public void onReceive(Context context, Intent intent)
         {
-            // will be used later to precisely determine position
-            long timeSentInMs = intent.getLongExtra("timeSent", 0L);
-            boolean isPlaying;
-            String artist;
-            String album;
-            String track;
-            String id;
-            int length;
-            int position;
-            int action_code=0;
-
-            String action = intent.getAction();
-            String cmd = intent.getStringExtra("command");
-
-            PodEmuLog.debug("(A) Broadcast received: " + cmd + " - " + action);
-/*            if(action.contains("USB_DEVICE_DETACHED"))
+            try
             {
-                if(serviceBound) stop_service(null);
-                serialInterface.close();
-                updateSerialStatus();
-
-                iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
-                updateIPodStatus();
-            }
-            else
-            */
-            if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
-            {
-                PodEmuLog.debug("(A) Detected SPOTIFY broadcast");
-
-                artist = intent.getStringExtra("artist");
-                album = intent.getStringExtra("album");
-                track = intent.getStringExtra("track");
-                id = intent.getStringExtra("id");
-                length = intent.getIntExtra("length", 0);
-                position = intent.getIntExtra("playbackPosition", 0);
-                isPlaying = intent.getBooleanExtra("playing", false);
-
-                if (action.equals(BroadcastTypes.METADATA_CHANGED))
+                PodEmuMessage podEmuMessage = PodEmuIntentFilter.processBroadcast(context, intent);
+                if (podEmuMessage.getAction() != PodEmuMessage.ACTION_QUEUE_CHANGED)
                 {
-                    action_code=PodEmuMessage.ACTION_METADATA_CHANGED;
+                    updateCurrentlyPlayingDisplay();
                 }
-                if (action.equals(BroadcastTypes.PLAYBACK_STATE_CHANGED))
-                {
-                    action_code=PodEmuMessage.ACTION_PLAYBACK_STATE_CHANGED;
-                }
-                if (action.equals(BroadcastTypes.QUEUE_CHANGED))
-                {
-                    action_code=PodEmuMessage.ACTION_QUEUE_CHANGED;
-                    // Sent only as a notification, your app may want to respond accordingly.
-                }
-
-                PodEmuLog.debug(isPlaying + " : " + artist + " : " + album + " : " + track + " : " + id + " : " + length);
-
-                if(!action.contains(BroadcastTypes.QUEUE_CHANGED))
-                {
-                    ctrlAppStatusText.setText(
-                            "Artist: " + artist + "\n" +
-                            "Album: " + album + "\n" +
-                            "Track: " + track + "\n" +
-                            "Length: " + length + "\n"
-                    );
-                }
-
-                PodEmuMessage podEmuMessage = new PodEmuMessage();
-                podEmuMessage.setAlbum(album);
-                podEmuMessage.setArtist(artist);
-                podEmuMessage.setTrackName(track);
-                podEmuMessage.setTrackID(id);
-                podEmuMessage.setLength(length);
-                podEmuMessage.setIsPlaying(isPlaying);
-                podEmuMessage.setPositionMS(position);
-                podEmuMessage.setTimeSent(timeSentInMs);
-                podEmuMessage.setAction(action_code);
-
                 currentlyPlaying.bulk_update(podEmuMessage);
-
-                // don't need to send - service has it's own broadcast receiver
-                /*
-                if(podEmuService!=null)
-                {
-                    podEmuService.registerMessage(podEmuMessage);
-                }
-                */
             }
-            else
+            catch(Exception e)
             {
-                // not supported broadcast so exiting
-                return;
+                PodEmuLog.printStackTrace(e);
+                throw e;
             }
 
         }
@@ -377,40 +270,48 @@ public class MainActivity extends AppCompatActivity
 
     private void loadPreferences()
     {
-        ImageView appLogo = (ImageView) findViewById(R.id.CTRL_app_icon);
-        SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
-        ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
-        String enableDebug=sharedPref.getString("enableDebug", "false");
-
-        if(enableDebug.equals("true"))
-            PodEmuLog.DEBUG_LEVEL=2;
-        else
-            PodEmuLog.DEBUG_LEVEL=0;
-
-        if(podEmuService!=null)
-        {
-            podEmuService.reloadBaudRate();
-        }
-
-        PackageManager pm = getPackageManager();
-        ApplicationInfo appInfo;
-
         try
         {
-            appInfo = pm.getApplicationInfo(ctrlAppProcessName, PackageManager.GET_META_DATA);
+            ImageView appLogo = (ImageView) findViewById(R.id.CTRL_app_icon);
+            SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+            ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
+            String enableDebug = sharedPref.getString("enableDebug", "false");
 
-            ctrlAppStatusTitle.setText("Controlled app: " + appInfo.loadLabel(pm));
-            ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0xff, 0xff));
+            if (enableDebug.equals("true"))
+                PodEmuLog.DEBUG_LEVEL = 2;
+            else
+                PodEmuLog.DEBUG_LEVEL = 0;
 
-            appLogo.setImageDrawable(appInfo.loadIcon(pm));
+            if (podEmuService != null)
+            {
+                podEmuService.reloadBaudRate();
+            }
+
+            PackageManager pm = getPackageManager();
+            ApplicationInfo appInfo;
+
+            try
+            {
+                appInfo = pm.getApplicationInfo(ctrlAppProcessName, PackageManager.GET_META_DATA);
+
+                ctrlAppStatusTitle.setText("Controlled app: " + appInfo.loadLabel(pm));
+                ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0xff, 0xff));
+
+                appLogo.setImageDrawable(appInfo.loadIcon(pm));
+            } catch (PackageManager.NameNotFoundException e)
+            {
+                ctrlAppStatusTitle.setText("Cannot find app: " + ctrlAppProcessName);
+                ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
+
+                appLogo.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.questionmark)));
+            }
         }
-        catch (PackageManager.NameNotFoundException e)
+        catch(Exception e)
         {
-            ctrlAppStatusTitle.setText("Cannot find app: " + ctrlAppProcessName);
-            ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
-
-            appLogo.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.questionmark)));
+            PodEmuLog.printStackTrace(e);
+            throw e;
         }
+
 
     }
 
@@ -419,9 +320,19 @@ public class MainActivity extends AppCompatActivity
     protected void onPause()
     {
         super.onPause();
-    //    unregisterReceiver(mReceiver);
 
-        PodEmuLog.debug("onPause done");
+        try
+        {
+            unregisterReceiver(mReceiver);
+
+            PodEmuLog.debug("onPause done");
+        }
+        catch(Exception e)
+        {
+            PodEmuLog.printStackTrace(e);
+            throw e;
+        }
+
     }
 
 
@@ -429,9 +340,24 @@ public class MainActivity extends AppCompatActivity
     public void onResume()
     {
         super.onResume();
-        loadPreferences();
-        start_service(null);
-        PodEmuLog.debug("onResume done");
+
+        try
+        {
+            loadPreferences();
+            start_service(null);
+
+            iF = new PodEmuIntentFilter(ctrlAppProcessName);
+            iF.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
+            registerReceiver(mReceiver, iF);
+
+            PodEmuLog.debug("onResume done");
+        }
+        catch(Exception e)
+        {
+            PodEmuLog.printStackTrace(e);
+            throw e;
+        }
+
     }
 
 
@@ -446,17 +372,27 @@ public class MainActivity extends AppCompatActivity
     public void onDestroy()
     {
         super.onDestroy();
-        PodEmuLog.debug("onDestroy");
-        unregisterReceiver(mReceiver);
-        //stopService(serviceIntent);
 
-        if (serviceBound) {
-            unbindService(serviceConnection);
-            serviceBound = false;
+        try
+        {
+            PodEmuLog.debug("onDestroy");
+            //unregisterReceiver(mReceiver);
+            //stopService(serviceIntent);
+
+            if (serviceBound)
+            {
+                unbindService(serviceConnection);
+                serviceBound = false;
+            }
+
+            // this is main thread looper, so no need to quit()
+            //mHandler.getLooper().quit();
         }
-
-        // this is main thread looper, so no need to quit()
-        //mHandler.getLooper().quit();
+        catch(Exception e)
+        {
+            PodEmuLog.printStackTrace(e);
+            throw e;
+        }
 
     }
 
@@ -503,32 +439,52 @@ public class MainActivity extends AppCompatActivity
 
     private void updateIPodStatus()
     {
-        if(iPodConnected==OAPMessenger.IPOD_MODE_AIR)
+        try
         {
-            this.dockStatusText.setTextColor(Color.rgb(0x00,0xff,0x00));
-            this.dockStatusText.setText("AiR mode");
-        }
-        else if(iPodConnected==OAPMessenger.IPOD_MODE_SIMPLE)
-        {
-            this.dockStatusText.setTextColor(Color.rgb(0x00,0xff,0x00));
-            this.dockStatusText.setText("simple mode");
-        }
-        else
-        {
-            this.dockStatusText.setTextColor(Color.rgb(0xff, 0x00, 0x00));
-            this.dockStatusText.setText("disconnected");
-
-            if(dockingLogoView!=null)
+            if (iPodConnected == OAPMessenger.IPOD_MODE_AIR)
             {
-                dockingLogoView.resetBitmap();
-                if(podEmuService!=null)
+                this.dockStatusText.setTextColor(Color.rgb(0x00, 0xff, 0x00));
+                this.dockStatusText.setText("AiR mode");
+                if (podEmuService.isDockIconLoaded)
                 {
-                    podEmuService.dockIconBitmap = dockingLogoView.getResizedBitmap();
+                    dockingLogoView.setBitmap(podEmuService.dockIconBitmap);
+                }
+            } else if (iPodConnected == OAPMessenger.IPOD_MODE_SIMPLE)
+            {
+                this.dockStatusText.setTextColor(Color.rgb(0x00, 0xff, 0x00));
+                this.dockStatusText.setText("simple mode");
+            } else // docking station disconnected
+            {
+                this.dockStatusText.setTextColor(Color.rgb(0xff, 0x00, 0x00));
+                this.dockStatusText.setText("disconnected");
+
+                if (dockingLogoView != null)
+                {
+                    dockingLogoView.resetBitmap();
+                    if (podEmuService != null)
+                    {
+                        podEmuService.dockIconBitmap = dockingLogoView.getResizedBitmap();
+                    }
                 }
             }
-
-
         }
+        catch(Exception e)
+        {
+            PodEmuLog.printStackTrace(e);
+            throw e;
+        }
+
+    }
+
+    private void updateCurrentlyPlayingDisplay()
+    {
+        ctrlAppStatusText.setText(
+                "Artist: " + currentlyPlaying.getArtist() + "\n" +
+                " Album: " + currentlyPlaying.getAlbum() + "\n" +
+                " Track: " + currentlyPlaying.getTrackName() + "\n" +
+                "Length: " + currentlyPlaying.getLengthHumanReadable() + "\n"
+        );
+
     }
 
 
@@ -554,27 +510,41 @@ public class MainActivity extends AppCompatActivity
         public void handleMessage(Message inputMessage)
         {
             super.handleMessage(inputMessage);
-            MainActivity target = mainActivityWeakReference.get();
-            // Gets the image task from the incoming Message object.
-            //        PhotoTask photoTask = (PhotoTask) inputMessage.obj;
-            //mainText.setText(mainText.getText() + "Received MSG");
-            switch(inputMessage.arg1)
+
+            try
             {
-                case 1: // we received a picture block
+                MainActivity target = mainActivityWeakReference.get();
+                // Gets the image task from the incoming Message object.
+                //        PhotoTask photoTask = (PhotoTask) inputMessage.obj;
+                //mainText.setText(mainText.getText() + "Received MSG");
+                switch (inputMessage.arg1)
                 {
-                    dockingLogoView.setBitmap((Bitmap)inputMessage.obj);
-                    podEmuService.dockIconBitmap=dockingLogoView.getResizedBitmap();
-                } break;
-                case 2: // iPod connection status changed
-                {
-                    iPodConnected=inputMessage.arg2;
-                    updateIPodStatus();
-                } break;
-                case 3: // serial connection status changed
-                {
-                    updateSerialStatus();
-                } break;
+                    case 1: // we received a picture block
+                    {
+                        dockingLogoView.setBitmap((Bitmap) inputMessage.obj);
+                        podEmuService.dockIconBitmap = dockingLogoView.getResizedBitmap();
+                        podEmuService.isDockIconLoaded = true;
+                    }
+                    break;
+                    case 2: // dock station connection status changed
+                    {
+                        iPodConnected = inputMessage.arg2;
+                        updateIPodStatus();
+                    }
+                    break;
+                    case 3: // serial connection status changed
+                    {
+                        updateSerialStatus();
+                    }
+                    break;
+                }
             }
+            catch(Exception e)
+            {
+                PodEmuLog.printStackTrace(e);
+                throw e;
+            }
+
         }
     }
 
@@ -586,23 +556,53 @@ public class MainActivity extends AppCompatActivity
     private ServiceConnection serviceConnection = new ServiceConnection()
     {
 
+
         @Override
         public void onServiceConnected(ComponentName className,
-                                       IBinder service) {
-            // We've bound to LocalService, cast the IBinder and get LocalService instance
-            PodEmuService.LocalBinder binder = (PodEmuService.LocalBinder) service;
-            podEmuService = binder.getService();
-            serviceBound = true;
-            podEmuService.setHandler(mHandler);
-
-            podEmuService.registerMessage(currentlyPlaying);
-            updateServiceButton();
-
-            if(podEmuService.dockIconBitmap!=null)
+                                       IBinder service)
+        {
+            try
             {
-                dockingLogoView.setResizedBitmap(podEmuService.dockIconBitmap);
+                // We've bound to LocalService, cast the IBinder and get LocalService instance
+                PodEmuService.LocalBinder binder = (PodEmuService.LocalBinder) service;
+                podEmuService = binder.getService();
+                serviceBound = true;
+                podEmuService.setHandler(mHandler);
+
+                if (currentlyPlaying.getTrackName() != null)
+                {
+                    // update service only if we have this information
+                    // otherwise we can overwrite information that service already has (eg. if we are rebinding)
+                    podEmuService.registerMessage(currentlyPlaying);
+                } else
+                {
+                    // otherwise update currently playing
+                    currentlyPlaying.bulk_update(podEmuService.getCurrentlyPlaying());
+                    updateCurrentlyPlayingDisplay();
+                }
+                updateServiceButton();
+
+                if (podEmuService.dockIconBitmap != null)
+                {
+                    dockingLogoView.setResizedBitmap(podEmuService.dockIconBitmap);
+                }
+
+
+                // once service is bound we can launch controlled app
+                if (!podEmuService.isAppLaunched)
+                {
+                    launchControlledApp(null);
+                    podEmuService.isAppLaunched = true;
+                }
             }
+            catch(Exception e)
+            {
+                PodEmuLog.printStackTrace(e);
+                throw e;
+            }
+
         }
+
 
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
@@ -611,5 +611,19 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
+    public void launchControlledApp(View v)
+    {
+        try
+        {
+            Intent intent = getPackageManager().getLaunchIntentForPackage(ctrlAppProcessName);
+            startActivity(intent);
+        }
+        catch(Exception e)
+        {
+            PodEmuLog.printStackTrace(e);
+            throw e;
+        }
+
+    }
 
 }

@@ -30,88 +30,70 @@ import android.view.View;
 public class MediaControlLibrary
 {
 
-    public static void action_next()
+
+    public static void execute_action(int action)
     {
+        final int a=action;
 
         new Thread(new Runnable()
         {
             @Override
             public void run()
             {
-                Instrumentation inst = new Instrumentation();
-                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_NEXT);
+                try
+                {
+                    Instrumentation inst = new Instrumentation();
+                    inst.sendKeyDownUpSync(a);
+                }
+                catch(Exception e)
+                {
+                    PodEmuLog.printStackTrace(e);
+                    // we don't want to throw this error any further
+                }
             }
         }).start();
+    }
 
+
+
+    public static void action_next()
+    {
+        execute_action(KeyEvent.KEYCODE_MEDIA_NEXT);
     }
 
     public static void action_prev()
     {
-        new Thread(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                Instrumentation inst = new Instrumentation();
-                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
-            }
-        }).start();
+        execute_action(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+    }
 
+    public static void action_play()
+    {
+        execute_action(KeyEvent.KEYCODE_MEDIA_PLAY);
+    }
+
+    public static void action_pause()
+    {
+        execute_action(KeyEvent.KEYCODE_MEDIA_PAUSE);
     }
 
     public static void action_play_pause()
     {
-        new Thread(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                Instrumentation inst = new Instrumentation();
-                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
-            }
-        }).start();
-
-
-
+        execute_action(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
     }
 
     public static void action_stop()
     {
-        new Thread(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                Instrumentation inst = new Instrumentation();
-                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_STOP);
-            }
-        }).start();
+        execute_action(KeyEvent.KEYCODE_MEDIA_STOP);
     }
 
     public static void action_skip_backward()
-    {
-        new Thread(new Runnable()
         {
-            @Override
-            public void run()
-            {
-                Instrumentation inst = new Instrumentation();
-                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
-            }
-        }).start();
+        execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
     }
 
     public static void action_skip_forward()
     {
-        new Thread(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                Instrumentation inst = new Instrumentation();
-                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD);
-            }
-        }).start();
+        execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD);
     }
 
 

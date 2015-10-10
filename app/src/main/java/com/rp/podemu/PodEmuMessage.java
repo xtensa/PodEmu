@@ -72,7 +72,7 @@ public class PodEmuMessage
         // if playback is active then calculate real position, otherwise return last known position
         if(isPlaying)
         {
-            position = positionMS + (int) (System.currentTimeMillis() - timeSent);
+            position = positionMS + (int)(System.currentTimeMillis() - timeSent);
         }
         else
         {
@@ -95,6 +95,16 @@ public class PodEmuMessage
             this.setArtist(msg.getArtist());
             this.setPositionMS(msg.getPositionMS());
         }
+    }
+
+    public String getLengthHumanReadable()
+    {
+        int length=getLength();
+        int hours=getLength()/1000/60/60;
+        int mins=(length-hours*60*60*1000)/1000/60;
+        int secs=(length-hours*60*60*1000-mins*60*1000)/1000;
+
+        return String.format("%02d:%02d", mins, secs);
     }
 }
 
