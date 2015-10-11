@@ -7,6 +7,9 @@ This application is very similar to PodMode application that already [exists out
  2. PodMode is not open source (so I couldn't fix point 1)
  3. PodMode is not maintained anymore (so author wouldn't fix point 1)
  4. for fun... :)
+  
+PodEmu in action:
+[![PodEmu in action](/screenshots/Screenshot_07.png)](https://youtu.be/zXcBL5EdCGY)
 
 ## Requirements
 
