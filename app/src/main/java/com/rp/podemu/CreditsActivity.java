@@ -21,7 +21,6 @@ package com.rp.podemu;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.view.Menu;
 
 
 public class CreditsActivity extends AppCompatActivity

@@ -19,7 +19,6 @@
 
 package com.rp.podemu;
 
-import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -34,10 +33,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.support.v4.app.NotificationCompat;
-import android.util.Log;
 
-import java.io.IOError;
-import java.io.IOException;
 import java.util.Vector;
 
 

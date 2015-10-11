@@ -65,7 +65,7 @@ public class MainActivity extends AppCompatActivity
     private PodEmuIntentFilter iF;
     private PodEmuService podEmuService;
     private boolean serviceBound = false;
-    private PodEmuMessage currentlyPlaying=new PodEmuMessage();
+    public PodEmuMessage currentlyPlaying=new PodEmuMessage();
 
     //public static LooperThread looperThread;
 
@@ -93,7 +93,7 @@ public class MainActivity extends AppCompatActivity
 
     public void action_prev(View v)
     {
-        MediaControlLibrary.action_prev();
+        MediaControlLibrary.action_prev(0);
     }
 
     public void start_stop_service(View v)
@@ -276,6 +276,10 @@ public class MainActivity extends AppCompatActivity
             SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
             ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
             String enableDebug = sharedPref.getString("enableDebug", "false");
+            Boolean ctrlAppUpdated = sharedPref.getBoolean("ControlledAppUpdated", false);
+
+            MediaControlLibrary.ctrlAppProcessName=ctrlAppProcessName;
+
 
             if (enableDebug.equals("true"))
                 PodEmuLog.DEBUG_LEVEL = 2;
@@ -297,10 +301,19 @@ public class MainActivity extends AppCompatActivity
                 ctrlAppStatusTitle.setText("Controlled app: " + appInfo.loadLabel(pm));
                 ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0xff, 0xff));
 
+                if(ctrlAppUpdated && currentlyPlaying.isPlaying())
+                {
+                    // invoke play_pause button to switch the app
+                    MediaControlLibrary.action_play_pause();
+                }
+                SharedPreferences.Editor editor = sharedPref.edit();
+                editor.putBoolean("ControlledAppUpdated", false);
+                editor.apply();
+
                 appLogo.setImageDrawable(appInfo.loadIcon(pm));
             } catch (PackageManager.NameNotFoundException e)
             {
-                ctrlAppStatusTitle.setText("Cannot find app: " + ctrlAppProcessName);
+                ctrlAppStatusTitle.setText("Please go to the settings and setup controlled music application");
                 ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
 
                 appLogo.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.questionmark)));
@@ -349,6 +362,8 @@ public class MainActivity extends AppCompatActivity
             iF = new PodEmuIntentFilter(ctrlAppProcessName);
             iF.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
             registerReceiver(mReceiver, iF);
+
+            MediaControlLibrary.context=this;
 
             PodEmuLog.debug("onResume done");
         }

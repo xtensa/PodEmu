@@ -19,51 +19,82 @@
 
 package com.rp.podemu;
 
-import android.app.Instrumentation;
+import android.content.Context;
 import android.content.Intent;
+import android.os.SystemClock;
 import android.view.KeyEvent;
-import android.view.View;
 
 /**
  * Created by rp on 9/1/15.
  */
 public class MediaControlLibrary
 {
+    private static long lastPrevExecuted=System.currentTimeMillis();
+
+    public static Context context;
+    public static String ctrlAppProcessName;
+
+    public static int playlistOffset = 500;
+    public static int currentPlaylistPosition = playlistOffset;
 
 
-    public static void execute_action(int action)
+
+
+    public static void execute_action(int keyCode)
     {
-        final int a=action;
+        Intent intent;
+        KeyEvent keyEvent;
 
-        new Thread(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                try
-                {
-                    Instrumentation inst = new Instrumentation();
-                    inst.sendKeyDownUpSync(a);
-                }
-                catch(Exception e)
-                {
-                    PodEmuLog.printStackTrace(e);
-                    // we don't want to throw this error any further
-                }
-            }
-        }).start();
+        intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        intent.setPackage(ctrlAppProcessName);
+        keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_DOWN, keyCode, 0);
+        intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
+        context.sendOrderedBroadcast(intent, null);
+
+        intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        intent.setPackage(ctrlAppProcessName);
+        keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_UP, keyCode, 0);
+        intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
+        context.sendOrderedBroadcast(intent, null);
+
+    }
+
+    public static void execute_action_long_press(int keyCode) {
+        Intent intent;
+        KeyEvent keyEvent;
+
+        intent  = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_DOWN, keyCode, 0);
+        keyEvent = KeyEvent.changeFlags(keyEvent, KeyEvent.FLAG_LONG_PRESS);
+        intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
+        context.sendOrderedBroadcast(intent, null);
+
+        intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis()+1000, KeyEvent.ACTION_UP, keyCode, 0);
+        intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
+        context.sendOrderedBroadcast(intent, null);
     }
 
 
-
-    public static void action_next()
+    public static synchronized void action_next()
     {
         execute_action(KeyEvent.KEYCODE_MEDIA_NEXT);
+        if(currentPlaylistPosition<playlistOffset*2) currentPlaylistPosition++;
     }
 
-    public static void action_prev()
+    public static synchronized void action_prev(int timeElapsed)
     {
+        // most media players behave differently, depending on how much time elapsed
+        // from the beginning of the song
+        if(timeElapsed>2000)
+        {
+            execute_action(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+        }
+
         execute_action(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+        if(currentPlaylistPosition>0) currentPlaylistPosition--;
+
+        lastPrevExecuted=System.currentTimeMillis();
     }
 
     public static void action_play()
@@ -86,16 +117,51 @@ public class MediaControlLibrary
         execute_action(KeyEvent.KEYCODE_MEDIA_STOP);
     }
 
-    public static void action_skip_backward()
-        {
-        execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
-    }
-
     public static void action_skip_forward()
     {
         execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD);
     }
 
+    public static void action_skip_backward()
+    {
+        execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
+    }
+
+
+    public static void jump_to(int pos, int timeElapsed)
+    {
+        if(pos==0xffffffff)
+        {
+            //pos = playlistOffset;
+            // don't want to process resetting playlist
+            return;
+        }
+
+        // this should not happen - just in case fix the boundaries
+        pos=Math.max(pos,0);
+        pos=Math.min(pos,playlistOffset*2);
+
+        while(pos>currentPlaylistPosition)
+        {
+            MediaControlLibrary.action_next();
+        }
+
+        while(pos<currentPlaylistPosition)
+        {
+            MediaControlLibrary.action_prev(timeElapsed);
+            timeElapsed=0;
+        }
+
+        try
+        {
+            //get time for broadcasts to be processed
+            Thread.sleep(200);
+        }
+        catch (InterruptedException e)
+        {
+            // do nothing
+        }
+    }
 
     /*
     Inserting KEYCODE_MEDIA_SKIP_FORWARD or KEYCODE_MEDIA_SKIP_BACKWARD will throw the following log

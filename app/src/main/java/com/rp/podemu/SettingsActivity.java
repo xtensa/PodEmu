@@ -20,6 +20,7 @@
 package com.rp.podemu;
 
 //import android.support.v4.app.FragmentManager;
+
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -28,11 +29,10 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.CheckedTextView;
 import android.widget.ImageView;
@@ -66,9 +66,12 @@ public class SettingsActivity extends AppCompatActivity
     @Override
     public void onCtrlAppSelected(DialogInterface dialog, int which)
     {
-        //saving to shared preferances
+        //saving to shared preferences
         SharedPreferences.Editor editor = sharedPref.edit();
+        String oldCtrlApp=sharedPref.getString("ControlledAppProcessName", "unknown app");
+        Boolean ctrlAppUpdated=sharedPref.getBoolean("ControlledAppUpdated", false);
         editor.putString("ControlledAppProcessName", appInfos.get(which).packageName);
+        editor.putBoolean("ControlledAppUpdated",!oldCtrlApp.equals(appInfos.get(which).packageName) || ctrlAppUpdated);
         editor.apply();
 
         // loading information to the activity
@@ -215,7 +218,8 @@ public class SettingsActivity extends AppCompatActivity
             ImageView imageView = (ImageView) findViewById(R.id.ctrlAppIcon);
             imageView.setImageDrawable(appInfo.loadIcon(pm));
 
-        } catch (PackageManager.NameNotFoundException e)
+        }
+        catch (PackageManager.NameNotFoundException e)
         {
             textView.setText("Cannot load application ");
         }
@@ -245,16 +249,6 @@ public class SettingsActivity extends AppCompatActivity
         ctrlAppDialog.setApplicationInfos(appInfos, appInfos.size());
         ctrlAppDialog.show(getSupportFragmentManager(), "new_tag");
 
-        new AlertDialog.Builder(this)
-                .setTitle("Information")
-                .setMessage("Please note that the change will take effect after PodEmu service restart or cable reconnect.")
-                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        // continue with delete
-                    }
-                })
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .show();
     }
 
     public void selectBaudRate(View v)

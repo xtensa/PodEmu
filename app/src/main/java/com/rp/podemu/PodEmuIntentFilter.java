@@ -83,11 +83,55 @@ public class PodEmuIntentFilter extends IntentFilter
     }
 
 
+    /*
+    * Play.Music
+    * Bundle[{
+    *       duration=234000,
+    *       playstate=true,
+    *       woodstock=false,
+    *       currentContainerName=In Utero (20th Anniversary Remaster),
+    *       artist=Nirvana, domain=0, currentSongLoaded=true,
+    *       preparing=false, rating=0, albumId=3653228523,
+    *       currentContainerTypeValue=7,
+    *       currentContainerId=3653228523,
+    *       playing=true, streaming=true,
+    *       inErrorState=false,
+    *       albumArtFromService=false,
+    *       id=67, currentContainerExtData=null,
+    *       album=In Utero (20th Anniversary Remaster),
+    *       local=true, track=Milk It, videoId=null,
+    *       position=1123, currentContainerExtId=null,
+    *       videoThumbnailUrl=null, supportsRating=true,
+    *       ListSize=12,
+    *       previewPlayType=-1,
+    *       isSkipLimitReached=false,
+    *       ListPosition=7}]
+    *
+    *
+    * Spotify
+    * Bundle[{
+    *       timeSent=1444574487852,
+    *       duration=212000,
+    *       playstate=true,
+    *       artist=Kelli O'Hara,
+    *       length=212000,
+    *       albumId=spotify:album:4MCsklkiBP9KTADPWmrhWB,
+    *       playing=true,
+    *       playbackPosition=68,
+    *       id=spotify:track:3PRTcW2Rb4djpmuftTLqU0,
+    *       album=The King And I (The 2015 Broadway Cast Recording),
+    *       track=Getting To Know You,
+    *       position=68}]
+    *
+    *
+    * */
+
+
     public static PodEmuMessage processBroadcast(Context context, Intent intent)
     {
         PodEmuMessage podEmuMessage = new PodEmuMessage();
         // will be used later to precisely determine position
-        long timeSentInMs = intent.getLongExtra("timeSent", 0L);
+        long timeSentInMs;
         boolean isPlaying;
         String artist;
         String album;
@@ -113,6 +157,7 @@ public class PodEmuIntentFilter extends IntentFilter
             length = intent.getIntExtra("length", 0);
             position = intent.getIntExtra("playbackPosition", 0);
             id = intent.getStringExtra("id");
+            timeSentInMs = intent.getLongExtra("timeSent", 0L);
 
             METADATA_CHANGED=BroadcastTypes.SPOTIFY_METADATA_CHANGED;
             PLAYBACK_STATE_CHANGED=BroadcastTypes.SPOTIFY_PLAYBACK_STATE_CHANGED;
@@ -125,6 +170,7 @@ public class PodEmuIntentFilter extends IntentFilter
             length = (int) intent.getLongExtra("duration", 0);
             position = (int) intent.getLongExtra("position", 0);
             id = String.valueOf(intent.getLongExtra("id",0));
+            timeSentInMs = System.currentTimeMillis();
 
             METADATA_CHANGED=BroadcastTypes.ANDROID_METADATA_CHANGED;
             PLAYBACK_STATE_CHANGED=BroadcastTypes.ANDROID_PLAYBACK_STATE_CHANGED;
