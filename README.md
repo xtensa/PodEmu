@@ -60,8 +60,8 @@ PodEmu was tested with PL2303, FT232R and CP2102. Other chips should also work (
 
 ## TODO
 
- - Support for FT311/FT312
- - Add support playlist/album/artist browse
+ - Support for FT311D/FT312D
+ - Add support for playlist/album/artist browse
 
 ## Credits
 
