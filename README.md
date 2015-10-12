@@ -54,6 +54,9 @@ PodEmu in action:
  - FTDI: FT232R, FT231X
  - Prolific: PL2303
  - SiLabs: CP2102, CP2105, CP2108, CP2110
+ 
+PodEmu was tested with PL2303, FT232R and CP2102. Other chips should also work (as claimed by driver developer), but were never tested with PodEmu. 
+ 
 
 ## TODO
 
