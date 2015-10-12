@@ -2,7 +2,7 @@
 
 PodEmu is Android application that allows you to connect your Android device to iPod docking station or your car audio system. PodEmu supports both AiR (Advanced) and Simple modes so you can control your Android music app directly from docking station or from your cars steering wheel. PodEmu uses serial protocol to communicate with iPod docking station so it will work only with "old" 30-pin iPod connectors. Lightning interface is not supported.
 
-This application is very similar to PodMode application that already [exists out there](http://forum.xda-developers.com/showthread.php?t=2220108). So why build new application? There are 3 (well, maybe 4) simple resaons:
+This application is very similar to PodMode application that already [exists out there](http://forum.xda-developers.com/showthread.php?t=2220108). So why build new application? There are 3 (well, maybe 4) simple reasons:
  1. PodMode didn't work with my car
  2. PodMode is not open source (so I couldn't fix point 1)
  3. PodMode is not maintained anymore (so author wouldn't fix point 1)
