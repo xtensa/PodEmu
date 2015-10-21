@@ -470,6 +470,54 @@
 
             </RelativeLayout>
 
+            <!-- Version  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+            <RelativeLayout
+                android:id="@+id/versionLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="showCredits"
+                android:layout_below="@id/creditsLayout"
+                android:layout_marginTop="7dp"
+                >
+
+
+                <ImageView
+                    android:layout_width="@dimen/settings_icon_size"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/versionIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_info"/>
+
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/versionValue"
+                    android:layout_toRightOf="@id/versionIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Version"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/versionHint"
+                    android:layout_below="@id/versionValue"
+                    android:layout_toRightOf="@id/versionIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/version_hint"
+                    />
+
+
+            </RelativeLayout>
+
         </RelativeLayout>
     </ScrollView>
 

@@ -26,6 +26,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
@@ -189,6 +190,17 @@ public class SettingsActivity extends AppCompatActivity
         baudRateList.add(57600);
         baudRateList.add(115200);
 
+        try
+        {
+            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            String version = pInfo.versionName;
+            TextView versionHint = (TextView) findViewById(R.id.versionHint);
+            versionHint.setText(getResources().getString(R.string.version_hint) + version);
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+            // do nothing
+        }
 
     }
 

@@ -34,6 +34,7 @@
     <string name="erase_debug_hint">You can clear debug information if it is not needed anymore. This will allow you to save storage space.</string>
     <string name="license_hint">This is Open Source software licensed under GPLv3. View the details here.</string>
     <string name="credits_hint">Information about all 3rd party software and graphics used.</string>
+    <string name="version_hint">Version of PodEmu you are using is: </string>
     <string name="license_text">
 Copyright &#169; 2015, Roman P., dev [dot] roman [at] gmail \n \n
 

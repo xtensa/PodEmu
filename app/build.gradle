@@ -1,15 +1,35 @@
+
 apply plugin: 'com.android.application'
+
+def getNewVersionCode()
+{
+    println "getNewVersionCode started"
+    def process = "git rev-list master --first-parent --count".execute()
+    def version = process.text.toInteger()
+    println sprintf("Returning version %d", version)
+    return version
+}
+
+def getNewVersionName()
+{
+    def majorVersion=project.MAJOR_VERSION
+    def minorVersion=getNewVersionCode()
+    def versionName="${majorVersion}.${minorVersion}"
+    println sprintf("Returning version name %s", versionName)
+    return versionName
+}
 
 android {
     compileSdkVersion 23
     buildToolsVersion "23.0.0"
 
+
     defaultConfig {
         applicationId "com.rp.podemu"
         minSdkVersion 12
         targetSdkVersion 23
-        versionCode 1
-        versionName "1.0"
+        versionCode getNewVersionCode()
+        versionName getNewVersionName()
     }
     buildTypes {
         release {

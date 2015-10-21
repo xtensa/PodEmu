@@ -26,6 +26,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -240,6 +241,17 @@ public class MainActivity extends AppCompatActivity
             throw e;
         }
 
+        try
+        {
+            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            String version = pInfo.versionName;
+
+            setTitle(getTitle() + " " + version);
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+            // do nothing
+        }
     }
 
 
@@ -631,7 +643,8 @@ public class MainActivity extends AppCompatActivity
         try
         {
             Intent intent = getPackageManager().getLaunchIntentForPackage(ctrlAppProcessName);
-            startActivity(intent);
+            if(intent!=null)
+                startActivity(intent);
         }
         catch(Exception e)
         {
