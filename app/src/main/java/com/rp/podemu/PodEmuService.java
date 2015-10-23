@@ -28,6 +28,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.hardware.usb.UsbManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -336,7 +337,8 @@ public class PodEmuService extends Service
             SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
             String ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
             iF = new PodEmuIntentFilter(ctrlAppProcessName);
-            iF.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
+            iF.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+            iF.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
             registerReceiver(mReceiver, iF);
             reloadBaudRate();
         }
@@ -415,7 +417,8 @@ public class PodEmuService extends Service
                     MediaControlLibrary.action_stop();
 
                     stopSelf();
-                } else
+                }
+                else
                 {
                     PodEmuMessage podEmuMessage = PodEmuIntentFilter.processBroadcast(context, intent);
                     oapMessenger.update_currently_playing(podEmuMessage);

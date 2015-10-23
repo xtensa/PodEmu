@@ -372,7 +372,8 @@ public class MainActivity extends AppCompatActivity
             start_service(null);
 
             iF = new PodEmuIntentFilter(ctrlAppProcessName);
-            iF.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
+            iF.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+            iF.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
             registerReceiver(mReceiver, iF);
 
             MediaControlLibrary.context=this;
