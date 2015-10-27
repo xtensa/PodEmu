@@ -32,6 +32,11 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by rp on 9/10/15.
@@ -49,6 +54,8 @@ public class PodEmuLog
 
     public final static String TAG="PodEmu";
     private static File logdir;
+    private static SimpleDateFormat dateFormat;
+    private static Calendar calendar;
 
 
     private static FileOutputStream logfileStream;
@@ -59,7 +66,6 @@ public class PodEmuLog
     public PodEmuLog(Context c)
     {
         context=c;
-
 
         String dirname="PodEmuLogs";
         // Get the directory for the user's public pictures directory.
@@ -80,6 +86,8 @@ public class PodEmuLog
             e.printStackTrace();
         }
 
+        dateFormat = new SimpleDateFormat("yyyy-MM-dd kk:mm:ss");
+        calendar = Calendar.getInstance();
     }
 
     public static void eraseDebug()
@@ -105,7 +113,11 @@ public class PodEmuLog
 
         if(logfileStream!=null)
         {
-            byte msg[]=(System.currentTimeMillis() + ": " + TAG + " - " + str + "\n").getBytes();
+            long currTimeMillis=System.currentTimeMillis();
+            calendar.setTimeInMillis(currTimeMillis);
+            int millis=(int)(currTimeMillis%1000);
+
+            byte msg[]=(dateFormat.format(calendar.getTime()) + " (" + millis + ") " + ": " + TAG + " - " + str + "\n").getBytes();
             try
             {
                 logfileStream.write(msg, 0, msg.length);

@@ -270,20 +270,24 @@ public class OAPMessenger
             len = ((line_buf[3] & 0xff) << 8) | (line_buf[4] & 0xff);
             // if we are dealing with extended message then we need to count 2 additional b
             pos_shift += 2;
-        } else
+        }
+        else
         {
             len = (line_buf[2] & 0xff);
         }
 
         int mode = (line_buf[3 + pos_shift] & 0xff);
-        int cmd = (line_buf[4 + pos_shift] & 0xff);
+        byte scmd1 = line_buf[4 + pos_shift];
+        byte scmd2 = line_buf[5 + pos_shift];
+        int cmd = (scmd1 & 0xff);
 
         // second byte for command should not necessary be sent
         if (line_cmd_len - 1 > 5 + pos_shift)
         {
-            cmd = (cmd << 8) + (line_buf[5 + pos_shift] & 0xff);
+            cmd = (cmd << 8) + (scmd2 & 0xff);
         }
 
+        // preparing the parameters
         byte params[];
         if (line_cmd_len > 7 + pos_shift)
         {
@@ -293,7 +297,8 @@ public class OAPMessenger
             {
                 params[i - 6] = line_buf[i + pos_shift];
             }
-        } else
+        }
+        else
         {
             // just for parser not to throw errors:
             params = new byte[0];
@@ -302,27 +307,83 @@ public class OAPMessenger
 
         PodEmuLog.debug(String.format("Received - Ext: %d, Len: %d, Mode: 0x%02X, CMD: 0x%04X", (is_ext ? 1 : 0), len, mode, cmd));
 
-        if (mode == 0x00) // mode switch requested
+        if (mode == 0x00 && len>=2) // general mode
         {
-            if (cmd == 0x0104 || (cmd == 0x05 && line_cmd_len == 6)) // AiR mode requested
+            switch(scmd1)
             {
-                ipod_mode = IPOD_MODE_AIR;
-                oap_communicate_ipod_connected();
-            } else if (cmd == 0x0102 || (cmd == 0x06 && line_cmd_len == 6)) // simple mode requested
-            {
-                ipod_mode = IPOD_MODE_SIMPLE;
-                oap_communicate_ipod_connected();
-            } else if (cmd == 0x03 && line_cmd_len == 6) // current mode requested
-            {
-                oap_write_current_mode(); // writing current mode
-            } else if (cmd == 0x09 && line_cmd_len == 6) // unknown mode TODO debug more
-            {
-                // don't know what this used for, but the reply should be as follows
-                byte msg[] = {0x0a, 0x01, 0x00, 0x04};
-                oap_write_cmd(msg, msg.length, true);
-            } else
-            {
-                PodEmuLog.debug(String.format("ERROR: Mode switching: unrecognized command 0x%04X received", cmd));
+                case 0x01:
+                {
+                    if (cmd == 0x0104) // AiR mode requested
+                    {
+                        ipod_mode = IPOD_MODE_AIR;
+                        oap_communicate_ipod_connected();
+                    } else if (cmd == 0x0102) // simple mode requested
+                    {
+                        ipod_mode = IPOD_MODE_SIMPLE;
+                        oap_communicate_ipod_connected();
+                    }
+                } break;
+                case 0x03: // current mode requested
+                {
+                    // writing current mode
+                    byte msg[] = new byte[2];
+                    msg[0] = 0x04;
+                    msg[1] = (byte) ipod_mode;
+                    oap_write_cmd(msg, 2, (byte) 0x00);
+                } break;
+                case 0x05: // AiR mode requested
+                {
+                    ipod_mode = IPOD_MODE_AIR;
+                    oap_communicate_ipod_connected();
+                    oap_00_write_return_code(scmd1, IPOD_SUCCESS);
+                } break;
+                case 0x06: // simple mode requested
+                {
+                    ipod_mode = IPOD_MODE_SIMPLE;
+                    oap_communicate_ipod_connected();
+                    oap_00_write_return_code(scmd1, IPOD_SUCCESS);
+                } break;
+                case 0x07: // device name requested
+                {
+                    byte c[] = {0x08};
+                    byte msg[]=oap_build_ipod_msg(c, ipod_name);
+                    oap_write_cmd(msg, msg.length, (byte) 0x00);
+                } break;
+                case 0x09: // SW Version requested
+                {
+                    byte msg[] = new byte[4];
+                    msg[0] = 0x0a; // cmd
+                    msg[1] = 0x01; // major version
+                    msg[2] = 0x00; // minor version
+                    msg[3] = 0x04; // revision
+                    oap_write_cmd(msg, msg.length, (byte) 0x00);
+                } break;
+                case 0x0B: // SerialNumber requested
+                {
+                    byte c[] = {0x0C};
+                    byte msg[]=oap_build_ipod_msg(c, "xPodEmu-076"); // don't ask me why :) just!
+                    oap_write_cmd(msg, msg.length, (byte) 0x00);
+                } break;
+                case 0x0D: // Model Num requested
+                {
+                    byte msg[] = {0x0E, 0x00, 0x17, 0x00, 0x0A, 0x4D, 0x42, 0x37, 0x35, 0x34, 0x00};
+                    oap_write_cmd(msg, msg.length, (byte) 0x00);
+                } break;
+                case 0x0F: // protocol version requested for mode stored in scmd2
+                {
+                    if(len<3)
+                    {
+                        oap_00_write_return_code(scmd1, IPOD_OUT_OF_RANGE);
+                        break;
+                    }
+                    byte msg[] = {0x10, scmd2, 0x01, 0x0E};
+                    oap_write_cmd(msg, msg.length, (byte) 0x00);
+                } break;
+                default:
+                {
+                    oap_00_write_return_code(scmd1, IPOD_ERROR);
+                    PodEmuLog.debug(String.format("ERROR: Mode switching: unrecognized command 0x%04X received", cmd));
+                }
             }
         }
 
@@ -340,7 +401,6 @@ public class OAPMessenger
                 case 0x0001:
                     MediaControlLibrary.action_play();
                     break;
-
 
                 /*
                  * @cmd 0x00 0x02
@@ -514,7 +574,7 @@ public class OAPMessenger
                  * should get response FF FF FF FF 00 00 00 00
                  */
                 case 0x0002:
-                    oap_write_ping_response();
+                    oap_04_write_ping_response();
                     break;
 
                 /*
@@ -523,7 +583,7 @@ public class OAPMessenger
                  * NCU, requests flag set by command 0x00 0x0b
                  */
                 case 0x0009:
-                    oap_write_unknown_var();
+                    oap_04_write_unknown_var();
                     break;
 
                 /*
@@ -536,11 +596,11 @@ public class OAPMessenger
                 {
                     if (params.length < 1)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     unknown_var = params[0];
-                    oap_write_return_code(cmd, IPOD_SUCCESS);
+                    oap_04_write_return_code(cmd, IPOD_SUCCESS);
                 }
                 break;
 
@@ -563,11 +623,11 @@ public class OAPMessenger
                 {
                     if (params.length < 7)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     int song_nr = ((params[1] & 0xff) << 24) | ((params[2] & 0xff) << 16) | ((params[3] & 0xff) << 8) | (params[1] & 0xff);
-                    oap_write_additional_info(params[0], song_nr);
+                    oap_04_write_additional_info(params[0], song_nr);
                 }
                 break;
 
@@ -577,7 +637,7 @@ public class OAPMessenger
                  * Thought to be "Get iPod Type / Size"
                  */
                 case 0x0012:
-                    oap_write_model();
+                    oap_04_write_model();
                     break;
 
                 /*
@@ -586,7 +646,7 @@ public class OAPMessenger
                  * Get iPod Name
                  */
                 case 0x0014:
-                    oap_write_ipod_name();
+                    oap_04_write_ipod_name();
                     break;
 
                 /*
@@ -599,7 +659,7 @@ public class OAPMessenger
                     // TODO implement libraries and playlists
 
                     // just in case writing success retval
-                    oap_write_return_code(cmd, IPOD_SUCCESS);
+                    oap_04_write_return_code(cmd, IPOD_SUCCESS);
                 }
                 break;
 
@@ -614,18 +674,19 @@ public class OAPMessenger
                  *              0x06 - Composer
                  * @param number(4)
                  * Switch to item identified by number and type given.
+                 * 0xffffffff seems to be the beginning
                  */
                 case 0x0017:
                 {
                     if (params.length < 5)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     // TODO implement libraries and playlists
 
                     // just in case writing success retval
-                    oap_write_return_code(cmd, IPOD_SUCCESS);
+                    oap_04_write_return_code(cmd, IPOD_SUCCESS);
                 }
                 break;
 
@@ -644,10 +705,10 @@ public class OAPMessenger
                 {
                     if (params.length < 1)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
-                    oap_write_type_count(params[0]);
+                    oap_04_write_type_count(params[0]);
                 }
                 break;
 
@@ -670,12 +731,12 @@ public class OAPMessenger
                 {
                     if (params.length < 9)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     int pos_start = ((params[1] & 0xff) << 24) | ((params[2] & 0xff) << 16) | ((params[3] & 0xff) << 8) | (params[4] & 0xff);
                     int pos_end = ((params[5] & 0xff) << 24) | ((params[6] & 0xff) << 16) | ((params[7] & 0xff) << 8) | (params[8] & 0xff);
-                    oap_write_type_names(params[0], pos_start, pos_end);
+                    oap_04_write_type_names(params[0], pos_start, pos_end);
                 }
                 break;
 
@@ -685,7 +746,7 @@ public class OAPMessenger
                  * Get time and status info
                  */
                 case 0x001C:
-                    oap_write_info();
+                    oap_04_write_info();
                     break;
 
                 /*
@@ -694,7 +755,7 @@ public class OAPMessenger
                  * Get current position in playlist
                 */
                 case 0x001E:
-                    oap_write_playlist_position();
+                    oap_04_write_playlist_position();
                     break;
 
                 /*
@@ -706,11 +767,11 @@ public class OAPMessenger
                 {
                     if (params.length < 4)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     int song_number = ((params[0] & 0xff) << 24) | ((params[1] & 0xff) << 16) | ((params[2] & 0xff) << 8) | (params[3] & 0xff);
-                    oap_write_title(song_number);
+                    oap_04_write_title(song_number);
                 }
                 break;
 
@@ -723,11 +784,11 @@ public class OAPMessenger
                 {
                     if (params.length < 4)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     int song_number = ((params[0] & 0xff) << 24) | ((params[1] & 0xff) << 16) | ((params[2] & 0xff) << 8) | (params[3] & 0xff);
-                    oap_write_artist(song_number);
+                    oap_04_write_artist(song_number);
                 }
                 break;
 
@@ -740,11 +801,11 @@ public class OAPMessenger
                 {
                     if (params.length < 4)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     int song_number = ((params[0] & 0xff) << 24) | ((params[1] & 0xff) << 16) | ((params[2] & 0xff) << 8) | (params[3] & 0xff);
-                    oap_write_album(song_number);
+                    oap_04_write_album(song_number);
                 }
                 break;
 
@@ -759,7 +820,7 @@ public class OAPMessenger
                 {
                     if (params.length < 1)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     enable_polling_mode(params[0] != 0);
@@ -776,7 +837,7 @@ public class OAPMessenger
                 {
                     if (params.length < 4)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
 
@@ -785,7 +846,7 @@ public class OAPMessenger
 
                     MediaControlLibrary.jump_to(pos, currentlyPlaying.getPositionMS());
                     // TODO implement playlist
-                    oap_write_return_code(cmd, IPOD_SUCCESS);
+                    oap_04_write_return_code(cmd, IPOD_SUCCESS);
                     break;
                 }
 
@@ -804,7 +865,7 @@ public class OAPMessenger
                 {
                     if (params.length < 1)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
 
@@ -834,7 +895,7 @@ public class OAPMessenger
                         default:
                             retval = IPOD_ERROR;
                     }
-                    oap_write_return_code(cmd, retval);
+                    oap_04_write_return_code(cmd, retval);
                     break;
                 }
 
@@ -844,7 +905,7 @@ public class OAPMessenger
                  * Get shuffle mode
                  */
                 case 0x002C:
-                    oap_write_shuffle_mode();
+                    oap_04_write_shuffle_mode();
                     break;
 
                 /*
@@ -858,13 +919,13 @@ public class OAPMessenger
                 {
                     if (params.length < 1 || params[0] < 0x00 || params[0] > 0x02)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
 
                     // TODO implement shuffle
                     shuffle_mode = params[0];
-                    oap_write_return_code(cmd, IPOD_SUCCESS);
+                    oap_04_write_return_code(cmd, IPOD_SUCCESS);
                 }
                 break;
 
@@ -874,7 +935,7 @@ public class OAPMessenger
                  * Get Repeat Mode
                  */
                 case 0x002F:
-                    oap_write_repeat_mode();
+                    oap_04_write_repeat_mode();
                     break;
 
                 /*
@@ -888,13 +949,13 @@ public class OAPMessenger
                 {
                     if (params.length < 1 || params[0] < 0x00 || params[0] > 0x02)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
 
                     // TODO implement repeat mode
                     repeat_mode = params[0];
-                    oap_write_return_code(cmd, IPOD_SUCCESS);
+                    oap_04_write_return_code(cmd, IPOD_SUCCESS);
                 }
                 break;
 
@@ -913,7 +974,7 @@ public class OAPMessenger
                  * Get max screen size for picture upload
                  */
                 case 0x0033:
-                    oap_write_screen_resolution_34();
+                    oap_04_write_screen_resolution_34();
                     break;
 
                 /*
@@ -922,7 +983,7 @@ public class OAPMessenger
                  * Get number of songs in playlist
                  */
                 case 0x0035:
-                    oap_write_playlist_song_count();
+                    oap_04_write_playlist_song_count();
                     break;
 
                 /*
@@ -933,12 +994,12 @@ public class OAPMessenger
                 {
                     if (params.length < 4)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     MediaControlLibrary.jump_to(byte_array_to_int(params),currentlyPlaying.getPositionMS());
                     // TODO implement playlist
-                    oap_write_return_code(cmd, IPOD_SUCCESS);
+                    oap_04_write_return_code(cmd, IPOD_SUCCESS);
                 }
                 break;
 
@@ -955,11 +1016,11 @@ public class OAPMessenger
                 {
                     if (params.length < 6)
                     {
-                        oap_write_return_code(cmd, IPOD_OUT_OF_RANGE);
+                        oap_04_write_return_code(cmd, IPOD_OUT_OF_RANGE);
                         break;
                     }
                     // TODO debug
-                    oap_write_return_code(cmd, IPOD_SUCCESS);
+                    oap_04_write_return_code(cmd, IPOD_SUCCESS);
                 }
                 break;
 
@@ -969,7 +1030,7 @@ public class OAPMessenger
                  * NCU
                  */
                 case 0x0039:
-                    oap_write_screen_resolution_3A();
+                    oap_04_write_screen_resolution_3A();
                     break;
             }
 
@@ -997,12 +1058,31 @@ public class OAPMessenger
      * The command code this is responding to.
      * Feedback on command just executed.
      */
-    private void oap_write_return_code(int cmd, byte result)
+    private void oap_04_write_return_code(int cmd, byte result)
     {
         byte msg[] = {0x00, 0x01, result, 0, 0};
         msg[3] = (byte) ((cmd >> 8) & 0xff);
         msg[4] = (byte) (cmd & 0xff);
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
+    }
+
+    /**
+     * @param cmd    - command to be parsed as 2 bytes
+     * @param result - result to be posted
+     * @cmd 0x02 (for general mode 0x00)
+     * @response Result(1)
+     * 0x00 = Success
+     * 0x02 = Failure
+     * 0x04 = Exceeded limit/Byte Count Wrong
+     * 0x05 = Is a Response Not a Command
+     * @response Command(2)
+     * The command code this is responding to.
+     * Feedback on command just executed.
+     */
+    private void oap_00_write_return_code(byte cmd, byte result)
+    {
+        byte msg[] = {0x02, result, cmd};
+        oap_write_cmd(msg, msg.length, (byte)0x00);
     }
 
     /**
@@ -1010,20 +1090,20 @@ public class OAPMessenger
      * @response byte(8) - response to ping
      * 0xFF 0xFF 0xFF 0xFF 0x00 0x00 0x00 0x00
      */
-    private void oap_write_ping_response()
+    private void oap_04_write_ping_response()
     {
         byte msg[] = {0x00, 0x03, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, 0x00, 0x00, 0x00, 0x00};
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
     /**
      * @cmd 0x00 0x0a
      * @response byte(1)      0x00 or 0x01 depending on flag status
      */
-    private void oap_write_unknown_var()
+    private void oap_04_write_unknown_var()
     {
         byte msg[] = {0x00, 0x0A, unknown_var};
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
     /**
@@ -1043,7 +1123,7 @@ public class OAPMessenger
      * @response: byte(n) - depending on type
      * Write additional information about selected song
      */
-    private void oap_write_additional_info(byte rtype, int song_nr)
+    private void oap_04_write_additional_info(byte rtype, int song_nr)
     {
         byte msg[] = {0x00, 0x0d, 0};
         byte msg02[] = {0x00, 0x0d, 0x02, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -1053,7 +1133,7 @@ public class OAPMessenger
         {
             case 0x02:
             {
-                oap_write_cmd(msg02, 11);
+                oap_04_write_cmd(msg02, 11);
             }
             break;
 
@@ -1061,7 +1141,7 @@ public class OAPMessenger
             case 0x04:
             {
                 msg02[2] = rtype;
-                oap_write_cmd(msg02, 7);
+                oap_04_write_cmd(msg02, 7);
             }
             break;
 
@@ -1069,7 +1149,7 @@ public class OAPMessenger
             case 0x05:
             {
                 msg[2] = rtype;
-                oap_write_string(msg, currentlyPlaying.getGenre());
+                oap_04_write_string(msg, currentlyPlaying.getGenre());
             }
             break;
 
@@ -1077,12 +1157,12 @@ public class OAPMessenger
             case 0x06:
             {
                 msg[2] = rtype;
-                oap_write_string(msg, currentlyPlaying.getComposer());
+                oap_04_write_string(msg, currentlyPlaying.getComposer());
             }
             break;
 
             default:
-                oap_write_return_code(0x000c, IPOD_ERROR);
+                oap_04_write_return_code(0x000c, IPOD_ERROR);
         }
     }
 
@@ -1095,20 +1175,20 @@ public class OAPMessenger
      * iPod Touch 4G 10G:  0x01 0x0E
      * iPod Nano 4G:       0x01 0x0E
      */
-    private void oap_write_model()
+    private void oap_04_write_model()
     {
         byte msg[] = {0x00, 0x13, 0x01, 0x0E};
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
     /**
      * @cmd 0x00 0x15
      * @response string    iPod name as null terminated string
      */
-    private void oap_write_ipod_name()
+    private void oap_04_write_ipod_name()
     {
         byte cmd[] = {0x00, 0x15};
-        oap_write_string(cmd, ipod_name);
+        oap_04_write_string(cmd, ipod_name);
     }
 
     /**
@@ -1123,17 +1203,17 @@ public class OAPMessenger
      * @cmd 0x00 0x19
      * @response number(4) - count of the given type (count of tracks etc)
      */
-    private void oap_write_type_count(int rtype)
+    private void oap_04_write_type_count(int rtype)
     {
         byte b[]={0,0,0,1};
-        if(rtype==0x05)
+        if(rtype == 0x05)
         {
             int_to_byte_array(MediaControlLibrary.playlistOffset * 2, b);
         }
         // TODO get the actual counts
         // right now we say always 3 positions to implement next/prev actions
         byte msg[] = {0x00, 0x19, b[0], b[1], b[2], b[3]};
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
     /**
@@ -1146,14 +1226,15 @@ public class OAPMessenger
      * Playlist 0 is the main library and has the same name as iPod itself
      * (same as returned for 0x0014)
      */
-    private void oap_write_type_names(int rtype, int pos_start, int pos_end)
+    private void oap_04_write_type_names(int rtype, int pos_start, int pos_end)
     {
         String str = "Unknown type";
-        byte cmd[] = {0x00, 0x1B, 0x00};
+        byte cmd[] = {0x00, 0x1B, 0x00, 0x00, 0x00, 0x00};
+        int pos=0; // FIXME - should be proper position
 
         if (pos_start > 1 || pos_end > 1 || pos_end < pos_start)
         {
-            oap_write_return_code(0x001C, IPOD_OUT_OF_RANGE);
+            oap_04_write_return_code(0x001C, IPOD_OUT_OF_RANGE);
             return;
         }
 
@@ -1179,7 +1260,13 @@ public class OAPMessenger
                 str = currentlyPlaying.getComposer();
                 break;
         }
-        oap_write_string(cmd, str);
+
+        cmd[2] = (byte) ((pos >> 24) & 0xff);
+        cmd[3] = (byte) ((pos >> 16) & 0xff);
+        cmd[4] = (byte) ((pos >> 8) & 0xff);
+        cmd[5] = (byte) (pos & 0xff);
+
+        oap_04_write_string(cmd, str);
     }
 
     /**
@@ -1191,7 +1278,7 @@ public class OAPMessenger
      * 0x01 = Playing
      * 0x02 = Paused
      */
-    private void oap_write_info()
+    private void oap_04_write_info()
     {
         byte msg[] = new byte[11];
         int length = currentlyPlaying.getLength();
@@ -1207,7 +1294,7 @@ public class OAPMessenger
         msg[8] = (byte) ((time >> 8) & 0xff);
         msg[9] = (byte) ((time) & 0xff);
         msg[10] = (byte) (currentlyPlaying.isPlaying() ? 0x01 : 0x02);
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
 
@@ -1215,13 +1302,13 @@ public class OAPMessenger
      * @cmd 0x00 0x1F
      * @response position(4)    current position in playlist
      */
-    private void oap_write_playlist_position()
+    private void oap_04_write_playlist_position()
     {
         byte b[]=new byte[4];
         int_to_byte_array(MediaControlLibrary.currentPlaylistPosition, b);
         // TODO implement playlists
         byte msg[] = {0x00, 0x1F, b[0], b[1], b[2], b[3]};
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
     /**
@@ -1229,12 +1316,12 @@ public class OAPMessenger
      * @cmd 0x00 0x21
      * @response string     Title of song as null terminated string
      */
-    private void oap_write_title(int song_number)
+    private void oap_04_write_title(int song_number)
     {
         byte cmd[] = {0x00, 0x21};
 
         // TODO get the actual song number name, not currently playing
-        oap_write_string(cmd, currentlyPlaying.getTrackName());
+        oap_04_write_string(cmd, currentlyPlaying.getTrackName());
     }
 
     /**
@@ -1242,11 +1329,11 @@ public class OAPMessenger
      * @cmd 0x00 0x23
      * @response string     Artist returned as null terminated string
      */
-    private void oap_write_artist(int song_number)
+    private void oap_04_write_artist(int song_number)
     {
         byte cmd[] = {0x00, 0x23};
         // TODO get the actual song number name, not currently playing
-        oap_write_string(cmd, currentlyPlaying.getArtist());
+        oap_04_write_string(cmd, currentlyPlaying.getArtist());
     }
 
 
@@ -1255,18 +1342,18 @@ public class OAPMessenger
      * @cmd 0x00 0x25
      * @response string     Album returned as null terminated string
      */
-    private void oap_write_album(int song_number)
+    private void oap_04_write_album(int song_number)
     {
         byte cmd[] = {0x00, 0x25};
         // TODO get the actual song number name, not currently playing
-        oap_write_string(cmd, currentlyPlaying.getAlbum());
+        oap_04_write_string(cmd, currentlyPlaying.getAlbum());
     }
 
     /**
      * @cmd 0x00 0x27
      * @response number(4) time elapsed on current song
      */
-    public void oap_write_elapsed_time()
+    public void oap_04_write_elapsed_time()
     {
         if (!currentlyPlaying.isPlaying()) return;
 
@@ -1279,7 +1366,7 @@ public class OAPMessenger
                 (byte) ((pos >> 8) & 0xff),
                 (byte) (pos & 0xff)
         };
-        oap_write_cmd(cmd);
+        oap_04_write_cmd(cmd);
     }
 
 
@@ -1290,11 +1377,11 @@ public class OAPMessenger
      * 0x01 = Songs
      * 0x02 = Albums
      */
-    private void oap_write_shuffle_mode()
+    private void oap_04_write_shuffle_mode()
     {
         // TODO implement shuffle
         byte msg[] = {0x00, 0x2D, shuffle_mode};
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
     /**
@@ -1304,11 +1391,11 @@ public class OAPMessenger
      * 0x01 = Songs
      * 0x02 = Albums
      */
-    private void oap_write_repeat_mode()
+    private void oap_04_write_repeat_mode()
     {
         // TODO implement repeat mode
         byte msg[] = {0x00, 0x30, repeat_mode};
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
 
@@ -1325,28 +1412,28 @@ public class OAPMessenger
      * @response: number(2) - resolution Y for mode 02
      * @response: number(1) - mode, always 01 which indicates greyscale mode, 2 bits per pixel
      */
-    private void oap_write_screen_resolution_34()
+    private void oap_04_write_screen_resolution_34()
     {
         byte msg[] = {0x00, 0x34, 0x00, 0x00, 0x00, 0x00, 0x01};
         msg[2] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X >> 8) & 0xff);
         msg[3] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X) & 0xff);
         msg[4] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y >> 8) & 0xff);
         msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
     /**
      * @cmd 0x00 0x36
      * @response number(4)  number of songs in playlist
      */
-    private void oap_write_playlist_song_count()
+    private void oap_04_write_playlist_song_count()
     {
         byte b[]=new byte[4];
         int_to_byte_array(MediaControlLibrary.playlistOffset*2, b);
         // TODO implement playlists
         // always say we have 3 songs to implement next/prev action
         byte msg[] = {0x00, 0x36, b[0], b[1], b[2], b[3]};
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
 
@@ -1360,7 +1447,7 @@ public class OAPMessenger
      * @response: number(1) - always 02 - mode RGB_565 (2 bytes per pixel)
      * iPod Touch 4G response: 00 A6 00 4C 02 00 A6 00 4C 03
      */
-    private void oap_write_screen_resolution_3A()
+    private void oap_04_write_screen_resolution_3A()
     {
         byte msg[] = {0x00, 0x3A, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x03};
         msg[7] = msg[2] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X >> 8) & 0xff);
@@ -1368,7 +1455,7 @@ public class OAPMessenger
         msg[7] = msg[4] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y >> 8) & 0xff);
         msg[10] = msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
 
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
     }
 
 
@@ -1405,9 +1492,9 @@ public class OAPMessenger
      * @param msg
      * @param str
      */
-    private void oap_write_string(byte[] msg, String str)
+    private void oap_04_write_string(byte[] msg, String str)
     {
-        oap_write_cmd(oap_build_ipod_msg(msg, str));
+        oap_04_write_cmd(oap_build_ipod_msg(msg, str));
     }
 
 
@@ -1491,8 +1578,8 @@ public class OAPMessenger
         }
         String tmp;
 
-        if (in_out) tmp = "IN  ";
-        else tmp = "OUT ";
+        if (in_out) tmp = "MSG IN  ";
+        else tmp = "MSG OUT ";
 
         if (len > 0) tmp += String.format("|  %02X  ", msg[3 + pos_shift]);
         else tmp += "|      ";
@@ -1526,11 +1613,11 @@ public class OAPMessenger
     /**
      * Builds iPod serial message and writes it to serial line
      *
-     * @param bytes       - command and parameters
-     * @param len         - total length of command+parameters
-     * @param mode_switch - if true, use 0x00 instead of current mode
+     * @param bytes  - command and parameters
+     * @param len    - total length of command+parameters
+     * @param mode   - mode that should be used
      */
-    private void oap_write_cmd(byte bytes[], int len, boolean mode_switch)
+    private void oap_write_cmd(byte bytes[], int len, byte mode)
     {
         byte msg[] = new byte[len + 5];
         int chksum, i;
@@ -1545,7 +1632,7 @@ public class OAPMessenger
         msg[0] = (byte) 0xFF;
         msg[1] = (byte) 0x55;
         msg[2] = (byte) (len + 1);
-        msg[3] = (byte) (mode_switch ? 0x00 : ipod_mode);
+        msg[3] = mode;
 
         chksum = msg[2] + msg[3];
         for (i = 0; i < len; i++)
@@ -1560,8 +1647,8 @@ public class OAPMessenger
         PodEmuLog.debug("Line " + line + ": RAW MSG OUT: " + oap_hex_to_str(msg, msg.length));
         oap_print_podmsg(msg, false, false);
 
-        SerialInterface serialInterface = new SerialInterface_USBSerial();
-        serialInterface.write(msg, len + 5);
+        SerialInterfaceBuilder serialInterfaceBuilder=new SerialInterfaceBuilder();
+        serialInterfaceBuilder.getSerialInterface().write(msg, len + 5);
     }
 
     /**
@@ -1571,9 +1658,9 @@ public class OAPMessenger
      * @param bytes - command and parameters
      * @param len   - total length of command+parameters
      */
-    private void oap_write_cmd(byte bytes[], int len)
+    private void oap_04_write_cmd(byte bytes[], int len)
     {
-        oap_write_cmd(bytes, len, false);
+        oap_write_cmd(bytes, len, (byte) ipod_mode);
     }
 
 
@@ -1583,20 +1670,9 @@ public class OAPMessenger
      *
      * @param bytes - command and parameters
      */
-    private void oap_write_cmd(byte bytes[])
+    private void oap_04_write_cmd(byte bytes[])
     {
-        oap_write_cmd(bytes, bytes.length);
-    }
-
-    /**
-     * Just post back to serial current mode
-     */
-    private void oap_write_current_mode()
-    {
-        byte msg[] = new byte[2];
-        msg[0] = 0x04;
-        msg[1] = (byte) ipod_mode;
-        oap_write_cmd(msg, 2, true);
+        oap_04_write_cmd(bytes, bytes.length);
     }
 
     public void update_currently_playing(PodEmuMessage msg)
@@ -1630,7 +1706,7 @@ public class OAPMessenger
         polling_mode = on_off;
 
         // write back success return code
-        oap_write_return_code(0x0026, IPOD_SUCCESS);
+        oap_04_write_return_code(0x0026, IPOD_SUCCESS);
     }
 
 
@@ -1745,7 +1821,7 @@ public class OAPMessenger
 
         // write to serial success command
         byte msg[] = {0x00, 0x01, 0x00, 0x00, 0x32};
-        oap_write_cmd(msg);
+        oap_04_write_cmd(msg);
 
         // send updated bitmap to MainActivity
         oap_send_bitmap();

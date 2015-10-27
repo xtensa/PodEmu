@@ -35,6 +35,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.support.v4.app.NotificationCompat;
 
+import java.io.IOException;
 import java.util.Vector;
 
 
@@ -47,6 +48,7 @@ public class PodEmuService extends Service
     private static Handler mHandler;
     private Vector<PodEmuMessage> podEmuMessageVector=new Vector<>();
     private ByteFIFO inputBuffer=new ByteFIFO(2048); //assuming 2048 should be enough
+    private SerialInterfaceBuilder serialInterfaceBuilder;
     private SerialInterface serialInterface;
     private OAPMessenger oapMessenger = new OAPMessenger();
     private PodEmuIntentFilter iF;
@@ -55,6 +57,7 @@ public class PodEmuService extends Service
     public boolean isDockIconLoaded=false;
     public boolean isAppLaunched=false;
     private static String baudRate;
+
 
 
     public class LocalBinder extends Binder
@@ -177,7 +180,7 @@ public class PodEmuService extends Service
                     {
                         try
                         {
-                            serialInterface = new SerialInterface_USBSerial();
+                            serialInterface = serialInterfaceBuilder.getSerialInterface();
                             int numBytesRead;
 
                             // some devices have problem reading less then internal chip buffer
@@ -191,20 +194,27 @@ public class PodEmuService extends Service
                             Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
                             //android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
 
-                            while (true)
+                            numBytesRead=0;
+                            while(true)
                             {
-                            /*
-                            if(!serialInterface.isConnected())
-                            {
-                                PodEmuLog.error("Read attempt when interface is disconnected");
-                                Thread.sleep(300);
-                            }
-                            else*/
                                 try
                                 {
+                                    if (numBytesRead<0 || !serialInterface.isConnected())
+                                    {
+                                        PodEmuLog.error("Read attempt nr " + failedReadCount + " when interface is disconnected");
+                                        Thread.sleep(100);
+                                        failedReadCount++;
+                                        if (failedReadCount > 50) // 5 seconds
+                                        {
+                                            PodEmuLog.error("Something wrong happen. Reading from serial interface constantly failing. Terminating service.");
+                                            stopSelf();
+                                        }
+                                    }
+
                                     // Reading incoming data
                                     while ((numBytesRead = serialInterface.read(buffer)) > 0)
                                     {
+                                        //PodEmuLog.debug("RECEIVED BYTES: " + numBytesRead);
                                         for (int j = 0; j < numBytesRead; j++)
                                         {
                                             inputBuffer.add(buffer[j]);
@@ -213,21 +223,23 @@ public class PodEmuService extends Service
                                     if (numBytesRead == 0)
                                     {
                                         Thread.sleep(10);
+                                        failedReadCount = 0;
                                     }
-                                    failedReadCount = 0;
-                                } catch (NullPointerException e)
+
+                                }
+                                catch (Exception e)
                                 {
-                                    PodEmuLog.error("Read attempt when interface is disconnected");
-                                    Thread.sleep(100);
-                                    failedReadCount++;
-                                    if (failedReadCount > 50) // 5 seconds
+                                    if(!(e instanceof InterruptedException))
                                     {
-                                        PodEmuLog.error("Something wrong happen. Reading from serial interface constantly failing. Terminating service.");
-                                        stopSelf();
+                                        // sth wrong happen, just log and throw it up
+                                        PodEmuLog.printStackTrace(e);
                                     }
+                                    throw e;
                                 }
                             }
-                        } catch (InterruptedException e)
+
+                        }
+                        catch (InterruptedException e)
                         {
                             PodEmuLog.debug("Buffer thread interrupted!");
                         }
@@ -251,7 +263,7 @@ public class PodEmuService extends Service
                             while (true)
                             {
                                 if (oapMessenger.getPollingMode())
-                                    oapMessenger.oap_write_elapsed_time();
+                                    oapMessenger.oap_04_write_elapsed_time();
                                 Thread.sleep(500);
                             }
 
@@ -323,7 +335,6 @@ public class PodEmuService extends Service
             PodEmuLog.printStackTrace(e);
             throw e;
         }
-
     }
 
 
@@ -334,6 +345,8 @@ public class PodEmuService extends Service
 
         try
         {
+            serialInterfaceBuilder=new SerialInterfaceBuilder();
+
             SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
             String ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
             iF = new PodEmuIntentFilter(ctrlAppProcessName);
@@ -344,6 +357,8 @@ public class PodEmuService extends Service
         }
         catch(Exception e)
         {
+            PodEmuLog.error("eee");
+
             PodEmuLog.printStackTrace(e);
             throw e;
         }
@@ -372,11 +387,12 @@ public class PodEmuService extends Service
                 pollingThread.interrupt();
             }
 
+            serialInterfaceBuilder.detach();
             if(serialInterface!=null) serialInterface.close();
 
             PodEmuLog.debug("Service destroyed");
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             PodEmuLog.printStackTrace(e);
             throw e;
@@ -401,8 +417,10 @@ public class PodEmuService extends Service
 
                 PodEmuLog.debug("(S) Broadcast received: " + cmd + " - " + action);
 
-                if (action.contains("USB_DEVICE_DETACHED"))
+                if (action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
+                        || action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED))
                 {
+                    serialInterfaceBuilder.detach();
                     serialInterface.close();
 
                     Message message = mHandler.obtainMessage(0);

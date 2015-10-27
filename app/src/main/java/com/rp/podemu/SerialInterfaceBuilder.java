@@ -15,34 +15,39 @@
  You should have received a copy of the GNU General Public License
  along with this program. If not, see http://www.gnu.org/licenses/
 
- */
+*/
 
 package com.rp.podemu;
 
 import android.hardware.usb.UsbManager;
 
-
-public interface SerialInterface
+public class SerialInterfaceBuilder
 {
-    boolean init(UsbManager manager);
+    private static SerialInterface serialInterface=null;
 
-    int write(byte[] buffer, int numBytes);
+    public SerialInterface getSerialInterface(UsbManager manager)
+    {
+        if(serialInterface==null)
+        {
+            serialInterface = new SerialInterface_USBSerial();
+            if(!serialInterface.init(manager)) serialInterface=null;
+        }
+        if(serialInterface==null)
+        {
+            serialInterface = new SerialInterface_FT31xD();
+            if(!serialInterface.init(manager)) serialInterface=null;
+        }
 
-    int read(byte[] buffer);
+        return serialInterface;
+    }
 
-    String readString();
+    public SerialInterface getSerialInterface()
+    {
+        return serialInterface;
+    }
 
-    String getName();
-
-    int getVID();
-    int getPID();
-
-    void setBaudRate(int rate);
-    int getBaudRate();
-
-    boolean isConnected();
-
-    int getReadBufferSize();
-
-    void close();
+    public void detach()
+    {
+        serialInterface=null;
+    }
 }

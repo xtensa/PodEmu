@@ -113,16 +113,20 @@ public class SerialInterface_USBSerial implements SerialInterface
         deviceBufferSizes.put((UsbId.VENDOR_PROLIFIC << 16) + UsbId.PROLIFIC_PL2303, 258);
 
     }
-    
 
-    public void init(UsbManager manager)
+    /**
+     * Initilize the device
+     * @param manager - already initialize UsbManager.
+     * @return - true on success, false on failure
+     */
+    public boolean init(UsbManager manager)
     {
         UsbManager usbManager=manager;
 
         // Find all available drivers from attached devices.
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager);
         if (availableDrivers.isEmpty()) {
-            return;
+            return false;
         }
 
         // Open a connection to the first available driver.
@@ -131,14 +135,15 @@ public class SerialInterface_USBSerial implements SerialInterface
         if (connection == null)
         {
             // You probably need to call UsbManager.requestPermission(driver.getDevice(), ..)
-            PodEmuLog.log("Cannot establish serial connection!");
-            return;
+            PodEmuLog.log("USBSerial: Cannot establish serial connection!");
+            return false;
         }
 
         // Read some data! Most have just one port (port 0).
         List<UsbSerialPort> ports = driver.getPorts();
         port = ports.get(0);
         try {
+            PodEmuLog.debug("USBSerial: openning connection with baud rate="+baudRate);
             port.open(connection);
             port.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
         }
@@ -146,9 +151,10 @@ public class SerialInterface_USBSerial implements SerialInterface
         {
             // TODO Deal with error
             PodEmuLog.error(e.getMessage());
+            return false;
         }
 
-
+        return true;
     }
 
     public int write(byte[] buffer, int numBytes)
@@ -226,7 +232,7 @@ public class SerialInterface_USBSerial implements SerialInterface
         }
         catch (IOException e)
         {
-            PodEmuLog.error("Cannot close serial port. Force closing.");
+            PodEmuLog.error("USBSerial: Cannot close serial port. Force closing.");
             // TODO Deal with error.
         }
         finally
@@ -246,21 +252,28 @@ public class SerialInterface_USBSerial implements SerialInterface
         return port.getDriver().getDevice().getProductId();
     }
 
-
-    public String getName()
+    private int getKey()
     {
         int pid=port.getDriver().getDevice().getProductId();
         int vid=port.getDriver().getDevice().getVendorId();
-        int key=(vid << 16) + pid;
+        return ((vid << 16) + pid);
+    }
+
+    public String getName()
+    {
+        int key=getKey();
 
         if(deviceList.containsKey(key))
             return deviceList.get(key);
         else
-            return "Unknown device";
+            return "USBSerial: Unknown device";
     }
 
     public int getReadBufferSize()
     {
+        int key=getKey();
+        if(deviceBufferSizes.containsKey(key))
+            return deviceBufferSizes.get(key);
         return 600;
     }
 }

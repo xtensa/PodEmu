@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity
 
     private String ctrlAppProcessName;
     private Intent serviceIntent;
-    private SerialInterface serialInterface;
+    private SerialInterfaceBuilder serialInterfaceBuilder;
     private PodEmuIntentFilter iF;
     private PodEmuService podEmuService;
     private boolean serviceBound = false;
@@ -116,10 +116,11 @@ public class MainActivity extends AppCompatActivity
 
         try
         {
+            SerialInterface serialInterface=serialInterfaceBuilder.getSerialInterface((UsbManager) getSystemService(Context.USB_SERVICE));
             // reconnect usb
-            serialInterface.init((UsbManager) getSystemService(Context.USB_SERVICE));
 
-            if (serialInterface.isConnected())
+            updateSerialStatus();
+            if ( serialInterface != null )
             {
                 startService(serviceIntent);
 
@@ -134,7 +135,7 @@ public class MainActivity extends AppCompatActivity
 
                 updateServiceButton();
             }
-            updateSerialStatus();
+
         }
         catch(Exception e)
         {
@@ -208,7 +209,7 @@ public class MainActivity extends AppCompatActivity
                }
            });
 */
-            serialInterface = new SerialInterface_USBSerial();
+            serialInterfaceBuilder = new SerialInterfaceBuilder();
 
 //        LayoutInflater lif = getLayoutInflater();
 //        ViewGroup layout = (ViewGroup)lif.inflate(R.layout.board, null);
@@ -446,7 +447,8 @@ public class MainActivity extends AppCompatActivity
 
     private void updateSerialStatus()
     {
-        if(serialInterface.isConnected())
+        SerialInterface serialInterface = serialInterfaceBuilder.getSerialInterface((UsbManager) getSystemService(Context.USB_SERVICE));
+        if(serialInterface != null )
         {
             this.serialStatusText.setTextColor(Color.rgb(0x00, 0xff, 0x00));
             this.serialStatusText.setText("connected");
