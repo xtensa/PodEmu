@@ -13,7 +13,7 @@ PodEmu in action:
 
 ## Requirements
 
- - Android device with USB host support
+ - Android device with USB host support (USB host support not required if you are using FT311D or FT312D chips)
  - DIY cable. Unfortunately there is no ready to use cables available on the market so you need some soldering skills to assemble your own cable. All details on how to do that could be found on [this XDA developers thread](http://forum.xda-developers.com/showthread.php?t=2220108).
  
 ## Features
@@ -51,16 +51,14 @@ PodEmu in action:
 
 ## Supported serial interfaces (for DIY cable)
 
- - FTDI: FT232R, FT231X
+ - FTDI: FT232R, FT231X, FT311D, FT312D
  - Prolific: PL2303
  - SiLabs: CP2102, CP2105, CP2108, CP2110
  
-PodEmu was tested with PL2303, FT232R and CP2102. Other chips should also work (as claimed by driver developer), but were never tested with PodEmu. 
- 
+PodEmu was tested with FT312D, PL2303, FT232R and CP2102. Other chips should also work (as claimed by driver developer), but were never tested with PodEmu. 
 
 ## TODO
 
- - Support for FT311D/FT312D
  - Add support for playlist/album/artist browse
 
 ## Credits
