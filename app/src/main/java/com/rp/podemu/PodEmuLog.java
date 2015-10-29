@@ -20,6 +20,8 @@
 package com.rp.podemu;
 
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
@@ -61,11 +63,13 @@ public class PodEmuLog
     private static FileOutputStream logfileStream;
     private static File logfile;
     //private static String filename="PodEmu_" + System.currentTimeMillis() + ".log";
-    private static String filename="PodEmu_debug.txt";
+    private static String filename;
 
     public PodEmuLog(Context c)
     {
         context=c;
+
+        filename="PodEmu_debug.txt";
 
         String dirname="PodEmuLogs";
         // Get the directory for the user's public pictures directory.
@@ -174,12 +178,21 @@ public class PodEmuLog
             uname="uname failed";
         }
 
+        String version;
+        try
+        {
+            PackageInfo pInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            version = pInfo.versionName;
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+            version="NA";
+        }
 
 
         log(
                 "\nBoard: " + Build.BOARD +
                 "\nBrand: " + Build.BRAND +
-                "\nBoard: " + Build.BOARD +
                 "\nDevice: " + Build.DEVICE +
                 "\nDisplay: " + Build.DISPLAY +
                 "\nHardware: " + Build.HARDWARE +
@@ -187,7 +200,8 @@ public class PodEmuLog
                 "\nModel: " + Build.MODEL +
                 "\nProduct: " + Build.PRODUCT +
                 "\nAPI level: " + Build.VERSION.SDK_INT +
-                "\n" + uname
+                "\n" + uname +
+                "\nPodEmu Version: " + version
         );
     }
 

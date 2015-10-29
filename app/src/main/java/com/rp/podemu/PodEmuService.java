@@ -35,7 +35,6 @@ import android.os.IBinder;
 import android.os.Message;
 import android.support.v4.app.NotificationCompat;
 
-import java.io.IOException;
 import java.util.Vector;
 
 
@@ -262,6 +261,12 @@ public class PodEmuService extends Service
                         {
                             while (true)
                             {
+                                if(MediaControlLibrary.trackStatusChanged)
+                                {
+                                    MediaControlLibrary.trackStatusChanged=false;
+                                    oapMessenger.oap_04_write_track_status_changed(MediaControlLibrary.currentPlaylistPosition);
+                                }
+
                                 if (oapMessenger.getPollingMode())
                                     oapMessenger.oap_04_write_elapsed_time();
                                 Thread.sleep(500);
@@ -277,7 +282,8 @@ public class PodEmuService extends Service
             }
 
         /*
-         * this is main thread that reads data from internal buffer abd processes it byte by byte
+         * this is main thread that reads data from serial interface internal buffer
+         * and processes it byte by byte
          */
             if (bgThread == null)
             {
@@ -440,6 +446,7 @@ public class PodEmuService extends Service
                 {
                     PodEmuMessage podEmuMessage = PodEmuIntentFilter.processBroadcast(context, intent);
                     oapMessenger.update_currently_playing(podEmuMessage);
+                    MediaControlLibrary.trackStatusChanged=true;
                 }
             }
             catch(Exception e)

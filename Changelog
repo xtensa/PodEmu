@@ -1,0 +1,17 @@
+1.18
+    * added version info to logfile and mail body
+    * fixed polling mode notification (cmd 0x0027) for track position and playlist position status change.
+    * added support for monochrome images
+
+1.16
+    * Support for FT311D/FT312D added
+    * bug fixed in communication protocol (command 0x0017)
+    * logging enhanced (timestamp changed to human readable form)
+
+1.14
+    * different launcher icon sizes added
+    * fixed startup bug when no ctrl app set
+
+1.13
+    * first apk released to the market
+

@@ -34,8 +34,11 @@ public class MediaControlLibrary
     public static Context context;
     public static String ctrlAppProcessName;
 
-    public static int playlistOffset = 500;
+    public static int playlistOffset = 1;
     public static int currentPlaylistPosition = playlistOffset;
+    public static int playlistMax = 3;
+
+    public static boolean trackStatusChanged=true;
 
 
 
@@ -79,7 +82,7 @@ public class MediaControlLibrary
     public static synchronized void action_next()
     {
         execute_action(KeyEvent.KEYCODE_MEDIA_NEXT);
-        if(currentPlaylistPosition<playlistOffset*2) currentPlaylistPosition++;
+        if(currentPlaylistPosition<playlistMax) currentPlaylistPosition++;
     }
 
     public static synchronized void action_prev(int timeElapsed)
@@ -139,7 +142,7 @@ public class MediaControlLibrary
 
         // this should not happen - just in case fix the boundaries
         pos=Math.max(pos,0);
-        pos=Math.min(pos,playlistOffset*2);
+        pos=Math.min(pos,playlistMax);
 
         while(pos>currentPlaylistPosition)
         {

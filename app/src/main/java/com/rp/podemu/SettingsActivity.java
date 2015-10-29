@@ -334,11 +334,22 @@ public class SettingsActivity extends AppCompatActivity
 
     public void sendDebug(View v)
     {
+        String version;
+        try
+        {
+            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            version = pInfo.versionName;
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+            version="NA";
+        }
+
         String username="dev.roman";
         String domain="gmail.com";
         String uriText =
                 "mailto:" + username + "@" + domain +
-                "?subject=" + Uri.encode("PodEmu debug") +
+                "?subject=" + Uri.encode("PodEmu debug - V" + version) +
                 "&body=" + Uri.encode("You can put additional description of the problem instead of this text.");
 
         Uri uri = Uri.parse(uriText);

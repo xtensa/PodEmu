@@ -54,6 +54,7 @@ public class OAPMessenger
     // bitmap to store dock image
     private Bitmap mBitmap;
     private Canvas mCanvas;
+    private static int pixel_format = 0;
     private static int image_start_x = 0;
     private static int image_start_y = 0;
     private static int image_pos_x = 0;
@@ -61,6 +62,7 @@ public class OAPMessenger
     private static int image_res_x = 0;
     private static int image_res_y = 0;
     private static int image_bytes_per_line = 0;
+    private static int current_byte_in_line=0;
 
 
     // definition of the in/out line if more than one instance of object created
@@ -735,8 +737,8 @@ public class OAPMessenger
                         break;
                     }
                     int pos_start = ((params[1] & 0xff) << 24) | ((params[2] & 0xff) << 16) | ((params[3] & 0xff) << 8) | (params[4] & 0xff);
-                    int pos_end = ((params[5] & 0xff) << 24) | ((params[6] & 0xff) << 16) | ((params[7] & 0xff) << 8) | (params[8] & 0xff);
-                    oap_04_write_type_names(params[0], pos_start, pos_end);
+                    int count = ((params[5] & 0xff) << 24) | ((params[6] & 0xff) << 16) | ((params[7] & 0xff) << 8) | (params[8] & 0xff);
+                    oap_04_write_type_names(params[0], pos_start, count);
                 }
                 break;
 
@@ -1082,7 +1084,7 @@ public class OAPMessenger
     private void oap_00_write_return_code(byte cmd, byte result)
     {
         byte msg[] = {0x02, result, cmd};
-        oap_write_cmd(msg, msg.length, (byte)0x00);
+        oap_write_cmd(msg, msg.length, (byte) 0x00);
     }
 
     /**
@@ -1219,54 +1221,63 @@ public class OAPMessenger
     /**
      * @param rtype     - type to which we areplying to
      * @param pos_start - starting position
-     * @param pos_end   - ending position
+     * @param count   - ending position
      * @cmd 0x00 0x1B
      * @response number(4) Number is the offset of item from 0.
      * @response string    String is the name of the item.
      * Playlist 0 is the main library and has the same name as iPod itself
      * (same as returned for 0x0014)
      */
-    private void oap_04_write_type_names(int rtype, int pos_start, int pos_end)
+    private void oap_04_write_type_names(int rtype, int pos_start, int count)
     {
         String str = "Unknown type";
         byte cmd[] = {0x00, 0x1B, 0x00, 0x00, 0x00, 0x00};
-        int pos=0; // FIXME - should be proper position
+        int maxItemsInPlaylist=3; // FIXME
 
-        if (pos_start > 1 || pos_end > 1 || pos_end < pos_start)
+        if (pos_start > maxItemsInPlaylist  || pos_start + count > maxItemsInPlaylist )
         {
             oap_04_write_return_code(0x001C, IPOD_OUT_OF_RANGE);
             return;
         }
 
-        // TODO implement playlists
-        switch (rtype)
+        for(int pos=pos_start;pos<pos_start+count;pos++)
         {
-            case 0x01: // Playlist
-                str = "Generic Playlist";
-                break;
-            case 0x02: // Artist
-                str = currentlyPlaying.getArtist();
-                break;
-            case 0x03: // Album
-                str = currentlyPlaying.getAlbum();
-                break;
-            case 0x04: // Genre
-                str = currentlyPlaying.getGenre();
-                break;
-            case 0x05: // Song
-                str = currentlyPlaying.getTrackName();
-                break;
-            case 0x06: // Composer
-                str = currentlyPlaying.getComposer();
-                break;
+            // TODO implement playlists
+            switch (rtype)
+            {
+                case 0x01: // Playlist
+                    str = "Generic Playlist";
+                    break;
+                case 0x02: // Artist
+                    str = currentlyPlaying.getArtist();
+                    break;
+                case 0x03: // Album
+                    str = currentlyPlaying.getAlbum();
+                    break;
+                case 0x04: // Genre
+                    str = currentlyPlaying.getGenre();
+                    break;
+                case 0x05: // Song
+                    str = currentlyPlaying.getTrackName();
+                    break;
+                case 0x06: // Composer
+                    str = currentlyPlaying.getComposer();
+                    break;
+                case 0x07: // Audiobook
+                    str = "Audiobooks are not supported";
+                    break;
+                case 0x08: // Composer
+                    str = "Podcasts are not supported";
+                    break;
+            }
+
+            cmd[2] = (byte) ((pos >> 24) & 0xff);
+            cmd[3] = (byte) ((pos >> 16) & 0xff);
+            cmd[4] = (byte) ((pos >> 8) & 0xff);
+            cmd[5] = (byte) (pos & 0xff);
+
+            oap_04_write_string(cmd, str);
         }
-
-        cmd[2] = (byte) ((pos >> 24) & 0xff);
-        cmd[3] = (byte) ((pos >> 16) & 0xff);
-        cmd[4] = (byte) ((pos >> 8) & 0xff);
-        cmd[5] = (byte) (pos & 0xff);
-
-        oap_04_write_string(cmd, str);
     }
 
     /**
@@ -1361,6 +1372,26 @@ public class OAPMessenger
         byte cmd[] = {
                 0x00,
                 0x27,
+                0x04, // info - new track position
+                (byte) ((pos >> 24) & 0xff),
+                (byte) ((pos >> 16) & 0xff),
+                (byte) ((pos >> 8) & 0xff),
+                (byte) (pos & 0xff)
+        };
+        oap_04_write_cmd(cmd);
+    }
+
+    /**
+     * @cmd 0x00 0x27
+     * @param pos - new position in playlist
+     * @response number(4) time elapsed on current song
+     */
+    public void oap_04_write_track_status_changed(int pos)
+    {
+        byte cmd[] = {
+                0x00,
+                0x27,
+                0x01, // info new track index
                 (byte) ((pos >> 24) & 0xff),
                 (byte) ((pos >> 16) & 0xff),
                 (byte) ((pos >> 8) & 0xff),
@@ -1725,7 +1756,6 @@ public class OAPMessenger
         }
     }
 
-    ;
 
 
     private void oap_send_bitmap()
@@ -1756,14 +1786,20 @@ public class OAPMessenger
             PodEmuLog.debug("ERROR: Wrong image block received");
             return;
         }
-
+/*
+        PodEmuLog.debug("PARAMS:");
+        for (int h=0;h<data.length;h++)
+            PodEmuLog.debug("Byte "+h+": "+String.format("%02X", data[h]));
+*/
         int block_number = ((data[0] & 0xff) << 8) | (data[1] & 0xff);
         int shift = 2; // shift to start of image data
 
         if (block_number == 0)
         {
+            pixel_format = data[2] & 0xff;
             image_pos_x = 0;
             image_pos_y = 0;
+            current_byte_in_line = 0;
             image_res_x = ((data[3] & 0xff) << 8) | (data[4] & 0xff);
             image_res_y = ((data[5] & 0xff) << 8) | (data[6] & 0xff);
 
@@ -1781,6 +1817,7 @@ public class OAPMessenger
 
             shift = 11;
             PodEmuLog.debug("Received image starting block:");
+            PodEmuLog.debug("             pixel format=" + pixel_format);
             PodEmuLog.debug("              raw msg len=" + len);
             PodEmuLog.debug("              image_res_x=" + image_res_x);
             PodEmuLog.debug("              image_res_y=" + image_res_y);
@@ -1792,30 +1829,76 @@ public class OAPMessenger
             return;
         }
 
-
-        for (int i = shift; i < Math.min(len, data.length) - 1; i += 2)
+        int data_last=Math.min(len, data.length) - 1;
+        for (int i = shift; i < data_last; i += 2)
         {
             // draw pixels only if we are inside declared resolution
             if (image_pos_x < image_res_x && image_pos_y < image_res_y)
             {
-                int red = (data[i] & 0xff) >> 3; // take first 5 bits
-                int green = ((((data[i] & 0xff) << 8) | (data[i + 1] & 0xff)) >> 5) & 0x3f; // take next 6 bits
-                int blue = data[i + 1] & 0x1f; // take last 5 bits
+                switch(pixel_format)
+                {
+                    case 0x01: // monochrome
+                    {
+                        int bytes=1;
+                        if(i+2==data_last)
+                        {
+                            bytes = 2;
+                        }
+                        for(int j=i;j<=i+bytes;j++)
+                        {
+                            for (int s = 6; s >= 0; s -= 2)
+                            {
+                                //PodEmuLog.debug("Pixel byte "+String.format("0x%02X",data[j])+" at pos: " + image_pos_x+":"+image_pos_y + "("+image_start_x+":"+image_start_y+")");
+                                int mask = (3 << s);
+                                int color = data[j] & mask;
+                                color >>= s;
+                                color = 255 - color * (255 / 3);
+                                mPaint.setColor(Color.rgb(color, color, color));
+                                mCanvas.drawPoint(image_start_x + image_pos_x, image_start_y + image_pos_y, mPaint);
 
-                //expanding colors to 8 bit
-                red <<= 3;
-                green <<= 2;
-                blue <<= 3;
+                                image_pos_x++;
+                            }
 
-                mPaint.setColor(Color.rgb(red, green, blue));
-                mCanvas.drawPoint(image_start_x + image_pos_x, image_start_y + image_pos_y, mPaint);
+                            current_byte_in_line++;
+                            if (current_byte_in_line >= image_bytes_per_line)
+                            {
+                                if (image_pos_y < image_res_y) image_pos_y++;
+                                image_pos_x = 0;
+                                current_byte_in_line = 0;
+                            }
+                        }
+                    } break;
+                    case 0x02: // RGB_565 little-endian
+                    {
+                        // for little endian we just need to swap the bytes
+                        byte tmp=data[i];
+                        data[i]=data[i+1];
+                        data[i+1]=tmp;
+                    }
+                    case 0x03: // RGB_565 big-endian
+                    {
+                        int red = (data[i] & 0xff) >> 3; // take first 5 bits
+                        int green = ((((data[i] & 0xff) << 8) | (data[i + 1] & 0xff)) >> 5) & 0x3f; // take next 6 bits
+                        int blue = data[i + 1] & 0x1f; // take last 5 bits
+
+                        //expanding colors to 8 bit
+                        red <<= 3;
+                        green <<= 2;
+                        blue <<= 3;
+
+                        mPaint.setColor(Color.rgb(red, green, blue));
+                        mCanvas.drawPoint(image_start_x + image_pos_x, image_start_y + image_pos_y, mPaint);
+                        image_pos_x++;
+                        current_byte_in_line+=2;
+                    } break;
+                }
             }
 
-            image_pos_x++;
-            if (image_pos_x == image_bytes_per_line / 2)
+            if (current_byte_in_line >= image_bytes_per_line)
             {
                 if (image_pos_y < image_res_y) image_pos_y++;
                 image_pos_x = 0;
+                current_byte_in_line = 0;
             }
         }
 
