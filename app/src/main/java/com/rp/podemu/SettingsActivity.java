@@ -145,6 +145,17 @@ public class SettingsActivity extends AppCompatActivity
         appInfos.add(dummyApp);
         */
 
+        for (String packageName : PodEmuIntentFilter.getAppList())
+        {
+            try
+            {
+                appInfos.add(pm.getApplicationInfo(packageName, PackageManager.GET_META_DATA));
+            }
+            catch (PackageManager.NameNotFoundException e)
+            {
+                //Do Nothing
+            }
+        }
         //now we have unique packages in the hashset, so get their application infos
         //and add them to the arraylist
         for (String packageName : packageNames)

@@ -83,18 +83,21 @@ public class MainActivity extends AppCompatActivity
 
     public void action_next(View v)
     {
-        MediaControlLibrary.action_next();
+        MediaPlayback mediaPlayback=MediaPlayback.getInstance();
+        mediaPlayback.action_next();
     }
 
     public void action_play_pause(View v)
     {
-        MediaControlLibrary.action_play_pause();
+        MediaPlayback mediaPlayback=MediaPlayback.getInstance();
+        mediaPlayback.action_play_pause();
 
     }
 
     public void action_prev(View v)
     {
-        MediaControlLibrary.action_prev(0);
+        MediaPlayback mediaPlayback=MediaPlayback.getInstance();
+        mediaPlayback.action_prev(0);
     }
 
     public void start_stop_service(View v)
@@ -265,11 +268,16 @@ public class MainActivity extends AppCompatActivity
             try
             {
                 PodEmuMessage podEmuMessage = PodEmuIntentFilter.processBroadcast(context, intent);
-                if (podEmuMessage.getAction() != PodEmuMessage.ACTION_QUEUE_CHANGED)
+
+                // if null is received then broadcast could be not from "our" app
+                if(podEmuMessage!=null)
                 {
-                    updateCurrentlyPlayingDisplay();
+                    currentlyPlaying.bulk_update(podEmuMessage);
+                    if (podEmuMessage.getAction() != PodEmuMessage.ACTION_QUEUE_CHANGED)
+                    {
+                        updateCurrentlyPlayingDisplay();
+                    }
                 }
-                currentlyPlaying.bulk_update(podEmuMessage);
             }
             catch(Exception e)
             {
@@ -291,8 +299,16 @@ public class MainActivity extends AppCompatActivity
             String enableDebug = sharedPref.getString("enableDebug", "false");
             Boolean ctrlAppUpdated = sharedPref.getBoolean("ControlledAppUpdated", false);
 
-            MediaControlLibrary.ctrlAppProcessName=ctrlAppProcessName;
+            if(PodEmuMediaStore.getInstance()==null)
+            {
+                PodEmuMediaStore.initialize(this);
+            }
 
+            // update ctrlApp only if it was changed or MediaPlayback engine is not yet initialized
+            if(ctrlAppUpdated || MediaPlayback.getInstance()==null)
+            {
+                PodEmuMediaStore.getInstance().setCtrlAppProcessName(ctrlAppProcessName);
+            }
 
             if (enableDebug.equals("true"))
                 PodEmuLog.DEBUG_LEVEL = 2;
@@ -302,6 +318,12 @@ public class MainActivity extends AppCompatActivity
             if (podEmuService != null)
             {
                 podEmuService.reloadBaudRate();
+            }
+
+            if(MediaPlayback.getInstance()!=null)
+            {
+                currentlyPlaying.bulk_update(MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrack().toPodEmuMessage());
+                updateCurrentlyPlayingDisplay();
             }
 
             PackageManager pm = getPackageManager();
@@ -317,7 +339,8 @@ public class MainActivity extends AppCompatActivity
                 if(ctrlAppUpdated && currentlyPlaying.isPlaying())
                 {
                     // invoke play_pause button to switch the app
-                    MediaControlLibrary.action_play_pause();
+                    MediaPlayback mediaPlayback=MediaPlayback.getInstance();
+                    mediaPlayback.action_play_pause();
                 }
                 SharedPreferences.Editor editor = sharedPref.edit();
                 editor.putBoolean("ControlledAppUpdated", false);
@@ -372,12 +395,13 @@ public class MainActivity extends AppCompatActivity
             loadPreferences();
             start_service(null);
 
-            iF = new PodEmuIntentFilter(ctrlAppProcessName);
+            iF = new PodEmuIntentFilter();
             iF.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
             iF.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
-            registerReceiver(mReceiver, iF);
+//            iF.addDataScheme("content");
+//            iF.addDataAuthority(ctrlAppProcessName, null);
 
-            MediaControlLibrary.context=this;
+            registerReceiver(mReceiver, iF);
 
             PodEmuLog.debug("onResume done");
         }
@@ -598,13 +622,15 @@ public class MainActivity extends AppCompatActivity
                 podEmuService = binder.getService();
                 serviceBound = true;
                 podEmuService.setHandler(mHandler);
+                podEmuService.setMediaEngine();
 
                 if (currentlyPlaying.getTrackName() != null)
                 {
                     // update service only if we have this information
                     // otherwise we can overwrite information that service already has (eg. if we are rebinding)
                     podEmuService.registerMessage(currentlyPlaying);
-                } else
+                }
+                else
                 {
                     // otherwise update currently playing
                     currentlyPlaying.bulk_update(podEmuService.getCurrentlyPlaying());

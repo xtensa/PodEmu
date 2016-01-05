@@ -25,14 +25,18 @@ public class PodEmuMessage
     private String artist;
     private String album;
     private String track;
-    private String trackID;
+    private String external_id;
     private String genre="Unknown Genre";
     private String composer="Unknown Composer";
+    private String uri="unknown uri";
     private int lengthSec;
     private int positionMS;
     private boolean isPlaying;
     private int action;
     private long timeSent;
+    private int track_number;
+    private int listSize;
+    private int listPosition;
 
     public final static int ACTION_METADATA_CHANGED=1;
     public final static int ACTION_PLAYBACK_STATE_CHANGED=2;
@@ -41,45 +45,34 @@ public class PodEmuMessage
     public String getArtist()  { return artist; }
     public String getAlbum()   { return album; }
     public String getTrackName()   { return track; }
-    public String getTrackID() { return trackID; }
+    public String getExternalId() { return external_id; }
     public String getGenre() { return genre; }
     public String getComposer() { return composer; }
     public int getLength()     { return lengthSec; }
     public boolean isPlaying() { return isPlaying; }
     public int getAction()     { return action; }
     public long getTimeSent() { return timeSent; }
+    public int getPositionMS() { return positionMS; }
+    public String getUri()    {        return uri;    }
+    public int getTrackNumber()    {        return track_number;    }
+    public int getListSize()    {   return listSize; }
+    public int getListPosition()    {   return listPosition; }
 
     public void setArtist(String artist)   { this.artist = artist; }
     public void setAlbum(String album)     { this.album = album;   }
+    public void setGenre(String genre)     { this.genre = genre;   }
+    public void setComposer(String composer)     { this.composer = composer;   }
     public void setTrackName(String track)     { this.track = track;    }
-    public void setTrackID(String trackID) { this.trackID = trackID;  }
+    public void setExternalId(String external_id) { this.external_id = external_id;  }
     public void setLength(int length)      { this.lengthSec = length;    }
     public void setPositionMS(int positionMS)    { this.positionMS = positionMS;  }
     public void setIsPlaying(boolean isPlaying)  { this.isPlaying = isPlaying;  }
     public void setAction(int action)            { this.action = action; }
     public void setTimeSent(long timeSent) { this.timeSent = timeSent; }
-
-    /**
-     * Calculating exact position of the played song in MS.
-     * We don't need to bother if the song was paused as we receive updated
-     * postion once it is paused or unpaused.
-     * @return position in miliseconds
-     */
-    public int getPositionMS()
-    {
-        int position;
-
-        // if playback is active then calculate real position, otherwise return last known position
-        if(isPlaying)
-        {
-            position = positionMS + (int)(System.currentTimeMillis() - timeSent);
-        }
-        else
-        {
-            position=positionMS;
-        }
-        return position;
-    }
+    public void setUri(String uri)    {        this.uri = uri;    }
+    public void setTrackNumber(int track_number)    {        this.track_number = track_number;    }
+    public void setListSize(int listSize)   {   this.listSize = listSize; }
+    public void setListPosition(int listPosition)   {   this.listPosition = listPosition; }
 
     public void bulk_update(PodEmuMessage msg)
     {
@@ -89,11 +82,17 @@ public class PodEmuMessage
             this.setTimeSent(msg.getTimeSent());
             this.setAction(msg.getAction());
             this.setLength(msg.getLength());
-            this.setTrackID(msg.getTrackID());
+            this.setExternalId(msg.getExternalId());
             this.setTrackName(msg.getTrackName());
             this.setAlbum(msg.getAlbum());
+            this.setGenre(msg.getGenre());
+            this.setComposer(msg.getComposer());
             this.setArtist(msg.getArtist());
             this.setPositionMS(msg.getPositionMS());
+            this.setUri(msg.getUri());
+            this.setTrackNumber(msg.getTrackNumber());
+            this.setListSize(msg.getListSize());
+            this.setListPosition(msg.getListPosition());
         }
     }
 

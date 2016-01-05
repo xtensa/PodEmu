@@ -121,7 +121,7 @@ public class PodEmuLog
             calendar.setTimeInMillis(currTimeMillis);
             int millis=(int)(currTimeMillis%1000);
 
-            byte msg[]=(dateFormat.format(calendar.getTime()) + " (" + millis + ") " + ": " + TAG + " - " + str + "\n").getBytes();
+            byte msg[]=(dateFormat.format(calendar.getTime()) + " (" + String.format("%03d",millis) + ") " + ": " + TAG + " - " + str + "\n").getBytes();
             try
             {
                 logfileStream.write(msg, 0, msg.length);
@@ -174,7 +174,7 @@ public class PodEmuLog
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            //e.printStackTrace();
             uname="uname failed";
         }
 

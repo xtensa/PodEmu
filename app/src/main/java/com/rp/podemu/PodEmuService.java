@@ -45,6 +45,8 @@ public class PodEmuService extends Service
     private Thread pollingThread=null;
     private final IBinder localBinder = new LocalBinder();
     private static Handler mHandler;
+    private static PodEmuMediaStore podEmuMediaStore;
+    private static MediaPlayback mediaPlayback;
     private Vector<PodEmuMessage> podEmuMessageVector=new Vector<>();
     private ByteFIFO inputBuffer=new ByteFIFO(2048); //assuming 2048 should be enough
     private SerialInterfaceBuilder serialInterfaceBuilder;
@@ -117,6 +119,17 @@ public class PodEmuService extends Service
         this.mHandler=handler;
         oapMessenger.setHandler(handler);
     }
+
+    void setMediaEngine()
+    {
+        podEmuMediaStore = PodEmuMediaStore.getInstance();
+        oapMessenger.setMediaStore(podEmuMediaStore);
+
+        mediaPlayback = MediaPlayback.getInstance();
+        oapMessenger.setMediaPlayback(mediaPlayback);
+    }
+
+
 
     @Override
     public IBinder onBind(Intent intent)
@@ -259,16 +272,29 @@ public class PodEmuService extends Service
                     {
                         try
                         {
+                            boolean stopCommandSent=false;
+                            MediaPlayback mediaPlayback=MediaPlayback.getInstance();
+
                             while (true)
                             {
-                                if(MediaControlLibrary.trackStatusChanged)
-                                {
-                                    MediaControlLibrary.trackStatusChanged=false;
-                                    oapMessenger.oap_04_write_track_status_changed(MediaControlLibrary.currentPlaylistPosition);
-                                }
 
                                 if (oapMessenger.getPollingMode())
-                                    oapMessenger.oap_04_write_elapsed_time();
+                                {
+                                    if(mediaPlayback.getTrackStatusChanged())
+                                    {
+                                        mediaPlayback.setTrackStatusChanged(false);
+                                        oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback.getCurrentPlaylist().getCurrentTrackPos());
+                                    }
+
+                                    if(!mediaPlayback.isPlaying() && !stopCommandSent)
+                                    {
+                                        oapMessenger.oap_04_write_polling_playback_stopped();
+                                        stopCommandSent=true;
+                                    }
+                                    if(mediaPlayback.isPlaying()) stopCommandSent=false;
+
+                                    oapMessenger.oap_04_write_polling_elapsed_time();
+                                }
                                 Thread.sleep(500);
                             }
 
@@ -313,7 +339,7 @@ public class PodEmuService extends Service
                                 while (podEmuMessageVector.size() > 0)
                                 {
                                     PodEmuMessage podEmuMessage = podEmuMessageVector.get(0);
-                                    oapMessenger.update_currently_playing(podEmuMessage);
+                                    MediaPlayback.getInstance().updateCurrentlyPlayingTrack(podEmuMessage);
                                     podEmuMessageVector.remove(0);
                                 }
                                 oapMessenger.flush();
@@ -326,6 +352,10 @@ public class PodEmuService extends Service
                         } catch (InterruptedException e)
                         {
                             PodEmuLog.debug("Background processing thread interrupted!");
+                        } catch (Exception e)
+                        {
+                            PodEmuLog.printStackTrace(e);
+                            throw e;
                         }
                     }
 
@@ -343,6 +373,10 @@ public class PodEmuService extends Service
         }
     }
 
+    private void registerBroadcastReceiver(String ctrlAppProcessName)
+    {
+
+    }
 
     @Override
     public void onCreate()
@@ -353,9 +387,9 @@ public class PodEmuService extends Service
         {
             serialInterfaceBuilder=new SerialInterfaceBuilder();
 
-            SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
-            String ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
-            iF = new PodEmuIntentFilter(ctrlAppProcessName);
+            //SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+            //String ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
+            iF = new PodEmuIntentFilter();
             iF.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
             iF.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
             registerReceiver(mReceiver, iF);
@@ -363,8 +397,6 @@ public class PodEmuService extends Service
         }
         catch(Exception e)
         {
-            PodEmuLog.error("eee");
-
             PodEmuLog.printStackTrace(e);
             throw e;
         }
@@ -407,7 +439,7 @@ public class PodEmuService extends Service
 
     public PodEmuMessage getCurrentlyPlaying()
     {
-        return oapMessenger.get_currently_playing();
+        return MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrack().toPodEmuMessage();
     }
 
 
@@ -420,6 +452,12 @@ public class PodEmuService extends Service
             {
                 String action = intent.getAction();
                 String cmd = intent.getStringExtra("command");
+                MediaPlayback mediaPlaybackInstance=MediaPlayback.getInstance();
+                if(mediaPlaybackInstance==null)
+                {
+                    PodEmuLog.error("PES: MediaPlayback instance is not ready. Broadcast not processed.");
+                    return;
+                }
 
                 PodEmuLog.debug("(S) Broadcast received: " + cmd + " - " + action);
 
@@ -438,15 +476,18 @@ public class PodEmuService extends Service
                     message.arg1 = 3; // indicate serial connection status changed
                     mHandler.sendMessage(message);
 
-                    MediaControlLibrary.action_stop();
+                    mediaPlaybackInstance.action_stop();
 
                     stopSelf();
                 }
                 else
                 {
                     PodEmuMessage podEmuMessage = PodEmuIntentFilter.processBroadcast(context, intent);
-                    oapMessenger.update_currently_playing(podEmuMessage);
-                    MediaControlLibrary.trackStatusChanged=true;
+                    // if null is received then broadcast could be not from "our" app
+                    if(podEmuMessage!=null)
+                    {
+                        mediaPlaybackInstance.updateCurrentlyPlayingTrack(podEmuMessage);
+                    }
                 }
             }
             catch(Exception e)

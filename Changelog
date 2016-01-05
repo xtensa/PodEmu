@@ -1,3 +1,11 @@
+1.19
+    * Core engine rewritten to support future built-in players
+    * Support for applications added: TIDAL, PowerAmp, MixZing
+    * When ListSize information is provided in the broadcast (supported by
+    some apps) PodEmu will emulate 1 album that will be browsable from docking
+    station
+    * several bug fixed and stability improved
+
 1.18
     * added version info to logfile and mail body
     * fixed polling mode notification (cmd 0x0027) for track position and playlist position status change.

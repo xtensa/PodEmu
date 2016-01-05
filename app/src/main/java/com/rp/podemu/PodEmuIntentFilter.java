@@ -23,22 +23,45 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 
+import java.util.ArrayList;
+
 /**
  * Created by rp on 9/25/15.
  */
 public class PodEmuIntentFilter extends IntentFilter
 {
-
-    public PodEmuIntentFilter(String processName)
+    private static ArrayList<String> appList = new ArrayList<>(0);
+    private static boolean appListInitialized=false;
+    private static void initializeAppList()
     {
-        if(processName.contains("com.spotify.music"))
+        if(!appListInitialized)
+        {
+            appList.add("com.aspiro.tidal");            // Tidal
+            appList.add("com.maxmpz.audioplayer");      // PowerAmp
+            appList.add("com.apple.android.music");     // Apple Music
+
+            appListInitialized=true;
+        }
+    }
+
+    public static ArrayList<String> getAppList()
+    {
+        initializeAppList();
+        return appList;
+    }
+
+    public PodEmuIntentFilter()
+    {
+        initializeAppList();
+
+        //if(processName.contains("com.spotify.music"))
         {
             this.addAction("com.spotify.music.playbackstatechanged");
             this.addAction("com.spotify.music.metadatachanged");
             this.addAction("com.spotify.music.queuechanged");
-        }
-        else
-        {
+        //}
+        //else
+        //{
             this.addAction("com.android.music.musicservicecommand");
             this.addAction("com.android.music.metachanged");
             this.addAction("com.android.music.playstatechanged");
@@ -65,6 +88,9 @@ public class PodEmuIntentFilter extends IntentFilter
             this.addAction("com.samsung.sec.android.MusicPlayer.metachanged");
             this.addAction("com.andrew.apollo.metachanged");
         }
+
+
+
 
     }
 
@@ -126,8 +152,41 @@ public class PodEmuIntentFilter extends IntentFilter
     *
     * */
 
+            /*
 
-    public static PodEmuMessage processBroadcast(Context context, Intent intent)
+        MixZing:
+            com.android.music.playstatechanged
+            Bundle[{
+                duration=0,
+                playstate=false,
+                artist=Chris Brown,
+                preparing=false,
+                playing=false,
+                streaming=true,
+                id=-1,
+                album=HOT 108 JAMZ - #1 FOR HIP HOP - www.hot108.com,
+                track=Back To Sleep,
+                position=0,
+                com.mixzing.basic.mediaSource=true,
+                ListSize=1,
+                ListPosition=0}]
+
+        PowerAmp
+            com.android.music.playstatechanged
+            Bundle[{
+                duration=68000,
+                com.maxmpz.audioplayer.source=com.maxmpz.audioplayer,
+                artist=Unknown artist,
+                playing=false,
+                id=117,
+                album=null,
+                track=Avalon}]
+         */
+
+
+    // defining as synchronized to avoid this exception:
+    // android.os.BadParcelableException: ClassNotFoundException when unmarshalling
+    public static synchronized PodEmuMessage processBroadcast(Context context, Intent intent)
     {
         PodEmuMessage podEmuMessage = new PodEmuMessage();
         // will be used later to precisely determine position
@@ -140,14 +199,62 @@ public class PodEmuIntentFilter extends IntentFilter
         int length;
         int position;
         int action_code=0;
+        int listSize=-1;
+        int listPosition=-1;
 
         String PLAYBACK_STATE_CHANGED, METADATA_CHANGED, QUEUE_CHANGED, PLAYBACK_COMPLETE, UPDATE_PROGRESS;
 
         String action = intent.getAction();
         String cmd = intent.getStringExtra("command");
 
-        PodEmuLog.debug("(" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
-        PodEmuLog.debug("(" + context.getClass() + ") " + intent.getExtras());
+        MediaPlayback mediaPlayback = MediaPlayback.getInstance();
+        if(mediaPlayback == null)
+        {
+            PodEmuLog.error("PEF: broadcast processing attempt before MediaPlayback engine initialized.");
+            return null;
+        }
+
+        PodEmuLog.debug("PEF: (" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
+        PodEmuLog.debug("PEF: (" + context.getClass() + ") " + intent.getExtras());
+
+        // unfortunately Android does not provide information about source process for broadcast, so we need
+        // to check case by case when possible. Using XOR check only for "certain" applications
+
+        // MIXZING
+        boolean isMixZingBroadcast = intent.getBooleanExtra("com.mixzing.basic.mediaSource", false);
+        if (   ( mediaPlayback.getCtrlAppProcessName().equals("com.mixzing.basic") && !isMixZingBroadcast) ||
+               (!mediaPlayback.getCtrlAppProcessName().equals("com.mixzing.basic") &&  isMixZingBroadcast)   )
+        {
+            PodEmuLog.debug("PEF: skipping not MixZing or MixZing outdated broadcast.");
+            return null;
+        }
+
+        // POWERAMP
+        boolean isPowerAmpBroadcast=(intent.getStringExtra("com.maxmpz.audioplayer.source")!=null);
+        if ( ( mediaPlayback.getCtrlAppProcessName().equals("com.maxmpz.audioplayer") && !isPowerAmpBroadcast) ||
+             (!mediaPlayback.getCtrlAppProcessName().equals("com.maxmpz.audioplayer") &&  isPowerAmpBroadcast) )
+        {
+            PodEmuLog.debug("PEF: skipping not PowerAmp or PowerAmp outdated broadcast.");
+            return null;
+        }
+
+        // SPOTIFY
+        boolean isSpotifyBroadcast=action.contains("spotify");
+        if (   ( mediaPlayback.getCtrlAppProcessName().equals("com.spotify.music") && !isSpotifyBroadcast) ||
+               (!mediaPlayback.getCtrlAppProcessName().equals("com.spotify.music") &&  isSpotifyBroadcast) )
+        {
+            PodEmuLog.debug("PEF: skipping not Spotify or Spotify outdated broadcast.");
+            return null;
+        }
+
+        // TIDAL
+        // unfortunately TIDAL is not sending any marker so we can only guess...
+        boolean isTidalBroadcast=(intent.getStringExtra("state")!=null);
+        if (mediaPlayback.getCtrlAppProcessName().equals("com.aspiro.tidal") && !isTidalBroadcast)
+        {
+            PodEmuLog.debug("PEF: skipping not TIDAL broadcast.");
+            return null;
+        }
 
 
         if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
@@ -159,6 +266,10 @@ public class PodEmuIntentFilter extends IntentFilter
             id = intent.getStringExtra("id");
             timeSentInMs = intent.getLongExtra("timeSent", 0L);
 
+            // unfortunately spotify does not provide this information
+            listSize = -1;
+            listPosition = -1;
+
             METADATA_CHANGED=BroadcastTypes.SPOTIFY_METADATA_CHANGED;
             PLAYBACK_STATE_CHANGED=BroadcastTypes.SPOTIFY_PLAYBACK_STATE_CHANGED;
             QUEUE_CHANGED=BroadcastTypes.SPOTIFY_QUEUE_CHANGED;
@@ -167,10 +278,31 @@ public class PodEmuIntentFilter extends IntentFilter
         }
         else
         {
-            length = (int) intent.getLongExtra("duration", 0);
-            position = (int) intent.getLongExtra("position", 0);
-            id = String.valueOf(intent.getLongExtra("id",0));
+            if (mediaPlayback.getCtrlAppProcessName().equals("com.aspiro.tidal"))
+            {
+                // TIDAL sending this info differently then others
+                length = intent.getIntExtra("duration", 0)*1000;
+                position = intent.getIntExtra("position", 0);
+            }
+            else
+            {
+                length = (int) intent.getLongExtra("duration", 0);
+                position = (int) intent.getLongExtra("position", 0);
+            }
+
+            if (mediaPlayback.getCtrlAppProcessName().equals("com.htc.music"))
+            {
+                id = String.valueOf(intent.getIntExtra("id", 0));
+            }
+            else
+            {
+                id = String.valueOf(intent.getLongExtra("id", 0));
+            }
+
             timeSentInMs = System.currentTimeMillis();
+
+            listSize = (int) intent.getLongExtra("ListSize", -1);
+            listPosition = (int) intent.getLongExtra("ListPosition", -1);
 
             METADATA_CHANGED=BroadcastTypes.ANDROID_METADATA_CHANGED;
             PLAYBACK_STATE_CHANGED=BroadcastTypes.ANDROID_PLAYBACK_STATE_CHANGED;
@@ -193,7 +325,8 @@ public class PodEmuIntentFilter extends IntentFilter
         if (action.contains(QUEUE_CHANGED))
         {
             action_code=PodEmuMessage.ACTION_QUEUE_CHANGED;
-            // Sent only as a notification, your app may want to respond accordingly.
+            // nothing to do here yet
+            // playlist regeneration might be needed
         }
 
         artist = intent.getStringExtra("artist");
@@ -202,17 +335,20 @@ public class PodEmuIntentFilter extends IntentFilter
 
         isPlaying = intent.getBooleanExtra("playing", false);
 
-        PodEmuLog.debug(isPlaying + " : " + artist + " : " + album + " : " + track + " : " + id + " : " + length);
+        PodEmuLog.debug("PEF: received message - action:" + action_code + ", isPlaying:" + isPlaying + ", artist:" + artist + ", album:" + album +
+                ", track:"+ track + ", id:" + id + ", length:" + length + ", track:" + listPosition + "/" + listSize);
 
         podEmuMessage.setAlbum(album);
         podEmuMessage.setArtist(artist);
         podEmuMessage.setTrackName(track);
-        podEmuMessage.setTrackID(id);
+        podEmuMessage.setExternalId(id);
         podEmuMessage.setLength(length);
         podEmuMessage.setIsPlaying(isPlaying);
         podEmuMessage.setPositionMS(position);
         podEmuMessage.setTimeSent(timeSentInMs);
         podEmuMessage.setAction(action_code);
+        podEmuMessage.setListSize(listSize);
+        podEmuMessage.setListPosition(listPosition);
 
         return podEmuMessage;
     }
