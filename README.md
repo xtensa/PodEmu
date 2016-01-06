@@ -62,7 +62,9 @@ PodEmu was tested with FT312D, PL2303, FT232R and CP2102. Other chips should als
 
 ## Supported Music Application List
 
-PodEmu will support any music application out of the box if this application properly declares itself in the system. To be "selectable" on the list it should declare itselft for intent filter as "android.intent.category.APP_MUSIC". To receive metadata about currently playing track applications should broadcast metadata to other apps. The examples of applications that do all of it properly are Google Music, android native player, MixZing. Some applications do only parto of it: eg. Spotify does not include track position info in the broadcast and PowerAmp does not declare itself for intent filter although it broadcasts metadata information. The table below summarizes the behavior of the applications with which PodMode was tested.
+PodEmu will support any music application out of the box if this application properly declares itself in the system. To be "selectable" on the list it should declare itselft for intent filter as "android.intent.category.APP_MUSIC". To receive metadata about currently playing track applications should broadcast metadata to other apps. The examples of applications that do all of it properly are Google Music, android native player, MixZing. Some applications do only parto of it: eg. Spotify and TIDAL does not include track position info in the broadcast. Also TIDAL and PowerAmp does not declare itself for intent filter although it broadcasts metadata information - I had to add them to application list manually. The table below summarizes the behavior of the applications with which PodMode was tested.
+
+Additionally, please remember, that in order support track/album/artist/playlist/genre navigation fully PodEmu need to have this information provided. Unfortunately there is no way to retreive this information if the source application do not broadcast it itself. In the best case PodEmu is only informed about currently played track, total playlist size and current track position. Therefore PodEmu is trying to mimic the rest of the information for the docking station to be able to operate. Here remember, that each docking station behaves differently and the result could be also different. Feel free to provide feedback with your experience.
 
 <table>
 <tr>
@@ -93,7 +95,7 @@ PodEmu will support any music application out of the box if this application pro
 <td>TIDAL</td>
 <td>yes</td>
 <td>yes</td>
-<td>Metadata does not contain ListSize, ListPosition and track duration information.</td>
+<td>Metadata does not contain ListSize, ListPosition.</td>
 </tr>
 <tr>
 <td>MixZing</td>
@@ -117,7 +119,7 @@ PodEmu will support any music application out of the box if this application pro
 
 </table>
 
-Please note, that ListSize and ListPosition information is very important to be able to see the total amount of songs in the playlist from the docking station and to be able to select random song from list and jump to it. Whenever this information is missing PodEmu will not know how many songs are in the the current playlist and will not support "jump to" command. In such case you will see one album, that contains just 3 songs and currently played song is always song nr 2.  Also remember, that even if ListSize information is provided (which is count of songs in the current playlist), PodEmu don't know their names "a priori". Therefore, first time you browse them from docking station, you will see "Track XYZ" title for all of them. However, once the song is played, it's title is remembered at given position. This list is flushed when total count of song is changed or application is restarted.
+Please note, that ListSize and ListPosition information is very important to be able to see the total amount of songs in the playlist from the docking station and to be able to select random song from list and jump to it. Whenever this information is missing PodEmu will not know how many songs are in the the current playlist and will not support "jump to" command. In such case you will see one album, that contains just 3 songs and currently played song is always song nr 2.  Also remember, that even if ListSize information is provided (which is count of songs in the current playlist), PodEmu don't know track names "a priori". Therefore, first time you browse them from docking station, you will see titles like "Track XYZ" for all of them. However, once the song is played, it's title is remembered at given position. This list is flushed when total count of song is changed or application is restarted.
 
 ## TODO
 
