@@ -99,13 +99,12 @@ public class PodEmuMediaStore
 
     public void setCtrlAppProcessName(String app)
     {
-        PodEmuLog.debug("PEMS: setting CTRL APP process name to:" + ctrlAppProcessName);
-        PodEmuLog.debug("PEMS: CTRL APP db name to:" + ctrlAppDbName);
 
         ctrlAppProcessName = app;
         String prevCtrlAppProcessName = ctrlAppDbName;
 
-        PodEmuLog.debug("PEMS: setting CTRL APP process name to:" + ctrlAppProcessName);
+        PodEmuLog.debug("PEMS: setting CTRL APP process name to: " + ctrlAppProcessName);
+        PodEmuLog.debug("PEMS: CTRL APP db name to: " + ctrlAppDbName);
 
         switch (app)
         {
@@ -115,8 +114,11 @@ public class PodEmuMediaStore
             default:
                 ctrlAppDbName = "generic";
         }
+        PodEmuLog.debug("PEMS: CTRL APP updated db name to: " + ctrlAppDbName);
+
         // if controlled app changed, we probably need to rebuild the db
         if(prevCtrlAppProcessName==null || !prevCtrlAppProcessName.equals(ctrlAppDbName)) rebuildDbRequired = true;
+        PodEmuLog.debug("PEMS: rebuild DB required: " + rebuildDbRequired);
 
         updateNextIds();
 
@@ -126,6 +128,10 @@ public class PodEmuMediaStore
         if(PodEmuMediaDB.getInstance()==null)
         {
             PodEmuMediaDB.initialize(ctrlAppDbName);
+            if(rebuildDbRequired)
+            {
+                PodEmuMediaDB.getInstance().rebuildDB(this);
+            }
         }
         //PodEmuMediaDB.getInstance().rebuildDB(PodEmuMediaStore.getInstance());
         // now we need to initialize currentlyPlayingPlaylist and set track 0

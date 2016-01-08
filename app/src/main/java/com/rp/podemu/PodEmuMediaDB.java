@@ -35,6 +35,10 @@ public abstract class PodEmuMediaDB
             ctrlAppProcessName = app;
             instance = new PodEmuMediaDB_Generic();
         }
+        else
+        {
+            PodEmuLog.error("PEMDB: sth went wrong - DB initialization without rebuilding DB");
+        }
 
     }
 
