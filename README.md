@@ -11,7 +11,8 @@ This application is very similar to PodMode application that already [exists out
 XDA Developers discussion about this app [is here ](http://forum.xda-developers.com/android/apps-games/app-podemu-connect-android-to-30pin-t3234840)
   
 PodEmu in action:
-[![PodEmu in action](/screenshots/Screenshot_07.png)](https://youtu.be/zXcBL5EdCGY)
+
+[![PodEmu in action](/screenshots/Screenshot_07.png)](https://youtu.be/_egRqgbt9GE)
 
 ## Requirements
 
@@ -125,7 +126,7 @@ ListSize and ListPosition information is very important to be able to see the to
 
 ## TODO
 
- - Add support for playlist/album/artist browse
+ - Bluetooth support 
  - Support for more apps (if your app is not on the list or behaves weirdly, just drop me a message)
 
 ## Credits
