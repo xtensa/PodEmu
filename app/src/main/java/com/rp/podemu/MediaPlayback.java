@@ -1,6 +1,6 @@
 /**
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -112,10 +112,21 @@ public abstract class MediaPlayback
 
     public synchronized void action_next()
     {
+        int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
+        int trackCount   = getCurrentPlaylist().getTrackCount();
+
         PodEmuLog.debug("PEMP: action NEXT requested");
+
+        // TODO: implement repeat and shuffle
+        if(currentTrack == trackCount-1) return;
+
+        if( shouldUpdatePosition() )
+        {
+            getCurrentPlaylist().setCurrentTrack(currentTrack+1);
+        }
+
         execute_action(KeyEvent.KEYCODE_MEDIA_NEXT);
-        // FIXME
-        //if(currentPlaylistPosition<playlistSongCount) currentPlaylistPosition++;
+
     }
 
     public synchronized void action_prev(int timeElapsed)
@@ -125,7 +136,18 @@ public abstract class MediaPlayback
 
     public synchronized void action_prev(int timeElapsed, boolean force)
     {
+        int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
+
         PodEmuLog.debug("PEMP: action PREV requested, force=" + force);
+
+        // TODO: implement repeat and shuffle
+        if(currentTrack == 0) return;
+
+        if( shouldUpdatePosition() )
+        {
+            getCurrentPlaylist().setCurrentTrack(currentTrack-1);
+        }
+
         // media players behave differently, depending on how much time elapsed
         // from the beginning of the song. Usually pressing "back" button after
         // 2 second elapsed from the beginning of the song will only rewind to the beginning of the song.
@@ -133,12 +155,14 @@ public abstract class MediaPlayback
         {
             execute_action(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
         }
-
         execute_action(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
-        // FIXME
-        //if(currentPlaylistPosition>0) currentPlaylistPosition--;
 
         lastPrevExecuted=System.currentTimeMillis();
+    }
+
+    public void action_prev()
+    {
+        action_prev(0, false);
     }
 
     public void action_play()
@@ -175,8 +199,62 @@ public abstract class MediaPlayback
         execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
     }
 
-    
-    public abstract boolean jumpTo(int pos);
+
+
+
+    public boolean jumpTo(int pos)
+    {
+        int timeElapsed = MediaPlayback.getInstance().getCurrentTrackPositionMS();
+        int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
+        int trackCount   = getCurrentPlaylist().getTrackCount();
+
+        PodEmuLog.debug("PEMS.Playlist: jumTo: " + pos + " while current pos is " + currentTrack);
+
+        if(pos==0xffffffff)
+        {
+            //pos = playlistOffset;
+            // don't want to process resetting playlist
+            pos=0;
+        }
+
+        // this should not happen - just in case we fix the boundaries
+        pos=Math.max(pos,0);
+        pos=Math.min(pos,trackCount);
+
+        if(pos>currentTrack)
+        {
+            int count=pos-currentTrack;
+            for(int i=0;i<count;i++)
+            {
+                action_next();
+            }
+        }
+        else
+        {
+            int count=currentTrack-pos;
+            for(int i=0;i<count;i++)
+            {
+                action_prev(timeElapsed,true);
+                timeElapsed = 0;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean shouldUpdatePosition()
+    {
+        switch (PodEmuMediaStore.getInstance().getPlaylistCountMode())
+        {
+            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_SINGLE:
+            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_TRIPLE:
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    //public abstract boolean jumpTo(int pos);
     public abstract void setTrackStatusChanged(boolean status);
 
     public String getCtrlAppProcessName()

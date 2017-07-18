@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file:///mnt/data/home/rp/AndroidStudioProjects/PodEmu/PodEmu.iml" filepath="/mnt/data/home/rp/AndroidStudioProjects/PodEmu/PodEmu.iml" />
-      <module fileurl="file:///mnt/data/home/rp/AndroidStudioProjects/PodEmu/app/app.iml" filepath="/mnt/data/home/rp/AndroidStudioProjects/PodEmu/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/PodEmu.iml" filepath="$PROJECT_DIR$/PodEmu.iml" />
+      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>
 </project>

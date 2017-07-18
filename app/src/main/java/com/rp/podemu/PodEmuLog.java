@@ -1,6 +1,6 @@
 /**
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -20,10 +20,12 @@
 package com.rp.podemu;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Environment;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
 import java.io.BufferedReader;
@@ -34,11 +36,11 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.text.DateFormat;
+//import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Locale;
-import java.util.concurrent.TimeUnit;
+//import java.util.Locale;
+//import java.util.concurrent.TimeUnit;
 
 /**
  * Created by rp on 9/10/15.
@@ -51,7 +53,14 @@ public class PodEmuLog
      * 2 - debug
      * 3 - verbose debug
      */
-    public static int DEBUG_LEVEL=2;
+    public static final int LOGLEVEL_DISABLED=0;
+    public static final int LOGLEVEL_LOG=1;
+    public static final int LOGLEVEL_DEBUG=2;
+    public static final int LOGLEVEL_VERBOSE=3;
+
+    public static int LOGLEVEL_DEFAULT=LOGLEVEL_VERBOSE;
+
+    public static int debug_level=LOGLEVEL_DEFAULT;
     public static Context context;
 
     public final static String TAG="PodEmu";
@@ -65,37 +74,65 @@ public class PodEmuLog
     //private static String filename="PodEmu_" + System.currentTimeMillis() + ".log";
     private static String filename;
 
-    public PodEmuLog(Context c)
+    public static boolean checkPermissions()
+    {
+        if(context==null)
+        {
+            Log.e(TAG, "context is null");
+            return false;
+        }
+
+        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+                PackageManager.PERMISSION_GRANTED)
+        {
+            // we dont have permissions. Need to disable debug and return false :(
+            SharedPreferences sharedPref;
+            sharedPref = context.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = sharedPref.edit();
+            editor.putString("enableDebug", "false");
+            editor.apply();
+            return false;
+        }
+        return true;
+    }
+
+    public static void initialize(Context c)
     {
         context=c;
 
         filename="PodEmu_debug.txt";
 
-        String dirname="PodEmuLogs";
-        // Get the directory for the user's public pictures directory.
-        logdir = new File(Environment.getExternalStorageDirectory(), dirname);
-        PodEmuLog.log("Log dir: " + logdir.getPath());
-        if (!logdir.mkdirs())
-        {
-            log("Directory not created");
-        }
-        logfile=new File(logdir,filename);
+        initializeLogFile();
 
-        try
-        {
-            logfileStream = new FileOutputStream(logfile,true);
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-        }
 
         dateFormat = new SimpleDateFormat("yyyy-MM-dd kk:mm:ss");
         calendar = Calendar.getInstance();
     }
 
+    public static void initializeLogFile()
+    {
+        if(!checkPermissions()) return;
+
+        String dirname="PodEmuLogs";
+        // Get the directory for the user's public pictures directory.
+        logdir = new File(Environment.getExternalStorageDirectory(), dirname);
+        PodEmuLog.log("Log dir: " + logdir.getPath());
+        if (!logdir.mkdirs()) {
+            log("Directory not created");
+        }
+        logfile = new File(logdir, filename);
+
+        try {
+            logfileStream = new FileOutputStream(logfile, true);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void eraseDebug()
     {
+        if( !checkPermissions() ) return;
+
         logfile.delete();
         try
         {
@@ -115,7 +152,7 @@ public class PodEmuLog
         else
             Log.d(TAG, str);
 
-        if(logfileStream!=null)
+        if(logfileStream!=null && checkPermissions())
         {
             long currTimeMillis=System.currentTimeMillis();
             calendar.setTimeInMillis(currTimeMillis);
@@ -142,13 +179,13 @@ public class PodEmuLog
 
     public static void debug(String str)
     {
-        if(DEBUG_LEVEL<2) return;
+        if(debug_level<LOGLEVEL_DEBUG) return;
         log(str);
 
     }
     public static void verbose(String str)
     {
-        if(DEBUG_LEVEL<3) return;
+        if(debug_level<LOGLEVEL_VERBOSE) return;
         log(str);
     }
 
@@ -160,7 +197,8 @@ public class PodEmuLog
 
     public static String getLogFileName()
     {
-        return logdir.getPath() + "/" + filename;
+        if( checkPermissions() ) return logdir.getPath() + "/" + filename;
+        else return "[missing]";
     }
 
     public static void printSystemInfo()

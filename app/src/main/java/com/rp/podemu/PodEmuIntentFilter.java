@@ -1,6 +1,6 @@
 /**
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -214,19 +214,18 @@ public class PodEmuIntentFilter extends IntentFilter
             return null;
         }
 
-        PodEmuLog.debug("PEF: (" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
-        PodEmuLog.debug("PEF: (" + context.getClass() + ") " + intent.getExtras());
-
         // unfortunately Android does not provide information about source process for broadcast, so we need
         // to check case by case when possible. Using XOR check only for "certain" applications
 
+        boolean skip_broadcast=false;
+        String skip_msg="";
         // MIXZING
         boolean isMixZingBroadcast = intent.getBooleanExtra("com.mixzing.basic.mediaSource", false);
         if (   ( mediaPlayback.getCtrlAppProcessName().equals("com.mixzing.basic") && !isMixZingBroadcast) ||
                (!mediaPlayback.getCtrlAppProcessName().equals("com.mixzing.basic") &&  isMixZingBroadcast)   )
         {
-            PodEmuLog.debug("PEF: skipping not MixZing or MixZing outdated broadcast.");
-            return null;
+            skip_broadcast = true;
+            skip_msg = "PEF: skipping not MixZing or MixZing outdated broadcast.";
         }
 
         // POWERAMP
@@ -234,8 +233,8 @@ public class PodEmuIntentFilter extends IntentFilter
         if ( ( mediaPlayback.getCtrlAppProcessName().equals("com.maxmpz.audioplayer") && !isPowerAmpBroadcast) ||
              (!mediaPlayback.getCtrlAppProcessName().equals("com.maxmpz.audioplayer") &&  isPowerAmpBroadcast) )
         {
-            PodEmuLog.debug("PEF: skipping not PowerAmp or PowerAmp outdated broadcast.");
-            return null;
+            skip_broadcast = true;
+            skip_msg = "PEF: skipping not PowerAmp or PowerAmp outdated broadcast.";
         }
 
         // SPOTIFY
@@ -243,8 +242,8 @@ public class PodEmuIntentFilter extends IntentFilter
         if (   ( mediaPlayback.getCtrlAppProcessName().equals("com.spotify.music") && !isSpotifyBroadcast) ||
                (!mediaPlayback.getCtrlAppProcessName().equals("com.spotify.music") &&  isSpotifyBroadcast) )
         {
-            PodEmuLog.debug("PEF: skipping not Spotify or Spotify outdated broadcast.");
-            return null;
+            skip_broadcast = true;
+            skip_msg = "PEF: skipping not Spotify or Spotify outdated broadcast.";
         }
 
         // TIDAL
@@ -252,14 +251,28 @@ public class PodEmuIntentFilter extends IntentFilter
         boolean isTidalBroadcast=(intent.getStringExtra("state")!=null);
         if (mediaPlayback.getCtrlAppProcessName().equals("com.aspiro.tidal") && !isTidalBroadcast)
         {
-            PodEmuLog.debug("PEF: skipping not TIDAL broadcast.");
+            skip_broadcast = true;
+            skip_msg = "PEF: skipping not TIDAL broadcast.";
+        }
+
+        if( skip_broadcast )
+        {
+            PodEmuLog.verbose("PEF: (" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
+            PodEmuLog.verbose("PEF: (" + context.getClass() + ") " + intent.getExtras());
+            PodEmuLog.verbose(skip_msg);
             return null;
         }
+        else
+        {
+            PodEmuLog.debug("PEF: (" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
+            PodEmuLog.debug("PEF: (" + context.getClass() + ") " + intent.getExtras());
+        }
+
 
 
         if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
         {
-            PodEmuLog.debug("Detected SPOTIFY broadcast");
+            PodEmuLog.debug("PEF: Detected SPOTIFY broadcast");
 
             length = intent.getIntExtra("length", 0);
             position = intent.getIntExtra("playbackPosition", 0);

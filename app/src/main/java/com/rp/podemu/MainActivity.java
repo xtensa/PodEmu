@@ -1,6 +1,6 @@
 /**
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -61,6 +61,7 @@ public class MainActivity extends AppCompatActivity
 
 
     private String ctrlAppProcessName;
+    private int autoSwitchToApp;
     private Intent serviceIntent;
     private SerialInterfaceBuilder serialInterfaceBuilder;
     private PodEmuIntentFilter iF;
@@ -97,19 +98,19 @@ public class MainActivity extends AppCompatActivity
     public void action_prev(View v)
     {
         MediaPlayback mediaPlayback=MediaPlayback.getInstance();
-        mediaPlayback.action_prev(0);
+        mediaPlayback.action_prev();
     }
 
     public void start_stop_service(View v)
     {
         if(serviceBound)
         {
-            PodEmuLog.debug("Stop service initiated...");
+            PodEmuLog.debug("MA: Stop service initiated...");
             stop_service(v);
         }
         else
         {
-            PodEmuLog.debug("Start service initiated...");
+            PodEmuLog.debug("MA: Start service initiated...");
             start_service(v);
         }
     }
@@ -129,11 +130,11 @@ public class MainActivity extends AppCompatActivity
 
                 if (bindService(serviceIntent, serviceConnection, BIND_IMPORTANT))
                 {
-                    PodEmuLog.debug("Service succesfully bound");
+                    PodEmuLog.debug("MA: Service succesfully bound");
                     serviceBound = true;
                 } else
                 {
-                    PodEmuLog.debug("Service NOT bound");
+                    PodEmuLog.debug("MA: Service NOT bound");
                 }
 
                 updateServiceButton();
@@ -186,11 +187,11 @@ public class MainActivity extends AppCompatActivity
 
         try
         {
-            PodEmuLog.debug("onCreate");
+            PodEmuLog.debug("MA: onCreate");
             setContentView(R.layout.activity_main);
             // required to create logdir
-            podEmuLog = new PodEmuLog(this);
-            podEmuLog.printSystemInfo();
+            PodEmuLog.initialize(this);
+            PodEmuLog.printSystemInfo();
 
 
             // Make scroll view automatically scroll to the bottom
@@ -296,8 +297,12 @@ public class MainActivity extends AppCompatActivity
             ImageView appLogo = (ImageView) findViewById(R.id.CTRL_app_icon);
             SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
             ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
+            autoSwitchToApp = sharedPref.getInt("autoSwitchToApp", 0);
             String enableDebug = sharedPref.getString("enableDebug", "false");
             Boolean ctrlAppUpdated = sharedPref.getBoolean("ControlledAppUpdated", false);
+            Boolean playlistCountModeUpdated=sharedPref.getBoolean("PlaylistCountModeUpdated", false);
+            int forceSimpleMode = sharedPref.getInt("ForceSimpleMode", 0);
+            int playlistCountMode=sharedPref.getInt("PlaylistCountMode", PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT);
 
             if(PodEmuMediaStore.getInstance()==null)
             {
@@ -309,15 +314,20 @@ public class MainActivity extends AppCompatActivity
             {
                 PodEmuMediaStore.getInstance().setCtrlAppProcessName(ctrlAppProcessName);
             }
+            if(playlistCountModeUpdated)
+            {
+                PodEmuMediaStore.getInstance().setPlaylistCountMode(playlistCountMode);
+            }
 
             if (enableDebug.equals("true"))
-                PodEmuLog.DEBUG_LEVEL = 2;
+                PodEmuLog.debug_level = PodEmuLog.LOGLEVEL_DEFAULT;
             else
-                PodEmuLog.DEBUG_LEVEL = 0;
+                PodEmuLog.debug_level = PodEmuLog.LOGLEVEL_DISABLED;
 
             if (podEmuService != null)
             {
                 podEmuService.reloadBaudRate();
+                podEmuService.setForceSimpleMode(forceSimpleMode);
             }
 
             if(MediaPlayback.getInstance()!=null)
@@ -374,7 +384,7 @@ public class MainActivity extends AppCompatActivity
         {
             unregisterReceiver(mReceiver);
 
-            PodEmuLog.debug("onPause done");
+            PodEmuLog.debug("MA: onPause done");
         }
         catch(Exception e)
         {
@@ -403,7 +413,7 @@ public class MainActivity extends AppCompatActivity
 
             registerReceiver(mReceiver, iF);
 
-            PodEmuLog.debug("onResume done");
+            PodEmuLog.debug("MA: onResume done");
         }
         catch(Exception e)
         {
@@ -428,7 +438,7 @@ public class MainActivity extends AppCompatActivity
 
         try
         {
-            PodEmuLog.debug("onDestroy");
+            PodEmuLog.debug("MA: onDestroy");
             //unregisterReceiver(mReceiver);
             //stopService(serviceIntent);
 
@@ -536,7 +546,10 @@ public class MainActivity extends AppCompatActivity
                 "Artist: " + currentlyPlaying.getArtist() + "\n" +
                 " Album: " + currentlyPlaying.getAlbum() + "\n" +
                 " Track: " + currentlyPlaying.getTrackName() + "\n" +
-                "Length: " + currentlyPlaying.getLengthHumanReadable() + "\n"
+                "Length: " + currentlyPlaying.getLengthHumanReadable() + "\n" +
+                //"Track NR: " + MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrackPos() + "/" +
+                //        MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount() + "\n" +
+                ""
         );
 
     }
@@ -643,9 +656,8 @@ public class MainActivity extends AppCompatActivity
                     dockingLogoView.setResizedBitmap(podEmuService.dockIconBitmap);
                 }
 
-
                 // once service is bound we can launch controlled app
-                if (!podEmuService.isAppLaunched)
+                if (!podEmuService.isAppLaunched && autoSwitchToApp==1)
                 {
                     launchControlledApp(null);
                     podEmuService.isAppLaunched = true;

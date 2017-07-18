@@ -1,6 +1,6 @@
 /**
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -69,6 +69,7 @@ public class PodEmuMediaStore
     private int nextComposerId =0;
     private int nextTrackId =0;
     private int nextPlaylistId =0;
+    private int playlistCountMode = PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT;
 
     private Cursor selectionCursor=null;
     private byte selectionSortOrder=SORT_BY_SONG;
@@ -88,6 +89,43 @@ public class PodEmuMediaStore
             PodEmuLog.debug("PEMS: new PEMS instance initialized.");
         }
 
+    }
+
+    public void setPlaylistCountMode(int playlistCountMode)
+    {
+        PodEmuMediaDB instance=PodEmuMediaDB.getInstance();
+
+        rebuildDbRequired = ( rebuildDbRequired || (this.playlistCountMode != playlistCountMode) );
+
+        this.playlistCountMode = playlistCountMode;
+        reinitializePlaylistAndDB();
+
+        if(instance!=null)
+        {
+            instance.signalConfigurationUpdated(this);
+        }
+    }
+
+    public int getPlaylistCountMode()
+    {
+        return this.playlistCountMode;
+    }
+
+    // helper function
+    public int getPlaylistCountSize()
+    {
+        switch (this.playlistCountMode)
+        {
+            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_SINGLE:
+                return 1;
+            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_FIXED:
+                return 20;
+            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_NORMAL:
+                return MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount();
+            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_TRIPLE:
+            default:
+                return 3;
+        }
     }
 
     public void setSelectionSortOrder(byte sortOrder)
@@ -120,23 +158,31 @@ public class PodEmuMediaStore
         if(prevCtrlAppProcessName==null || !prevCtrlAppProcessName.equals(ctrlAppDbName)) rebuildDbRequired = true;
         PodEmuLog.debug("PEMS: rebuild DB required: " + rebuildDbRequired);
 
-        updateNextIds();
-
         // now we can initialize playback engine and DB engine
         MediaPlayback.initialize(context, ctrlAppProcessName, ctrlAppDbName);
+
+        reinitializePlaylistAndDB();
+
+    }
+
+    private void reinitializePlaylistAndDB()
+    {
+        updateNextIds();
 
         if(PodEmuMediaDB.getInstance()==null)
         {
             PodEmuMediaDB.initialize(ctrlAppDbName);
-            if(rebuildDbRequired)
-            {
-                PodEmuMediaDB.getInstance().rebuildDB(this);
-            }
         }
-        //PodEmuMediaDB.getInstance().rebuildDB(PodEmuMediaStore.getInstance());
-        // now we need to initialize currentlyPlayingPlaylist and set track 0
-        selectionSetTrack(0);
 
+        if(rebuildDbRequired)
+        {
+            PodEmuMediaDB.getInstance().rebuildDB(this);
+        }
+
+        //PodEmuMediaDB.getInstance().rebuildDB(PodEmuMediaStore.getInstance());
+        // now we need to initialize currentlyPlayingPlaylist and set track start
+        selectionSetTrack(0);
+        MediaPlayback.getInstance().getCurrentPlaylist().setCurrentTrackPosToStart();
     }
 
     public void updateNextIds()
@@ -254,6 +300,13 @@ public class PodEmuMediaStore
         public String uri=null;
         public String external_id = null;
 
+        public boolean isShuffleOn = false;
+
+        public static final int REPEAT_MODE_OFF = 0;
+        public static final int REPEAT_MODE_track = 1;
+        public static final int REPEAT_MODE_ALL = 2;
+        public int repeat_mode = REPEAT_MODE_OFF;
+
         private int trackCount=0;
         private int currentTrack=0;
 
@@ -322,10 +375,18 @@ public class PodEmuMediaStore
             }
         }
 
-        public void setCurrentTrackToCenter()
+        public void setCurrentTrackPosToStart()
+        {
+            currentTrack = 0;
+            if ( PodEmuMediaStore.getInstance().getPlaylistCountMode() !=
+                    PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_NORMAL ) setCurrentTrackToCenter();
+        }
+
+        private void setCurrentTrackToCenter()
         {
             setCurrentTrack( (getTrackCount() - 1) / 2);
         }
+
     }
 
 
@@ -551,7 +612,7 @@ public class PodEmuMediaStore
         // PodEmuLog.debug("Artist data: " + values.toString());
         if(rowId == -1)
         {
-            PodEmuLog.error("Track not added to DB.");
+            PodEmuLog.error("PEMS: Track not added to DB.");
             return null;
         }
 
@@ -618,7 +679,7 @@ public class PodEmuMediaStore
         // PodEmuLog.debug("Artist data: " + values.toString());
         if(rowId == -1)
         {
-            PodEmuLog.error("Artist not added to DB.");
+            PodEmuLog.error("PEMS: Artist not added to DB.");
             return null;
         }
 
@@ -656,7 +717,7 @@ public class PodEmuMediaStore
         // PodEmuLog.debug("Album data: " + values.toString());
         if(rowId == -1)
         {
-            PodEmuLog.error("Album not added to DB.");
+            PodEmuLog.error("PEMS: Album not added to DB.");
             return null;
         }
 
@@ -687,7 +748,7 @@ public class PodEmuMediaStore
         // PodEmuLog.debug("Genre data: " + values.toString());
         if(rowId == -1)
         {
-            PodEmuLog.error("Genre not added to DB.");
+            PodEmuLog.error("PEMS: Genre not added to DB.");
             return null;
         }
 
@@ -718,7 +779,7 @@ public class PodEmuMediaStore
         // PodEmuLog.debug("Playlist data: " + values.toString());
         if(rowId == -1)
         {
-            PodEmuLog.error("Playlist not added to DB.");
+            PodEmuLog.error("PEMS: Playlist not added to DB.");
             return null;
         }
 
@@ -740,7 +801,7 @@ public class PodEmuMediaStore
             rowId=db.insert(DbHelper.TABLE_PLAYLIST_TRACKS, null, values);
             if(rowId == -1)
             {
-                PodEmuLog.error("Playlist track not added to DB.");
+                PodEmuLog.error("PEMS: Playlist track not added to DB.");
                 return null;
             }
 
@@ -770,7 +831,7 @@ public class PodEmuMediaStore
         // PodEmuLog.debug("Composer data: " + values.toString());
         if(rowId == -1)
         {
-            PodEmuLog.error("Composer not added to DB.");
+            PodEmuLog.error("PEMS: Composer not added to DB.");
             return null;
         }
 

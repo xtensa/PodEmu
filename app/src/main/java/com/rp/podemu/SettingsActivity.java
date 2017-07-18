@@ -21,6 +21,7 @@ package com.rp.podemu;
 
 //import android.support.v4.app.FragmentManager;
 
+
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -31,25 +32,36 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.View;
 import android.widget.CheckedTextView;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.jar.Manifest;
+
+
 
 public class SettingsActivity extends AppCompatActivity
             implements  ControlledAppDialogFragment.ControlledAppDialogListener,
+                        PlaylistCountDialogFragment.PlaylistCountDialogListener,
                         BaudRateDialogFragment.BaudRateDialogListener
 {
 
     private ArrayList<ApplicationInfo> appInfos = new ArrayList<>(0);
     private ArrayList<Integer> baudRateList = new ArrayList<>(0);
+
+    private PodEmuLog podEmuLog;
+
+    private boolean enableListCountSelection = false;
 
     SharedPreferences sharedPref;
 
@@ -81,6 +93,30 @@ public class SettingsActivity extends AppCompatActivity
         PodEmuLog.debug("Selected app: " + appInfos.get(which).packageName);
 
     }
+
+
+    // The dialog fragment receives a reference to this Activity through the
+    // Fragment.onAttach() callback, which it uses to call the following methods
+    // defined by the NoticeDialogFragment.NoticeDialogListener interface
+    @Override
+    public void onPlaylistCountModeSelected(DialogInterface dialog, int which)
+    {
+        int mode = which+1;
+        //saving to shared preferences
+        SharedPreferences.Editor editor = sharedPref.edit();
+        int oldPlaylistCountMode=sharedPref.getInt("PlaylistCountMode", PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT);
+        Boolean playlistCountModeUpdated=sharedPref.getBoolean("PlaylistCountModeUpdated", false);
+        editor.putInt("PlaylistCountMode", mode);
+        editor.putBoolean("PlaylistCountModeUpdated", oldPlaylistCountMode != which || playlistCountModeUpdated);
+        editor.apply();
+
+        // loading information to the activity
+        setPlaylistCountModeInfo();
+
+        PodEmuLog.debug("PESA: Selected PlaylistCountMode: " + mode + " - " + PlaylistCountDialogFragment.optionsList.get(mode));
+
+    }
+
 
 
     // The dialog fragment receives a reference to this Activity through the
@@ -219,9 +255,19 @@ public class SettingsActivity extends AppCompatActivity
     public void onResume()
     {
         super.onResume();
+        PodEmuLog.initialize(getApplicationContext());
         setCtrlApplicationInfo();
+        setPlaylistCountModeInfo();
         setBaudRateInfo();
         setDebugInfo();
+        setToggleForceSimpleMode();
+        setAutoSwitchToApp();
+
+        if( !enableListCountSelection )
+        {
+            RelativeLayout layout = (RelativeLayout) findViewById(R.id.playlistCountLayout);
+            layout.setVisibility(View.GONE);
+        }
     }
 
     private void setCtrlApplicationInfo()
@@ -250,6 +296,15 @@ public class SettingsActivity extends AppCompatActivity
     }
 
 
+    private void setPlaylistCountModeInfo()
+    {
+        int playlistCountMode = sharedPref.getInt("PlaylistCountMode", PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT);
+
+        PlaylistCountDialogFragment.initialize();
+        TextView textView = (TextView) findViewById(R.id.playlistCountName);
+        textView.setText("Playlist Size - " + PlaylistCountDialogFragment.optionsList.get(playlistCountMode));
+    }
+
     private void setBaudRateInfo()
     {
         if (!sharedPref.contains("BaudRate"))
@@ -274,6 +329,46 @@ public class SettingsActivity extends AppCompatActivity
 
     }
 
+    public void selectPlaylistCountMode(View v)
+    {
+        PlaylistCountDialogFragment playlistCountDialogFragment = new PlaylistCountDialogFragment();
+        playlistCountDialogFragment.show(getSupportFragmentManager(), "new_tag");
+
+    }
+
+    public void toggleForceSimpleMode(View v)
+    {
+
+        //saving to shared preferences
+        SharedPreferences.Editor editor = sharedPref.edit();
+        int forceSimpleMode=(sharedPref.getInt("ForceSimpleMode", 0)==0?1:0);
+        editor.putInt("ForceSimpleMode", forceSimpleMode);
+        editor.apply();
+
+        // loading information to the activity
+        setToggleForceSimpleMode();
+
+
+        PodEmuLog.debug("PESA: forceSimpleMode switched to: " + forceSimpleMode);
+    }
+
+    public void toggleAutoSwitchToApp(View v)
+    {
+
+        //saving to shared preferences
+        SharedPreferences.Editor editor = sharedPref.edit();
+        int autoSwitchToApp=(sharedPref.getInt("autoSwitchToApp", 0)==0?1:0);
+        editor.putInt("autoSwitchToApp", autoSwitchToApp);
+        editor.apply();
+
+        // loading information to the activity
+        setAutoSwitchToApp();
+
+        PodEmuLog.debug("PESA: autoSwitchToApp switched to: " + autoSwitchToApp);
+    }
+
+
+
     public void selectBaudRate(View v)
     {
         BaudRateDialogFragment baudRateDialog = new BaudRateDialogFragment();
@@ -281,16 +376,80 @@ public class SettingsActivity extends AppCompatActivity
         baudRateDialog.show(getSupportFragmentManager(), "new_tag");
     }
 
+    public boolean checkStoragePermissions()
+    {
+
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+            PackageManager.PERMISSION_GRANTED)
+        {
+            if(ActivityCompat.shouldShowRequestPermissionRationale(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE))
+            {
+                new AlertDialog.Builder(this)
+                    .setTitle("Information")
+                    .setMessage("In order to collect logs PodEmu requires access to storage (logs are written to a file on your SD card).")
+                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener()
+                    {
+                        public void onClick(DialogInterface dialog, int which)
+                        {
+                            // continue
+                            ActivityCompat.requestPermissions(SettingsActivity.this,
+                                    new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                                    100);
+                        }
+                    })
+                    .setIcon(android.R.drawable.ic_dialog_info)
+                    .show();
+            }
+            else
+            {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                        100);
+
+                boolean firstTimeRequestPermissions = sharedPref.getBoolean("firstTimeRequestPermissions", true);
+
+                if( !firstTimeRequestPermissions )
+                {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Permissions missing :(")
+                            .setMessage("You did not grant permissions to access your storage. If you want to collect logs please go to Setting -> Apps -> PodEmu -> Permissions and grant storage access permissions.")
+                            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+
+                                }
+                            })
+                            .setIcon(android.R.drawable.ic_dialog_info)
+                            .show();
+
+                }
+                SharedPreferences.Editor editor = sharedPref.edit();
+                editor.putBoolean("firstTimeRequestPermissions", false);
+                editor.apply();
+            }
+        }
+        else
+        {
+            return true;
+        }
+
+        return false;
+
+    }
+
     public void toggleDebug(View v)
     {
+        boolean forceDisableDebug = false;
+        if ( !checkStoragePermissions() ) forceDisableDebug = true;
+
+
         String enableDebug = sharedPref.getString("enableDebug", "false");
         SharedPreferences.Editor editor = sharedPref.edit();
 
-        if ( enableDebug.equals("true") )
+        if ( enableDebug.equals("true") || forceDisableDebug)
         {
             // if it was enabled we need to disable it
             editor.putString("enableDebug", "false");
-            PodEmuLog.DEBUG_LEVEL=0;
+            PodEmuLog.debug_level = PodEmuLog.LOGLEVEL_DISABLED;
         }
         else
         {
@@ -301,19 +460,20 @@ public class SettingsActivity extends AppCompatActivity
                     {
                         public void onClick(DialogInterface dialog, int which)
                         {
-                            // continue with delete
+                            // continue with action
                         }
                     })
                     .setIcon(android.R.drawable.ic_dialog_info)
                     .show();
 
             editor.putString("enableDebug", "true");
-            PodEmuLog.DEBUG_LEVEL=2;
+            PodEmuLog.debug_level=PodEmuLog.LOGLEVEL_DEFAULT;
             PodEmuLog.printSystemInfo();
         }
 
         editor.apply();
         setDebugInfo();
+
     }
 
     public void viewDebug(View v)
@@ -361,7 +521,9 @@ public class SettingsActivity extends AppCompatActivity
         String uriText =
                 "mailto:" + username + "@" + domain +
                 "?subject=" + Uri.encode("PodEmu debug - V" + version) +
-                "&body=" + Uri.encode("You can put additional description of the problem instead of this text.");
+                "&body=" + Uri.encode("IMPORTANT - READ THIS BEFORE SENDING: \n " +
+                        "1. Please ensure that debug was enabled before the problem occured. If not, please reproduce the problem while debug is enabled and only then send this message.\n" +
+                        "2. Please replace this message with step by step guide on how to reproduce the problem you encountered. \n");
 
         Uri uri = Uri.parse(uriText);
         Intent intent = new Intent(Intent.ACTION_SENDTO);
@@ -426,6 +588,7 @@ public class SettingsActivity extends AppCompatActivity
 
     private void setDebugInfo()
     {
+        PodEmuLog.checkPermissions();
         String enableDebug = sharedPref.getString("enableDebug", "false");
 
         TextView enableDebugValue = (TextView) findViewById(R.id.enableDebugValue);
@@ -446,12 +609,81 @@ public class SettingsActivity extends AppCompatActivity
                 " Logs will be saved to the following file: " + PodEmuLog.getLogFileName());
     }
 
+    private void setToggleForceSimpleMode()
+    {
+        int forceSimpleMode = sharedPref.getInt("ForceSimpleMode", 0);
+
+        RelativeLayout layout = (RelativeLayout) findViewById(R.id.playlistCountLayout);
+
+        CheckedTextView toggleForceSimpleModeView = (CheckedTextView) findViewById(R.id.forceSimpleModeHint);
+
+        if( forceSimpleMode == 1 )
+        {
+            toggleForceSimpleModeView.setChecked(true);
+            if ( enableListCountSelection ) layout.setVisibility(View.INVISIBLE);
+        }
+        else
+        {
+            toggleForceSimpleModeView.setChecked(false);
+            if ( enableListCountSelection ) layout.setVisibility(View.VISIBLE);
+        }
+    }
+    private void setAutoSwitchToApp()
+    {
+        int autoSwitchToApp = sharedPref.getInt("autoSwitchToApp", 0);
+        CheckedTextView autoSwitchToAppView = (CheckedTextView) findViewById(R.id.switchToAppHint);
+
+        if( autoSwitchToApp == 1 )
+        {
+            autoSwitchToAppView.setChecked(true);
+        }
+        else
+        {
+            autoSwitchToAppView.setChecked(false);
+        }
+    }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu)
     {
         //getMenuInflater().inflate(R.menu.menu_settings, menu);
         return true;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case 100: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted, yay! Do the
+                    // contacts-related task you need to do.
+
+                    PodEmuLog.initialize(getApplicationContext());
+                    toggleDebug(this.findViewById(R.id.enableDebugLayout));
+                    /*
+                    SharedPreferences.Editor editor = sharedPref.edit();
+                    editor.putString("enableDebug", "true");
+                    PodEmuLog.debug_level=PodEmuLog.LOGLEVEL_DEFAULT;
+                    PodEmuLog.printSystemInfo();
+                    editor.apply();
+                    setDebugInfo();
+                    */
+                } else {
+
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                }
+                return;
+            }
+
+            // other 'case' lines to check for other
+            // permissions this app might request
+        }
     }
 
 }

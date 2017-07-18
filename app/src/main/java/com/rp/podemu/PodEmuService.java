@@ -1,6 +1,6 @@
 /**
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -58,6 +58,7 @@ public class PodEmuService extends Service
     public boolean isDockIconLoaded=false;
     public boolean isAppLaunched=false;
     private static String baudRate;
+    private static int forceSimpleMode;
 
 
 
@@ -106,6 +107,9 @@ public class PodEmuService extends Service
         podIfSend(str);
         str="Is playing: " + podEmuMessage.isPlaying() + "\n\r";
         podIfSend(str);
+        str="Track nr: " + MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrack() + "/" +
+                MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount() + "\n\r";
+        podIfSend(str);
 
     }
 
@@ -129,19 +133,29 @@ public class PodEmuService extends Service
         oapMessenger.setMediaPlayback(mediaPlayback);
     }
 
-
+    void setForceSimpleMode(int forceSimpleMode)
+    {
+        if(oapMessenger!=null)
+        {
+            oapMessenger.setForceSimpleMode(forceSimpleMode);
+        }
+        else
+        {
+            PodEmuLog.error("PES: cannot set force simple mode to " + forceSimpleMode);
+        }
+    }
 
     @Override
     public IBinder onBind(Intent intent)
     {
-        PodEmuLog.debug("Service bound");
+        PodEmuLog.debug("PES: Service bound");
         return localBinder;
     }
 
     @Override
     public boolean onUnbind(Intent intent)
     {
-        PodEmuLog.debug("Service unbound");
+        PodEmuLog.debug("PES: Service unbound");
         return true;
     }
 
@@ -149,6 +163,7 @@ public class PodEmuService extends Service
     {
         SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
         baudRate = sharedPref.getString("BaudRate", "57600");
+        forceSimpleMode=(sharedPref.getInt("ForceSimpleMode", 0));
     }
 
     @Override
@@ -158,7 +173,7 @@ public class PodEmuService extends Service
         {
             if (bufferThread != null || bgThread != null)
             {
-                PodEmuLog.debug("Service already running...");
+                PodEmuLog.debug("PES: Service already running...");
                 return Service.START_STICKY;
             }
 
@@ -186,6 +201,14 @@ public class PodEmuService extends Service
          */
             if (bufferThread == null)
             {
+                class SerialIFException extends Exception {
+                    public SerialIFException() {
+                        super();
+                    }
+                }
+
+                final SerialIFException serialIFException=new SerialIFException();
+
                 bufferThread = new Thread(new Runnable()
                 {
                     public void run()
@@ -195,13 +218,33 @@ public class PodEmuService extends Service
                             serialInterface = serialInterfaceBuilder.getSerialInterface();
                             int numBytesRead;
 
+                            if(serialInterface == null)
+                            {
+                                PodEmuLog.debug("PES: buffer thread started before serial interface initialization. Trying to reinitialize.");
+                                serialInterface=serialInterfaceBuilder.getSerialInterface((UsbManager) getSystemService(Context.USB_SERVICE));
+                                if(serialInterface != null)
+                                {
+                                    PodEmuLog.debug("PES: reinitialization successfull.");
+                                }
+                                else
+                                {
+                                    PodEmuLog.error("PES: reinitialization failed. Closing service!");
+                                    serialInterfaceBuilder.detach();
+                                    stopSelf();
+
+                                    throw serialIFException;
+                                }
+
+                            }
+
                             // some devices have problem reading less then internal chip buffer
                             // size (due to android bug 28023), therefore we need to set
                             // expected buffer size equal to internal buffer size of the device
                             byte buffer[] = new byte[serialInterface.getReadBufferSize()];
-                            PodEmuLog.debug("Buffer thread started.");
+                            PodEmuLog.debug("PES: Buffer thread started.");
 
                             serialInterface.setBaudRate(Integer.parseInt(baudRate));
+                            oapMessenger.setForceSimpleMode(forceSimpleMode);
 
                             Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
                             //android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
@@ -213,12 +256,12 @@ public class PodEmuService extends Service
                                 {
                                     if (numBytesRead<0 || !serialInterface.isConnected())
                                     {
-                                        PodEmuLog.error("Read attempt nr " + failedReadCount + " when interface is disconnected");
+                                        PodEmuLog.error("PES: Read attempt nr " + failedReadCount + " when interface is disconnected");
                                         Thread.sleep(100);
                                         failedReadCount++;
                                         if (failedReadCount > 50) // 5 seconds
                                         {
-                                            PodEmuLog.error("Something wrong happen. Reading from serial interface constantly failing. Terminating service.");
+                                            PodEmuLog.error("PES: Something wrong happen. Reading from serial interface constantly failing. Terminating service.");
                                             stopSelf();
                                         }
                                     }
@@ -253,8 +296,14 @@ public class PodEmuService extends Service
                         }
                         catch (InterruptedException e)
                         {
-                            PodEmuLog.debug("Buffer thread interrupted!");
+                            PodEmuLog.debug("PES: buffer thread interrupted!");
                         }
+                        catch (SerialIFException e)
+                        {
+                            PodEmuLog.error("PES: buffer thread initialization failed.");
+                            bufferThread.interrupt();
+                        }
+                        PodEmuLog.debug("PES: buffer thread finished.");
                     }
                 });
                 bufferThread.start();
@@ -275,7 +324,7 @@ public class PodEmuService extends Service
                             boolean stopCommandSent=false;
                             MediaPlayback mediaPlayback=MediaPlayback.getInstance();
 
-                            while (true)
+                            while (true) // service main loop
                             {
 
                                 if (oapMessenger.getPollingMode())
@@ -283,7 +332,12 @@ public class PodEmuService extends Service
                                     if(mediaPlayback.getTrackStatusChanged())
                                     {
                                         mediaPlayback.setTrackStatusChanged(false);
+                                        oapMessenger.oap_04_write_polling_playback_stopped();
+
                                         oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback.getCurrentPlaylist().getCurrentTrackPos());
+
+                                        //oapMessenger.oap_04_write_polling_chapter_status_changed(0);
+
                                     }
 
                                     if(!mediaPlayback.isPlaying() && !stopCommandSent)
@@ -295,12 +349,20 @@ public class PodEmuService extends Service
 
                                     oapMessenger.oap_04_write_polling_elapsed_time();
                                 }
+
+                                // abort pending commands if waited too long
+                                if (    oapMessenger.getPendingResponseStatus() &&
+                                        System.currentTimeMillis() - oapMessenger.getPendingResponseSince() >= 2000)
+                                {
+                                    oapMessenger.abortPendingResponse("PES: time limit exceeded");
+                                }
+
                                 Thread.sleep(500);
                             }
 
                         } catch (InterruptedException e)
                         {
-                            PodEmuLog.debug("Polling thread interrupted!");
+                            PodEmuLog.debug("PES: Polling thread interrupted!");
                         }
                     }
                 });
@@ -321,7 +383,7 @@ public class PodEmuService extends Service
                         {
                             int numBytesRead = 0;
                             byte buffer[] = new byte[1];
-                            PodEmuLog.debug("Background thread started.");
+                            PodEmuLog.debug("PES: Background thread started.");
 
                             while (true)
                             {
@@ -351,7 +413,7 @@ public class PodEmuService extends Service
                             }
                         } catch (InterruptedException e)
                         {
-                            PodEmuLog.debug("Background processing thread interrupted!");
+                            PodEmuLog.debug("PES: Background processing thread interrupted!");
                         } catch (Exception e)
                         {
                             PodEmuLog.printStackTrace(e);
@@ -363,7 +425,7 @@ public class PodEmuService extends Service
                 bgThread.start();
             }
 
-            PodEmuLog.debug("Service started");
+            PodEmuLog.debug("PES: Service started");
             return Service.START_STICKY;
         }
         catch(Exception e)
@@ -428,7 +490,7 @@ public class PodEmuService extends Service
             serialInterfaceBuilder.detach();
             if(serialInterface!=null) serialInterface.close();
 
-            PodEmuLog.debug("Service destroyed");
+            PodEmuLog.debug("PES: Service destroyed");
         }
         catch (Exception e)
         {
@@ -459,7 +521,7 @@ public class PodEmuService extends Service
                     return;
                 }
 
-                PodEmuLog.debug("(S) Broadcast received: " + cmd + " - " + action);
+                PodEmuLog.debug("PES: (S) Broadcast received: " + cmd + " - " + action);
 
                 if (action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
                         || action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED))
@@ -486,6 +548,7 @@ public class PodEmuService extends Service
                     // if null is received then broadcast could be not from "our" app
                     if(podEmuMessage!=null)
                     {
+                        oapMessenger.respondPendingResponse(OAPMessenger.IPOD_SUCCESS);
                         mediaPlaybackInstance.updateCurrentlyPlayingTrack(podEmuMessage);
                     }
                 }

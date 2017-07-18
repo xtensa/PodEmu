@@ -1,6 +1,6 @@
 <!--
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -44,57 +44,210 @@
             >
 
 
+<!-- Controlled App  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
 
-    <RelativeLayout
-        android:id="@+id/ctrlAppLayout"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:onClick="selectCtrlApp">
+            <RelativeLayout
+                android:id="@+id/ctrlAppLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="selectCtrlApp">
 
-        <TextView android:text="Controlled Application"
-            android:id="@+id/ctrlAppTitle"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:clickable="true"
-            android:padding="4dp"
-            android:textColor="@color/settingsItemTitle"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true" />
+                <TextView android:text="Controlled Application"
+                    android:id="@+id/ctrlAppTitle"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:padding="4dp"
+                    android:textColor="@color/settingsItemTitle"
+                    android:layout_alignParentTop="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true" />
 
-        <ImageView
-            android:layout_width="70dp"
-            android:layout_height="wrap_content"
-            android:id="@+id/ctrlAppIcon"
-            android:layout_below="@id/ctrlAppTitle"
-            android:padding="4dp"
-            android:src="@android:drawable/alert_dark_frame"/>
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/ctrlAppIcon"
+                    android:padding="4dp"
+                    android:src="@android:drawable/alert_dark_frame"
+                    android:layout_alignParentBottom="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/ctrlAppName"
-            android:layout_below="@id/ctrlAppTitle"
-            android:layout_toRightOf="@id/ctrlAppIcon"
-            android:paddingTop="6dp"
-            android:paddingLeft="8dp"
-            android:textStyle="bold"
-            android:textColor="@color/settingsItemText"
-            android:text="[please select application]"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/ctrlAppName"
+                    android:layout_below="@id/ctrlAppTitle"
+                    android:layout_toRightOf="@id/ctrlAppIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="[please select application]"/>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/ctrlAppHint"
-            android:layout_below="@id/ctrlAppName"
-            android:layout_toRightOf="@id/ctrlAppIcon"
-            android:paddingTop="5dp"
-            android:paddingLeft="8dp"
-            android:textColor="@color/settingsItemHint"
-            android:textStyle="italic"
-            android:text="Default application to be controlled by PodEmu"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/ctrlAppHint"
+                    android:layout_below="@id/ctrlAppName"
+                    android:layout_toRightOf="@id/ctrlAppIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="Default application to be controlled by PodEmu"/>
 
-    </RelativeLayout>
+            </RelativeLayout>
+
+<!-- PodEmu behavior  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+<!-- Auto Switch To App  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+            <RelativeLayout
+                android:id="@+id/switchToAppLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/ctrlAppLayout"
+                android:onClick="toggleAutoSwitchToApp"
+                android:layout_marginTop="7dp">
+
+
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/switchToAppIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_flash"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/switchToAppName"
+                    android:layout_toRightOf="@id/switchToAppIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Auto switch to Controlled App"/>
+
+                <CheckedTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/switchToAppHint"
+                    android:layout_below="@id/switchToAppName"
+                    android:layout_toRightOf="@id/switchToAppIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/switchToAppHint"
+                    android:checkMark="?android:attr/listChoiceIndicatorMultiple"
+                    />
+
+            </RelativeLayout>
+
+            <!-- Force Simple Mode  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+            <RelativeLayout
+                android:id="@+id/forceSimpleModeLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/switchToAppLayout"
+                android:onClick="toggleForceSimpleMode"
+                android:layout_marginTop="7dp">
+
+
+                <TextView android:text="PodEmu behaviour"
+                    android:id="@+id/podEmuBehaviourTitle"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:padding="4dp"
+                    android:textColor="@color/settingsItemTitle"
+
+                    android:layout_alignParentTop="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true" />
+
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/forceSimpleModeIcon"
+                    android:layout_below="@id/podEmuBehaviourTitle"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_circles"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/forceSimpleModeName"
+                    android:layout_toRightOf="@id/forceSimpleModeIcon"
+                    android:layout_below="@id/podEmuBehaviourTitle"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Force Simple Mode"/>
+
+                <CheckedTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/forceSimpleModeHint"
+                    android:layout_toRightOf="@id/forceSimpleModeIcon"
+                    android:layout_below="@id/forceSimpleModeName"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/forceSimpleModeHint"
+                    android:checkMark="?android:attr/listChoiceIndicatorMultiple"
+                    />
+
+            </RelativeLayout>
+
+<!-- Playlist Count xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+            <RelativeLayout
+                android:id="@+id/playlistCountLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/forceSimpleModeLayout"
+                android:onClick="selectPlaylistCountMode"
+                android:visibility="visible"
+                android:layout_marginTop="7dp">
+
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/playlistCountIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_database"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/playlistCountName"
+                    android:layout_toRightOf="@id/playlistCountIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Playlist Size"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/playlistCountHint"
+                    android:layout_below="@id/playlistCountName"
+                    android:layout_toRightOf="@id/playlistCountIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="Some applications do not provide information about playlist size and current track position. For those application to work properly in AiR mode PodEmu need to mimic the whole playlist. This parameter defines the maximum playlist size. Currently defaults to 20."
+                    android:checkMark="?android:attr/listChoiceIndicatorMultiple"
+                    />
+
+            </RelativeLayout>
 
 <!-- BAUD RATE  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
 
@@ -104,7 +257,7 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:onClick="selectBaudRate"
-        android:layout_below="@id/ctrlAppLayout"
+        android:layout_below="@id/playlistCountLayout"
         android:layout_marginTop="7dp"
         >
 

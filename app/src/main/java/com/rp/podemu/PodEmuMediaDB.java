@@ -1,6 +1,6 @@
 /**
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -48,11 +48,15 @@ public abstract class PodEmuMediaDB
     }
 
 
-    public void rebuildDB(PodEmuMediaStore mediaStore)
-    {
-        rebuildDB(mediaStore, 3);
-    }
+
+    public abstract void rebuildDB(PodEmuMediaStore mediaStore);
 
     public abstract void rebuildDB(PodEmuMediaStore mediaStore, int trackCount);
+
+    /**
+     * This function is only required for Generic DB. For others it should be empty.
+     * @param mediaStore
+     */
+    public abstract void signalConfigurationUpdated(PodEmuMediaStore mediaStore);
 
 }

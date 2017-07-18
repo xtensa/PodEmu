@@ -1,6 +1,6 @@
 /**
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -94,54 +94,6 @@ public class MediaPlayback_Generic extends MediaPlayback
 
 
 
-
-
-    public boolean jumpTo(int pos)
-    {
-        int timeElapsed = getCurrentTrackPositionMS();
-        PodEmuLog.debug("PEMPGen: jumTo: " + pos + " while current pos is " + currentPlaylist.getCurrentTrackPos());
-
-        if(pos==0xffffffff)
-        {
-            //pos = playlistOffset;
-            // don't want to process resetting playlist
-            pos=0;
-        }
-
-        // this should not happen - just in case we fix the boundaries
-        pos=Math.max(pos,0);
-        pos=Math.min(pos,currentPlaylist.getTrackCount());
-
-        if(pos>currentPlaylist.getCurrentTrackPos())
-        {
-            int count=pos-currentPlaylist.getCurrentTrackPos();
-            for(int i=0;i<count;i++)
-            {
-                action_next();
-            }
-        }
-        else
-        {
-            int count=currentPlaylist.getCurrentTrackPos()-pos;
-            for(int i=0;i<count;i++)
-            {
-                action_prev(timeElapsed, true);
-                timeElapsed = 0;
-            }
-        }
-
-        try
-        {
-            //get time for broadcasts to be processed
-            Thread.sleep(200);
-        }
-        catch (InterruptedException e)
-        {
-            // do nothing
-        }
-        return true;
-    }
-
     public void    updateCurrentlyPlayingTrack(PodEmuMessage msg)
     {
         trackStatusChanged = true;
@@ -162,7 +114,7 @@ public class MediaPlayback_Generic extends MediaPlayback
             // if so, we should mimic it to fool the dock
             if(listSize<0)
             {
-                listSize = 3;
+                listSize = PodEmuMediaStore.getInstance().getPlaylistCountSize();
                 dummy_playlist = true;
             }
             PodEmuLog.debug("PEMSGen: updateCurrentlyPlayingTrack: track " + msg.getListPosition() + "/" + listSize + ", prev_size=" + currentPlaylist.getTrackCount());
@@ -180,11 +132,27 @@ public class MediaPlayback_Generic extends MediaPlayback
                 // TODO: check if initialization for tracks is ok
                 podEmuMediaStore.selectionReset();
                 podEmuMediaStore.selectionInitializeDB(1 /* 1=playlist */);
+
+                if( msg.getListSize()>0 )
+                {
+                    PodEmuMediaStore.getInstance().setPlaylistCountMode(PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_NORMAL);
+                }
+                currentPlaylist.setCurrentTrackPosToStart();
             }
 
-            this.currentPlaylist.setCurrentTrack(dummy_playlist?1:msg.getListPosition());
-            track = currentPlaylist.getCurrentTrack();
+            if(dummy_playlist)
+            {
+                track = currentPlaylist.getCurrentTrack();
+                track.track_number = currentPlaylist.getCurrentTrackPos();
+            }
+            else
+            {
+                currentPlaylist.setCurrentTrack(msg.getListPosition());
+                track = currentPlaylist.getCurrentTrack();
+                track.track_number = msg.getListPosition();
+            }
 
+            track.id = track.track_number; // this is true only for generic playlists
             track.length = msg.getLength();
             track.external_id = msg.getExternalId();
             track.name = msg.getTrackName();
@@ -193,29 +161,12 @@ public class MediaPlayback_Generic extends MediaPlayback
             track.composer = msg.getComposer();
             track.artist = msg.getArtist();
 
-            if(dummy_playlist)
-            {
-                track.track_number=1;
-                track.id=1;
-            }
-            else
-            {
-                track.track_number = msg.getListPosition();
-                // this is true only for generic playlists
-                track.id = track.track_number;
-            }
-
             if(track.name==null)
             {
                 track.name = "Generic track";
             }
 
-
-            //PodEmuMediaStore.Track track1=podEmuMediaStore.new Track();
-            //track1.copyFrom(track);
-
             // finally update the title in the db and set track
-            this.currentPlaylist.setCurrentTrack(track.track_number);
             podEmuMediaStore.updateTrack(track);
 
 

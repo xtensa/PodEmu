@@ -1,6 +1,6 @@
 /**
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -25,6 +25,17 @@ public class PodEmuMediaDB_Generic extends PodEmuMediaDB
 {
 
     @Override
+    public void signalConfigurationUpdated(PodEmuMediaStore mediaStore)
+    {
+        rebuildDB(mediaStore);
+    }
+
+    @Override
+    public void rebuildDB(PodEmuMediaStore mediaStore)
+    {
+        rebuildDB(mediaStore, PodEmuMediaStore.getInstance().getPlaylistCountSize());
+    }
+
     public void rebuildDB(PodEmuMediaStore mediaStore, int trackCount)
     {
         PodEmuLog.debug("PEDB: rebuildDB start, trackCount=" + trackCount);

@@ -1,5 +1,5 @@
 <!--
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
     <string name="title_activity_license">PodEmu License</string>
     <string name="title_activity_credits">PodEmu Credits</string>
     <string name="dialog_select_controlled_app">Select Application</string>
+    <string name="dialog_playlist_count_mode">Select Playlist Size Mode</string>
     <string name="serial_status_hint">Please connect one of the following serial adapters: PL2303, CP21xx, FT232 or FT312.</string>
     <string name="enable_debug_hint">This option will enable collecting debug information. You can later review it by yourself or send to the developer.</string>
     <string name="view_debug_hint">View debug information in your favourite editor.</string>
@@ -36,7 +37,7 @@
     <string name="credits_hint">Information about all 3rd party software and graphics used.</string>
     <string name="version_hint">Version of PodEmu you are using is: </string>
     <string name="license_text">
-Copyright &#169; 2015, Roman P., dev [dot] roman [at] gmail \n \n
+Copyright &#169; 2017, Roman P., dev [dot] roman [at] gmail \n \n
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -51,7 +52,10 @@ GNU General Public License for more details. \n\n
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see http://www.gnu.org/licenses/. \n\n
 
-Source code is available at GitHub.
+Source code is available at GitHub: https://github.com/xtensa/PodEmu \n\n
+
+For more info and interesting projects like this visit my YouTube channel:
+        https://www.youtube.com/channel/UCj5OsNDNlnZcIvnAYUFpTnA
 
     </string>
 
@@ -75,4 +79,6 @@ Question mark icon: \n
 http://www.clipartpanda.com/categories/animated-question-mark-for-powerpoint
 
     </string>
+    <string name="switchToAppHint">Check if PodEmu should automatically switch to controlled app when cable is connected.</string>
+    <string name="forceSimpleModeHint">In this mode track titles will not be displayed on docking station or car display. Howerver, song navigation might work better. This setting will take effect only after service restart or cable reconnect.</string>
 </resources>

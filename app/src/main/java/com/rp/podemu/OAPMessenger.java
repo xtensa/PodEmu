@@ -4,7 +4,7 @@
  for iPod. It is based on the protocol description available here:
  http://www.adriangame.co.uk/ipod-acc-pro.html
 
- Copyright (C) 2015, Roman P., dev.roman [at] gmail
+ Copyright (C) 2017, Roman P., dev.roman [at] gmail
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@ public class OAPMessenger
     private static Handler mHandler;
     private PodEmuMediaStore podEmuMediaStore;
     private MediaPlayback mediaPlayback;
+    private int forceSimpleMode;
 
     private int line_cmd_pos = 0;
     private int line_cmd_len = 0;
@@ -73,6 +74,11 @@ public class OAPMessenger
     private static int image_bytes_per_line = 0;
     private static int current_byte_in_line=0;
 
+    // processing action mechanism variables
+    private int pending_response_cmd;
+    private boolean is_response_pending=false;
+    private long pending_response_since;
+
 
     // definition of the in/out line if more than one instance of object created
     private static int line = 0;
@@ -85,6 +91,58 @@ public class OAPMessenger
         // if this function was called, then the service was just bound
         // it means we need to communicate current iPod mode
         oap_communicate_ipod_connected();
+    }
+
+    public boolean getPendingResponseStatus()
+    {
+        return is_response_pending;
+    }
+
+    public int getPendingResponse()
+    {
+        return pending_response_cmd;
+    }
+
+    public long getPendingResponseSince()
+    {
+        return pending_response_since;
+    }
+
+    public void setPendingResponse(int cmd)
+    {
+        long currTimeMillis=System.currentTimeMillis();
+
+        // first, if another command is pending we need to send respond with FAIL
+        if(is_response_pending) abortPendingResponse("new command received");
+
+        pending_response_cmd=cmd;
+        is_response_pending=true;
+        pending_response_since=currTimeMillis;
+
+        PodEmuLog.debug("OAPM: PENDING_RESPONSE command set to " + String.format("0x%04X", cmd));
+
+    }
+
+    public void abortPendingResponse(String reason, byte retval)
+    {
+        oap_04_write_return_code(pending_response_cmd, retval);
+        is_response_pending=false;
+        PodEmuLog.debug("OAPM: PENDING_RESPONSE aborted command " + String.format("0x%04X", pending_response_cmd) + ". Reason: " + reason);
+    }
+
+    public void abortPendingResponse(String reason)
+    {
+        abortPendingResponse(reason, IPOD_SUCCESS);
+    }
+
+    public void respondPendingResponse(byte status)
+    {
+        if (is_response_pending)
+        {
+            oap_04_write_return_code(pending_response_cmd, status);
+            is_response_pending = false;
+            PodEmuLog.debug("OAPM: PENDING_RESPONSE responded to command " + String.format("0x%04X", pending_response_cmd) + ". Status: " + status);
+        }
     }
 
     void setMediaStore(PodEmuMediaStore podEmuMediaStore)
@@ -122,6 +180,7 @@ public class OAPMessenger
     {
         mediaPlayback=MediaPlayback.getInstance();
         line++;
+
     }
 
     /**
@@ -151,7 +210,7 @@ public class OAPMessenger
          */
             line_cmd_len = (b & 0xff) + 4;
 
-            PodEmuLog.debug(String.format("Line " + line + ": MSG LEN: %d TOTAL LEN: %d", (b & 0xff), line_cmd_len));
+            PodEmuLog.debug(String.format("OAPM: Line " + line + ": MSG LEN: %d TOTAL LEN: %d", (b & 0xff), line_cmd_len));
 
             if (b == (byte) 0x00)
             {
@@ -171,7 +230,7 @@ public class OAPMessenger
         if (is_extended_image)
         {
             if (line_ext_pos <= 8)
-                PodEmuLog.verbose(String.format("EXT MSG check - pos:%d, byte: 0x%02X", line_ext_pos, b));
+                PodEmuLog.verbose(String.format("OAPM: EXT MSG check - pos:%d, byte: 0x%02X", line_ext_pos, b));
 
             if (line_ext_pos == 3 || line_ext_pos == 4)
             {
@@ -200,7 +259,7 @@ public class OAPMessenger
                 line_buf[6] = (byte) 0x00;
                 line_buf[7] = (byte) 0x32;
 
-                PodEmuLog.debug(String.format("Line %d: Extended image message detected!!!", line));
+                PodEmuLog.debug(String.format("OAPM: Line %d: Extended image message detected!!!", line));
                 // from now and on message will be treated normally
             }
 
@@ -210,25 +269,25 @@ public class OAPMessenger
 
         if (line_cmd_pos == 0 && b != (byte) 0xff)
         {
-            PodEmuLog.debug("Line " + line + ": ERROR: first byte is not 0xFF. Received 0x" + String.format("%02X", b));
+            PodEmuLog.debug("OAPM: Line " + line + ": ERROR: first byte is not 0xFF. Received 0x" + String.format("%02X", b));
             return -1;
         }
 
         if (line_cmd_pos == 1 && b != (byte) 0x55)
         {
-            PodEmuLog.debug("Line " + line + ": ERROR: second byte is not 0x55. Received 0x" + String.format("%02X", b));
+            PodEmuLog.debug("OAPM: Line " + line + ": ERROR: second byte is not 0x55. Received 0x" + String.format("%02X", b));
             return -1;
         }
 
         if (!is_extended_image && line_cmd_len > 259)
         {
-            PodEmuLog.debug("Line " + line + ": ERROR: message length cannot exceed 259 bytes");
+            PodEmuLog.debug("OAPM: Line " + line + ": ERROR: message length cannot exceed 259 bytes");
             return -1;
         }
 
         if (is_extended_image && line_cmd_len > 65025 + 6)
         {
-            PodEmuLog.debug("Line " + line + ": ERROR: extended message length cannot exceed 65031 bytes");
+            PodEmuLog.debug("OAPM: Line " + line + ": ERROR: extended message length cannot exceed 65031 bytes");
             return -1;
         }
 
@@ -242,18 +301,18 @@ public class OAPMessenger
             byte checksum;
 
             // next 2 lines are just for logging
-            PodEmuLog.debug("Line " + line + ": RAW MSG  IN: " + oap_hex_to_str(line_buf, line_cmd_len));
+            PodEmuLog.debug("OAPM: Line " + line + ": RAW MSG  IN: " + oap_hex_to_str(line_buf, line_cmd_len));
             oap_print_podmsg(line_buf, true, (line_cmd_len > 7 && is_extended_image));
 
             checksum = oap_calc_checksum(line_buf, line_cmd_len);
             if (line_buf[line_cmd_len - 1] != checksum)
             {
-                PodEmuLog.debug("Line " + line + String.format(": ERROR: checksum error. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
+                PodEmuLog.error("OAPM: Line " + line + String.format(": ERROR: checksum error. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
             } else
             {
                 // Received message is OK. We cen process it and prepare the reply
-                PodEmuLog.verbose("Line " + line + String.format(": Checksum OK. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
-                PodEmuLog.debug("Line " + line + ": Checksum OK");
+                PodEmuLog.verbose("OAPM: Line " + line + String.format(": Checksum OK. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
+                PodEmuLog.verbose("OAPM: Line " + line + ": Checksum OK");
 
                 oap_process_msg(line_buf, line_cmd_len, (line_cmd_len > 7 && is_extended_image));
             }
@@ -284,7 +343,7 @@ public class OAPMessenger
         int pos_shift = 0;
         int len;
 
-        PodEmuLog.debug("Processing message started");
+        PodEmuLog.verbose("OAPM: Processing message started");
 
         if (is_ext)
         {
@@ -327,7 +386,7 @@ public class OAPMessenger
             //params[0]=0;
         }
 
-        PodEmuLog.debug(String.format("Received - Ext: %d, Len: %d, Mode: 0x%02X, CMD: 0x%04X", (is_ext ? 1 : 0), len, mode, cmd));
+        PodEmuLog.verbose(String.format("OAPM: Received - Ext: %d, Len: %d, Mode: 0x%02X, CMD: 0x%04X", (is_ext ? 1 : 0), len, mode, cmd));
 
         if (mode == 0x00 && len>=2) // general mode
         {
@@ -337,62 +396,99 @@ public class OAPMessenger
                 {
                     if (cmd == 0x0104) // AiR mode requested
                     {
-                        ipod_mode = IPOD_MODE_AIR;
-                        oap_communicate_ipod_connected();
-                    } else if (cmd == 0x0102) // simple mode requested
+                        // ignore this request if force simple mode enabled
+                        if(forceSimpleMode==1)
+                        {
+                            ipod_mode = IPOD_MODE_SIMPLE;
+                            PodEmuLog.debug("OAPM: skipping AiR mode request as force simple mode is enabled");
+                            oap_00_write_return_code(scmd1, IPOD_ERROR_CMD_FAILED);
+                        }
+                        else
+                        {
+                            ipod_mode = IPOD_MODE_AIR;
+                            oap_communicate_ipod_connected();
+                            PodEmuLog.debug("OAPM: setting AiR mode");
+                        }
+                    }
+                    else if (cmd == 0x0102) // simple mode requested
                     {
                         ipod_mode = IPOD_MODE_SIMPLE;
                         oap_communicate_ipod_connected();
+                        PodEmuLog.debug("OAPM: setting Simple mode");
                     }
                 } break;
                 case 0x03: // current mode requested
                 {
+                    PodEmuLog.debug("OAPM: received current mode request");
                     // writing current mode
                     byte msg[] = new byte[2];
                     msg[0] = 0x04;
                     msg[1] = (byte) ipod_mode;
                     oap_write_cmd(msg, 2, (byte) 0x00);
+                    PodEmuLog.debug("OAPM: sent current mode");
                 } break;
                 case 0x05: // AiR mode requested
                 {
-                    ipod_mode = IPOD_MODE_AIR;
-                    oap_communicate_ipod_connected();
-                    oap_00_write_return_code(scmd1, IPOD_SUCCESS);
+                    PodEmuLog.debug("OAPM: received AiR mode request");
+                    // force this request if force simple mode enabled
+                    if(forceSimpleMode==1)
+                    {
+                        ipod_mode = IPOD_MODE_SIMPLE;
+                        PodEmuLog.debug("OAPM: skipping AiR mode request as force simple mode is enabled");
+                        oap_00_write_return_code(scmd1, IPOD_ERROR_CMD_FAILED);
+                    }
+                    else
+                    {
+                        PodEmuLog.debug("OAPM: setting AiR mode");
+                        ipod_mode = IPOD_MODE_AIR;
+                        oap_communicate_ipod_connected();
+                        oap_00_write_return_code(scmd1, IPOD_SUCCESS);
+                    }
                 } break;
                 case 0x06: // simple mode requested
                 {
+                    PodEmuLog.debug("OAPM: received Simple mode request");
                     ipod_mode = IPOD_MODE_SIMPLE;
                     oap_communicate_ipod_connected();
                     oap_00_write_return_code(scmd1, IPOD_SUCCESS);
                 } break;
                 case 0x07: // device name requested
                 {
+                    PodEmuLog.debug("OAPM: received device name request");
                     byte c[] = {0x08};
                     byte msg[]=oap_build_ipod_msg(c, ipod_name);
                     oap_write_cmd(msg, msg.length, (byte) 0x00);
+                    PodEmuLog.debug("OAPM: sent device name");
                 } break;
                 case 0x09: // SW Version requested
                 {
+                    PodEmuLog.debug("OAPM: received SW version request");
                     byte msg[] = new byte[4];
                     msg[0] = 0x0a; // cmd
                     msg[1] = 0x01; // major version
                     msg[2] = 0x00; // minor version
                     msg[3] = 0x04; // revision
                     oap_write_cmd(msg, msg.length, (byte) 0x00);
+                    PodEmuLog.debug("OAPM: sent SW version");
                 } break;
                 case 0x0B: // SerialNumber requested
                 {
+                    PodEmuLog.debug("OAPM: received Serial Number request");
                     byte c[] = {0x0C};
                     byte msg[]=oap_build_ipod_msg(c, "xPodEmu-076"); // don't ask me why :) just!
                     oap_write_cmd(msg, msg.length, (byte) 0x00);
+                    PodEmuLog.debug("OAPM: sent Serial Number");
                 } break;
                 case 0x0D: // Model Num requested
                 {
+                    PodEmuLog.debug("OAPM: received model number request");
                     byte msg[] = {0x0E, 0x00, 0x17, 0x00, 0x0A, 0x4D, 0x42, 0x37, 0x35, 0x34, 0x00};
                     oap_write_cmd(msg, msg.length, (byte) 0x00);
+                    PodEmuLog.debug("OAPM: sent model number");
                 } break;
                 case 0x0F: // protocol version requested for mode stored in scmd2
                 {
+                    PodEmuLog.debug("OAPM: received protocol version request");
                     if(len<3)
                     {
                         oap_00_write_return_code(scmd1, IPOD_ERROR_OUT_OF_RANGE);
@@ -400,6 +496,43 @@ public class OAPMessenger
                     }
                     byte msg[] = {0x10, scmd2, protoVersionMajor, protoVersionMinor};
                     oap_write_cmd(msg, msg.length, (byte) 0x00);
+                    PodEmuLog.debug("OAPM: sent protocol version");
+                } break;
+                case 0x13: // IdentifyDeviceLingoes
+                {
+                    PodEmuLog.debug("OAPM: received IdentifyDeviceLingoes request");
+                    byte msg[] = new byte[3];
+                    byte bl = line_buf[8 + pos_shift];
+
+                    // if bit 3 is set then accessory can communicate in Simple Mode
+                    if ((bl & 0x04) == 0x04)
+                    {
+                        ipod_mode = IPOD_MODE_AIR;
+                        PodEmuLog.debug("OAPM: accessory supports Simple Mode. Switching to Simple Mode.");
+                    }
+
+                    // if bit 4 is set then accessory can communicate in Extended Mode
+                    if ((bl & 0x08) == 0x08)
+                    {
+                        if(forceSimpleMode == 1)
+                        {
+                            PodEmuLog.debug("OAPM: accessory supports Extended Mode. However, forceSimpleMode is enabled so staying in Simple Mode.");
+                            oap_00_write_return_code(scmd1, IPOD_ERROR_CMD_FAILED);
+                        }
+                        else
+                        {
+                            ipod_mode = IPOD_MODE_AIR;
+                            PodEmuLog.debug("OAPM: accessory supports Extended Mode. Switching to Extended Mode.");
+                        }
+                    }
+                    msg[0] = 0x02; // ACK
+                    msg[1] = 0x00; // Response lingo
+                    msg[2] = 0x13; // Response command
+                    oap_write_cmd(msg, msg.length, (byte) 0x00);
+                    if(ipod_mode != IPOD_MODE_DISCONNECTED && ipod_mode != IPOD_MODE_UNKNOWN)
+                    {
+                        oap_communicate_ipod_connected();
+                    }
                 } break;
                 default:
                 {
@@ -421,6 +554,7 @@ public class OAPMessenger
                  * Play
                  */
                 case 0x0001:
+                    PodEmuLog.debug("OAPM: SIMPLE_MODE IN  - play");
                     MediaPlayback.getInstance().action_play();
                     break;
 
@@ -441,6 +575,7 @@ public class OAPMessenger
                  * Skip>
                  */
                 case 0x0008:
+                    PodEmuLog.debug("OAPM: SIMPLE_MODE IN  - next");
                     MediaPlayback.getInstance().action_next();
                     break;
 
@@ -450,7 +585,8 @@ public class OAPMessenger
                  * Skip<
                  */
                 case 0x0010:
-                    MediaPlayback.getInstance().action_prev(0);
+                    PodEmuLog.debug("OAPM: SIMPLE_MODE IN  - prev");
+                    MediaPlayback.getInstance().action_prev();
                     break;
 
 
@@ -471,6 +607,7 @@ public class OAPMessenger
                  * Stop
                  */
                 case 0x0080:
+                    PodEmuLog.debug("OAPM: SIMPLE_MODE IN  - stop");
                     MediaPlayback.getInstance().action_stop();
                     break;
 
@@ -492,6 +629,7 @@ public class OAPMessenger
                      */
                     else if (params.length == 1 && params[0] == (byte) 0x01)
                     {
+                        PodEmuLog.debug("OAPM: SIMPLE_MODE IN  - play");
                         MediaPlayback.getInstance().action_play();
                     }
 
@@ -502,6 +640,7 @@ public class OAPMessenger
                      */
                     else if (params.length == 1 && params[0] == (byte) 0x02)
                     {
+                        PodEmuLog.debug("OAPM: SIMPLE_MODE IN  - pause");
                         MediaPlayback.getInstance().action_pause();
                     }
 
@@ -529,6 +668,7 @@ public class OAPMessenger
                      */
                     else if (params.length == 1 && params[0] == (byte) 0x80)
                     {
+                        PodEmuLog.debug("OAPM: SIMPLE_MODE IN  - toggle shuffle (NOT IMPLEMENTED)");
                         // TODO implement shuffle
                     }
 
@@ -539,6 +679,7 @@ public class OAPMessenger
                      */
                     else if (params.length == 1 && params[0] == (byte) 0x00 && params[1] == (byte) 0x01)
                     {
+                        PodEmuLog.debug("OAPM: SIMPLE_MODE IN  - toggle repeat (NOT IMPLEMENTED)");
                         // TODO implement repeat
                     }
 
@@ -597,6 +738,7 @@ public class OAPMessenger
                  * should get response FF FF FF FF 00 00 00 00
                  */
                 case 0x0002:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get chapter info");
                     oap_04_write_chapter_info();
                     break;
 
@@ -606,6 +748,7 @@ public class OAPMessenger
                  * @param int(4) - chapter index
                  */
                 case 0x0004:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - set chapter");
                     if (params.length < 4)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -620,6 +763,7 @@ public class OAPMessenger
                  * @param int(4) - chapter index
                  */
                 case 0x0005:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get current chapter status");
                     if (params.length < 4)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -633,6 +777,7 @@ public class OAPMessenger
                  * @param int(4) - chapter index
                  */
                 case 0x0007:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get chapter name (NOT IMPLEMENTED)");
                     // TODO response with 0x0008, only 1 parameter - string
                     break;
 
@@ -643,6 +788,7 @@ public class OAPMessenger
                  * get audiobook speed
                  */
                 case 0x0009:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get audiobook speed");
                     oap_04_write_audiobook_speed();
                     break;
 
@@ -655,6 +801,7 @@ public class OAPMessenger
                  */
                 case 0x000b:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - set audiobook speed");
                     if (params.length < 1)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -684,6 +831,7 @@ public class OAPMessenger
                  */
                 case 0x000C:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get track information");
                     if (params.length < 7)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -700,6 +848,7 @@ public class OAPMessenger
                  * get protocol version"
                  */
                 case 0x0012:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get protocol version");
                     oap_04_write_protocol_version();
                     break;
 
@@ -709,6 +858,7 @@ public class OAPMessenger
                  * Get iPod Name
                  */
                 case 0x0014:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get iPod name");
                     oap_04_write_ipod_name();
                     break;
 
@@ -720,6 +870,7 @@ public class OAPMessenger
                  */
                 case 0x0016:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - switch to main library playlist");
                     podEmuMediaStore.selectionReset();
 
                     // just in case writing success retval
@@ -745,6 +896,7 @@ public class OAPMessenger
                  */
                 case 0x0017:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - switch to item identified by number and type");
                     if (params.length < 5)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -770,6 +922,7 @@ public class OAPMessenger
                  */
                 case 0x0018:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get count of the given type");
                     if (params.length < 1)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -809,6 +962,7 @@ public class OAPMessenger
                  */
                 case 0x001A:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get names for range of items");
                     if (params.length < 9)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -827,6 +981,7 @@ public class OAPMessenger
                  * Get time and status info
                  */
                 case 0x001C:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get time and status info");
                     oap_04_write_info();
                     break;
 
@@ -837,6 +992,7 @@ public class OAPMessenger
                  * Get current position in playlist
                 */
                 case 0x001E:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get current position in playlist");
                     oap_04_write_playlist_position();
                     break;
 
@@ -848,6 +1004,7 @@ public class OAPMessenger
                  */
                 case 0x0020:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get title of a song number");
                     if (params.length < 4)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -866,6 +1023,7 @@ public class OAPMessenger
                  */
                 case 0x0022:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get artist of a song number");
                     if (params.length < 4)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -884,6 +1042,7 @@ public class OAPMessenger
                  */
                 case 0x0024:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get album of a song number");
                     if (params.length < 4)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -904,6 +1063,7 @@ public class OAPMessenger
                  */
                 case 0x0026:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - " + (params[0] == 0x01? "enable":"disable") + " polling mode");
                     if (params.length < 1)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -917,12 +1077,13 @@ public class OAPMessenger
                  * Engine: DB & Playback
                  * @cmd 0x00 0x28
                  * @param number(4)
-                 * Execute playlist and jump to specified songnumber.
+                 * Execute playlist and jump to specified song number.
                  * This command copies selected items from DB to playback playlist
                  * 0xFFFFFFFF will always be start of playlist even when shuffle is on.
                  */
                 case 0x0028:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - execute playlist and jump to specified song number");
                     if (params.length < 4)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -930,13 +1091,19 @@ public class OAPMessenger
                     }
 
                     int pos=byte_array_to_int(params);
-                    int currentPos = mediaPlayback.getCurrentPlaylist().getCurrentTrackPos();
-                    if(pos== 0xFFFFFFFF) pos=0;
+                    //int currentPos = mediaPlayback.getCurrentPlaylist().getCurrentTrackPos();
+                    if( pos == 0xFFFFFFFF) pos=0;
 
                     mediaPlayback.setCurrentPlaylist(podEmuMediaStore.selectionBuildPlaylist());
-                    mediaPlayback.getCurrentPlaylist().setCurrentTrack(currentPos);
-                    mediaPlayback.jumpTo(pos);
-                    oap_04_write_return_code(cmd, IPOD_SUCCESS);
+                    mediaPlayback.getCurrentPlaylist().setCurrentTrackPosToStart();
+
+                    /*
+                     * Do not immediately respond with SUCCESS. Wait for broadcast instead.
+                     */
+                    setPendingResponse(cmd);
+                    if(!mediaPlayback.jumpTo(pos))
+                        abortPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
+
                     break;
                 }
 
@@ -954,6 +1121,7 @@ public class OAPMessenger
                  */
                 case 0x0029:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - simple playback control");
                     if (params.length < 1)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -961,34 +1129,54 @@ public class OAPMessenger
                     }
 
                     byte retval = IPOD_SUCCESS;
+                    setPendingResponse(cmd);
                     switch (params[0])
                     {
                         case 0x01:
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - play/pause");
                             MediaPlayback.getInstance().action_play_pause();
                             break;
                         case 0x02:
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - stop");
                             MediaPlayback.getInstance().action_stop();
                             break;
                         case 0x03:
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - next");
                             MediaPlayback.getInstance().action_next();
                             break;
                         case 0x04:
-                            MediaPlayback.getInstance().action_prev(0);
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - prev");
+                            MediaPlayback.getInstance().action_prev();
                             break;
                         case 0x05:
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - skip forward");
                             MediaPlayback.getInstance().action_skip_forward();
                             break;
                         case 0x06:
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - skip backward");
                             MediaPlayback.getInstance().action_skip_backward();
                             break;
                         case 0x07: // end skip FF/REV
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - end skip FF/REV (NOT IMPLEMENTED)");
+                            abortPendingResponse("action not implemented", IPOD_SUCCESS);
+                            break;
                         case 0x08: // next chapter
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - next chapter (NOT IMPLEMENTED)");
+                            abortPendingResponse("action not implemented", IPOD_SUCCESS);
+                            break;
                         case 0x09: // prev chapter
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - previous chapter (NOT IMPLEMENTED)");
+                            abortPendingResponse("action not implemented", IPOD_SUCCESS);
                             break;
                         default:
                             retval = IPOD_ERROR_CMD_FAILED;
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - ERROR: unknown command");
                     }
-                    oap_04_write_return_code(cmd, retval);
+                    if (retval != IPOD_SUCCESS)
+                    {
+                        abortPendingResponse("0x0029 failed", retval);
+                    }
+                    //oap_04_write_return_code(cmd, retval);
                     break;
                 }
 
@@ -998,6 +1186,7 @@ public class OAPMessenger
                  * Get shuffle mode
                  */
                 case 0x002C:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get shuffle mode");
                     oap_04_write_shuffle_mode();
                     break;
 
@@ -1010,6 +1199,7 @@ public class OAPMessenger
                  */
                 case 0x002E:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - set shuffle mode (NOT IMPLEMENTED)");
                     if (params.length < 1 || params[0] < 0x00 || params[0] > 0x02)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -1028,6 +1218,7 @@ public class OAPMessenger
                  * Get Repeat Mode
                  */
                 case 0x002F:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get repeat mode");
                     oap_04_write_repeat_mode();
                     break;
 
@@ -1040,6 +1231,7 @@ public class OAPMessenger
                  */
                 case 0x0031:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - set repeat mode (NOT IMPLEMENTED)");
                     if (params.length < 1 || params[0] < 0x00 || params[0] > 0x02)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -1058,6 +1250,7 @@ public class OAPMessenger
                  * upload a picture (see below)
                  */
                 case 0x0032:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - upload bitmap");
                     oap_receive_image_msg(params, len - 3);
                     break;
 
@@ -1067,6 +1260,7 @@ public class OAPMessenger
                  * Get max screen size for picture upload
                  */
                 case 0x0033:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get max screen size for the bitmap upload");
                     oap_04_write_screen_resolution_34();
                     break;
 
@@ -1077,6 +1271,7 @@ public class OAPMessenger
                  * Get number of songs in playlist
                  */
                 case 0x0035:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get number of songs in the playlist");
                     oap_04_write_playlist_song_count();
                     break;
 
@@ -1087,16 +1282,17 @@ public class OAPMessenger
                  */
                 case 0x0037:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - jump to a specified song number in the playlist");
                     if (params.length < 4)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
                         break;
                     }
 
-                    if(mediaPlayback.jumpTo(byte_array_to_int(params)))
-                        oap_04_write_return_code(cmd, IPOD_SUCCESS);
-                    else
-                        oap_04_write_return_code(cmd, IPOD_ERROR_CMD_FAILED);
+                    setPendingResponse(cmd);
+                    if(!mediaPlayback.jumpTo(byte_array_to_int(params)))
+                        abortPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
+
                 }
                 break;
 
@@ -1125,6 +1321,7 @@ public class OAPMessenger
                  */
                 case 0x0038:
                 {
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - select DB records (type1) and sort by (type2)");
                     if (params.length < 6)
                     {
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
@@ -1140,9 +1337,10 @@ public class OAPMessenger
                 /*
                  * @cmd 0x00 0x39 - response is 3A
                  * @param NO PARAMS
-                 * Get color display max resolution
+           2      * Get color display max resolution
                  */
                 case 0x0039:
+                    PodEmuLog.debug("OAPM: AIR_MODE IN  - get color display max resolution");
                     oap_04_write_screen_resolution_3A();
                     break;
             }
@@ -1178,6 +1376,15 @@ public class OAPMessenger
         msg[3] = (byte) ((cmd >> 8) & 0xff);
         msg[4] = (byte) (cmd & 0xff);
         oap_04_write_cmd(msg);
+
+        String status="UNKNOWN_ERR";
+        if(result==IPOD_SUCCESS) status="SUCCESS";
+        if(result==IPOD_ERROR_OUT_OF_RESOURCES) status="ERROR_OUT_OF_RESOURCES";
+        if(result==IPOD_ERROR_CMD_FAILED) status="ERROR_CMD_FAILED";
+        if(result==IPOD_ERROR_OUT_OF_RESOURCES) status="ERROR_OUT_OF_RESOURCES";
+        if(result==IPOD_ERROR_DB_CATEGORY) status="ERROR_DB_CATEGORY";
+        if(result==IPOD_ERROR_UNKOWN_ID) status="ERROR_UNKOWN_ID";
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - response to command " + String.format("0x%04X", cmd) + ". Status: " + status);
     }
 
     /**
@@ -1197,6 +1404,15 @@ public class OAPMessenger
     {
         byte msg[] = {0x02, result, cmd};
         oap_write_cmd(msg, msg.length, (byte) 0x00);
+
+        String status="UNKNOWN_ERR";
+        if(result==IPOD_SUCCESS) status="SUCCESS";
+        if(result==IPOD_ERROR_OUT_OF_RESOURCES) status="ERROR_OUT_OF_RESOURCES";
+        if(result==IPOD_ERROR_CMD_FAILED) status="ERROR_CMD_FAILED";
+        if(result==IPOD_ERROR_OUT_OF_RESOURCES) status="ERROR_OUT_OF_RESOURCES";
+        if(result==IPOD_ERROR_DB_CATEGORY) status="ERROR_DB_CATEGORY";
+        if(result==IPOD_ERROR_UNKOWN_ID) status="ERROR_UNKOWN_ID";
+        PodEmuLog.debug("OAPM: 00 OUT - response to command " + String.format("0x%04X", cmd) + ". Status: " + status);
     }
 
     /**
@@ -1210,6 +1426,7 @@ public class OAPMessenger
     {
         byte msg[] = {0x00, 0x03, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, 0x00, 0x00, 0x00, 0x00};
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written chapter info (GENERIC)");
     }
 
     /**
@@ -1222,6 +1439,7 @@ public class OAPMessenger
     {
         byte msg[] = {0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written chapter status (GENERIC)");
     }
 
     /**
@@ -1236,6 +1454,7 @@ public class OAPMessenger
     {
         byte msg[] = {0x00, 0x0A, audiobook_speed};
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written audiobook speed (GENERIC)");
     }
 
     /**
@@ -1245,51 +1464,70 @@ public class OAPMessenger
      * @param song_nr - song number the request is related to
      * @cmd 0x000d
      * @response: type(1):
-     * 0x01 - unknown, gives log
-     * 0x02 - unknown, always gives response 02 00 00 00 00 00 00 00 00
-     * 0x03 - unknown, always gives response 03 00 00 00 00
-     * 0x04 - unknown, always gives response 04 00 00 00 00
-     * 0x05 - Genre
-     * 0x06 - Composer
-     * 0x07 - unknown, gives response 07 and 16 bytes
-     * @response: byte(n) - depending on type
+     *      0x00 - track capabilities and information
+     *      0x01 - podcast name
+     *      0x02 - track release date
+     *      0x03 - track description
+     *      0x04 - track song lyrics
+     *      0x05 - Genre
+     *      0x06 - Composer
+     *      0x07 - artwork count, gives response 07 and 16 bytes
+     * @response: byte(n) - content, depending on type
+     *
      * Write additional information about selected song
      */
     private void oap_04_write_additional_info(byte rtype, int song_nr)
     {
-        byte msg[] = {0x00, 0x0d, 0};
-        byte msg02[] = {0x00, 0x0d, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        byte msg[] = {0x00, 0x0d, rtype};
+        byte msg02[] = {0x00, 0x0d, rtype, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         msg[2] = rtype; // update type info to which we are responding
 
         switch (rtype)
         {
+            case 0x00: // Track Capabilities and Information
+                int length = mediaPlayback.getCurrentPlaylist().getTrack(song_nr).length;
+                msg[7] = (byte) ((length >> 24) & 0xff);
+                msg[8] = (byte) ((length >> 16) & 0xff);
+                msg[9] = (byte) ((length >> 8) & 0xff);
+                msg[10] = (byte) ((length) & 0xff);
+                oap_04_write_cmd(msg02, 13);
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track capabilities and information (GENERIC)");
+                break;
+
             case 0x01: // podcast name
-                // not supported
+                oap_04_write_string(msg, "");
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written podcast name (empty string)");
                 break;
 
             case 0x02: // track release date
                 oap_04_write_cmd(msg02, 11);
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track release date (GENERIC)");
                 break;
 
             case 0x03: // track description
+                oap_04_write_string(msg, "");
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track description (empty string)");
+                break;
             case 0x04: // song lyrics
             {
-                msg02[2] = rtype;
-                oap_04_write_cmd(msg02, 7);
+                oap_04_write_string(msg, "");
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written song lyrics (empty string)");
             }
             break;
 
             case 0x05:
             {
-                msg[2] = rtype;
-                oap_04_write_string(msg, mediaPlayback.getCurrentPlaylist().getTrack(song_nr).name);
+                String song_name = mediaPlayback.getCurrentPlaylist().getTrack(song_nr).genre;
+                oap_04_write_string(msg, song_name);
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written song genre: " + song_name);
             }
             break;
 
             case 0x06:
             {
-                msg[2] = rtype;
-                oap_04_write_string(msg, mediaPlayback.getCurrentPlaylist().getTrack(song_nr).composer);
+                String composer = mediaPlayback.getCurrentPlaylist().getTrack(song_nr).composer;
+                oap_04_write_string(msg, composer);
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written composer: " + composer);
             }
             break;
 
@@ -1313,6 +1551,7 @@ public class OAPMessenger
     {
         byte msg[] = {0x00, 0x13, protoVersionMajor, protoVersionMinor};
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written protocol version: " + protoVersionMajor + "." + protoVersionMinor);
     }
 
     /**
@@ -1324,6 +1563,7 @@ public class OAPMessenger
     {
         byte cmd[] = {0x00, 0x15};
         oap_04_write_string(cmd, ipod_name);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written iPod name: " + ipod_name);
     }
 
 
@@ -1433,6 +1673,7 @@ public class OAPMessenger
             cmd[5] = (byte) (pos & 0xff);
 
             oap_04_write_string(cmd, str);
+            PodEmuLog.debug("OAPM: AIR_MODE OUT - written type name: " + str);
             cursor.moveToNext();
         }
     }
@@ -1463,6 +1704,7 @@ public class OAPMessenger
         msg[9] = (byte) ((time) & 0xff);
         msg[10] = (byte) (mediaPlayback.isPlaying() ? 0x01 : 0x02);
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written track info. Length: " + length + ". Position: " + time);
     }
 
 
@@ -1473,9 +1715,11 @@ public class OAPMessenger
     private void oap_04_write_playlist_position()
     {
         byte b[]=new byte[4];
-        int_to_byte_array(MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrackPos(), b);
+        int pos = MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrackPos();
+        int_to_byte_array(pos, b);
         byte msg[] = {0x00, 0x1F, b[0], b[1], b[2], b[3]};
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written playlist position: " + pos);
     }
 
     /**
@@ -1495,6 +1739,7 @@ public class OAPMessenger
         else
         {
             oap_04_write_string(cmd,track.name);
+            PodEmuLog.debug("OAPM: AIR_MODE OUT - written track title " + track.name);
         }
     }
 
@@ -1515,6 +1760,7 @@ public class OAPMessenger
         else
         {
             oap_04_write_string(cmd, track.artist);
+            PodEmuLog.debug("OAPM: AIR_MODE OUT - written track artist " + track.artist);
         }
     }
 
@@ -1536,8 +1782,51 @@ public class OAPMessenger
         else
         {
             oap_04_write_string(cmd, track.album);
+            PodEmuLog.debug("OAPM: AIR_MODE OUT - written track album " + track.album);
         }
     }
+
+
+    /**
+     * @cmd 0x00 0x27
+     * @response number(4) time elapsed on current song
+     */
+    public void oap_04_write_polling_playback_stopped()
+    {
+        if(!polling_mode) return;
+
+        byte cmd[] = {
+                0x00,
+                0x27,
+                0x00, // playback stopped
+        };
+        oap_04_write_cmd(cmd);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - polling message: playback stopped");
+    }
+
+
+    /**
+     * @cmd 0x00 0x27
+     * @param pos - new position in playlist
+     * @response number(4) time elapsed on current song
+     */
+    public void oap_04_write_polling_track_status_changed(int pos)
+    {
+        if(!polling_mode) return;
+
+        byte cmd[] = {
+                0x00,
+                0x27,
+                0x01, // info new track index
+                (byte) ((pos >> 24) & 0xff),
+                (byte) ((pos >> 16) & 0xff),
+                (byte) ((pos >> 8) & 0xff),
+                (byte) (pos & 0xff)
+        };
+        oap_04_write_cmd(cmd);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - polling message: track changed to " + pos);
+    }
+
 
     /**
      * @cmd 0x00 0x27
@@ -1560,45 +1849,33 @@ public class OAPMessenger
                 (byte) (pos & 0xff)
         };
         oap_04_write_cmd(cmd);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - polling message: track position changed to " + pos + " ms");
     }
+
 
     /**
      * @cmd 0x00 0x27
-     * @param pos - new position in playlist
+     * @param chapter - new position in playlist
      * @response number(4) time elapsed on current song
      */
-    public void oap_04_write_polling_track_status_changed(int pos)
+    public void oap_04_write_polling_chapter_status_changed(int chapter)
     {
         if(!polling_mode) return;
 
         byte cmd[] = {
                 0x00,
                 0x27,
-                0x01, // info new track index
-                (byte) ((pos >> 24) & 0xff),
-                (byte) ((pos >> 16) & 0xff),
-                (byte) ((pos >> 8) & 0xff),
-                (byte) (pos & 0xff)
+                0x05, // info new chapter
+                (byte) ((chapter >> 24) & 0xff),
+                (byte) ((chapter >> 16) & 0xff),
+                (byte) ((chapter >> 8) & 0xff),
+                (byte) (chapter & 0xff)
         };
         oap_04_write_cmd(cmd);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - polling message: chapter changed to " + chapter);
     }
 
 
-    /**
-     * @cmd 0x00 0x27
-     * @response number(4) time elapsed on current song
-     */
-    public void oap_04_write_polling_playback_stopped()
-    {
-        if(!polling_mode) return;
-
-        byte cmd[] = {
-                0x00,
-                0x27,
-                0x00, // playback stopped
-        };
-        oap_04_write_cmd(cmd);
-    }
 
 
     /**
@@ -1613,6 +1890,7 @@ public class OAPMessenger
         // TODO implement shuffle
         byte msg[] = {0x00, 0x2D, shuffle_mode};
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written shuffle mode: " + shuffle_mode);
     }
 
     /**
@@ -1627,6 +1905,7 @@ public class OAPMessenger
         // TODO implement repeat mode
         byte msg[] = {0x00, 0x30, repeat_mode};
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written repeat mode: " + repeat_mode);
     }
 
 
@@ -1651,6 +1930,7 @@ public class OAPMessenger
         msg[4] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y >> 8) & 0xff);
         msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written screen resolution 34: " + DockingLogoView.IMAGE_MAX_RES_X + "x" + DockingLogoView.IMAGE_MAX_RES_Y);
     }
 
     /**
@@ -1660,10 +1940,12 @@ public class OAPMessenger
     private void oap_04_write_playlist_song_count()
     {
         byte b[]=new byte[4];
-        int_to_byte_array(MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount(), b);
+        int count = MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount();
+        int_to_byte_array(count, b);
         // always say we have 3 songs to implement next/prev action
         byte msg[] = {0x00, 0x36, b[0], b[1], b[2], b[3]};
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written playlist song count: count");
     }
 
 
@@ -1686,6 +1968,7 @@ public class OAPMessenger
         msg[10] = msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
 
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written screen resolution 3A: " + DockingLogoView.IMAGE_MAX_RES_X + "x" + DockingLogoView.IMAGE_MAX_RES_Y);
     }
 
 
@@ -1758,7 +2041,7 @@ public class OAPMessenger
      */
     void oap_print_char(int rw, byte b, int num)
     {
-        PodEmuLog.debug("Line " + line + ": len=" + line_cmd_len + " cnt=" + num + " " + String.format(": %s: %02X", (rw == READ ? "RCV" : "WRITE"), b));
+        PodEmuLog.verbose("Line " + line + ": len=" + line_cmd_len + " cnt=" + num + " " + String.format(": %s: %02X", (rw == READ ? "RCV" : "WRITE"), b));
     }
 
 
@@ -1831,7 +2114,7 @@ public class OAPMessenger
             tmp += "[" + rawstr + "]";
         }
 
-        PodEmuLog.debug(tmp);
+        PodEmuLog.verbose("OAPM: " + tmp);
 
     }
 
@@ -1870,7 +2153,7 @@ public class OAPMessenger
         chksum = 0x100 - chksum;
         msg[i + 4] = (byte) chksum;
 
-        PodEmuLog.debug("Line " + line + ": RAW MSG OUT: " + oap_hex_to_str(msg, msg.length));
+        PodEmuLog.verbose("Line " + line + ": RAW MSG OUT: " + oap_hex_to_str(msg, msg.length));
         oap_print_podmsg(msg, false, false);
 
         SerialInterfaceBuilder serialInterfaceBuilder=new SerialInterfaceBuilder();
@@ -2088,6 +2371,7 @@ public class OAPMessenger
         // write to serial success command
         byte msg[] = {0x00, 0x01, 0x00, 0x00, 0x32};
         oap_04_write_cmd(msg);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - ");
 
         // send updated bitmap to MainActivity
         oap_send_bitmap();
@@ -2098,10 +2382,14 @@ public class OAPMessenger
      */
     private void oap_communicate_ipod_connected()
     {
-        Message message = mHandler.obtainMessage(0);
-        message.arg1 = 2; // indicate mode change message
-        message.arg2 = ipod_mode;
-        mHandler.sendMessage(message);
+        // if mHandler is not set then service is not ready. This method will be called again once service is ready.
+        if (mHandler != null)
+        {
+            Message message = mHandler.obtainMessage(0);
+            message.arg1 = 2; // indicate mode change message
+            message.arg2 = ipod_mode;
+            mHandler.sendMessage(message);
+        }
     }
 
 
@@ -2147,6 +2435,16 @@ public class OAPMessenger
         int i = ((b[start_pos+0] & 0xff) << 24) | ((b[start_pos+1] & 0xff) << 16) | ((b[start_pos+2] & 0xff) << 8) | (b[start_pos+3] & 0xff);
 
         return i;
+    }
+
+    /**
+     *
+     * @param forceSimpleMode - 1 = force simple mode
+     *                          0 = do not force
+     */
+    public void setForceSimpleMode(int forceSimpleMode)
+    {
+        this.forceSimpleMode = forceSimpleMode;
     }
 }
 
