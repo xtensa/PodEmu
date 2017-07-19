@@ -837,7 +837,7 @@ public class OAPMessenger
                         oap_04_write_return_code(cmd, IPOD_ERROR_OUT_OF_RANGE);
                         break;
                     }
-                    int song_nr = ((params[1] & 0xff) << 24) | ((params[2] & 0xff) << 16) | ((params[3] & 0xff) << 8) | (params[1] & 0xff);
+                    int song_nr = ((params[1] & 0xff) << 24) | ((params[2] & 0xff) << 16) | ((params[3] & 0xff) << 8) | (params[4] & 0xff);
                     oap_04_write_additional_info(params[0], song_nr);
                 }
                 break;
@@ -1381,7 +1381,7 @@ public class OAPMessenger
         if(result==IPOD_SUCCESS) status="SUCCESS";
         if(result==IPOD_ERROR_OUT_OF_RESOURCES) status="ERROR_OUT_OF_RESOURCES";
         if(result==IPOD_ERROR_CMD_FAILED) status="ERROR_CMD_FAILED";
-        if(result==IPOD_ERROR_OUT_OF_RESOURCES) status="ERROR_OUT_OF_RESOURCES";
+        if(result==IPOD_ERROR_OUT_OF_RANGE) status="ERROR_OUT_OF_RANGE";
         if(result==IPOD_ERROR_DB_CATEGORY) status="ERROR_DB_CATEGORY";
         if(result==IPOD_ERROR_UNKOWN_ID) status="ERROR_UNKOWN_ID";
         PodEmuLog.debug("OAPM: AIR_MODE OUT - response to command " + String.format("0x%04X", cmd) + ". Status: " + status);
@@ -1480,38 +1480,44 @@ public class OAPMessenger
     {
         byte msg[] = {0x00, 0x0d, rtype};
         byte msg02[] = {0x00, 0x0d, rtype, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        msg[2] = rtype; // update type info to which we are responding
+        int playlist_size = mediaPlayback.getCurrentPlaylist().getTrackCount();
+        if(song_nr<0 || song_nr >= playlist_size)
+        {
+            PodEmuLog.error("OAPM: track number " + song_nr + " is out of boundaries. Playlist size is " + playlist_size + ".");
+            oap_04_write_return_code(0x000c, IPOD_ERROR_OUT_OF_RANGE);
+            return;
+        }
 
         switch (rtype)
         {
             case 0x00: // Track Capabilities and Information
                 int length = mediaPlayback.getCurrentPlaylist().getTrack(song_nr).length;
-                msg[7] = (byte) ((length >> 24) & 0xff);
-                msg[8] = (byte) ((length >> 16) & 0xff);
-                msg[9] = (byte) ((length >> 8) & 0xff);
-                msg[10] = (byte) ((length) & 0xff);
+                msg02[7] = (byte) ((length >> 24) & 0xff);
+                msg02[8] = (byte) ((length >> 16) & 0xff);
+                msg02[9] = (byte) ((length >> 8) & 0xff);
+                msg02[10] = (byte) ((length) & 0xff);
                 oap_04_write_cmd(msg02, 13);
-                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track capabilities and information (GENERIC)");
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track " + song_nr + " capabilities and information (GENERIC)");
                 break;
 
             case 0x01: // podcast name
                 oap_04_write_string(msg, "");
-                PodEmuLog.debug("OAPM: AIR_MODE OUT - written podcast name (empty string)");
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track " + song_nr + " podcast name (empty string)");
                 break;
 
             case 0x02: // track release date
                 oap_04_write_cmd(msg02, 11);
-                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track release date (GENERIC)");
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track " + song_nr + " release date (GENERIC)");
                 break;
 
             case 0x03: // track description
                 oap_04_write_string(msg, "");
-                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track description (empty string)");
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track " + song_nr + " description (empty string)");
                 break;
             case 0x04: // song lyrics
             {
                 oap_04_write_string(msg, "");
-                PodEmuLog.debug("OAPM: AIR_MODE OUT - written song lyrics (empty string)");
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track " + song_nr + " lyrics (empty string)");
             }
             break;
 
@@ -1519,7 +1525,7 @@ public class OAPMessenger
             {
                 String song_name = mediaPlayback.getCurrentPlaylist().getTrack(song_nr).genre;
                 oap_04_write_string(msg, song_name);
-                PodEmuLog.debug("OAPM: AIR_MODE OUT - written song genre: " + song_name);
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track " + song_nr + " genre: " + song_name);
             }
             break;
 
@@ -1527,7 +1533,7 @@ public class OAPMessenger
             {
                 String composer = mediaPlayback.getCurrentPlaylist().getTrack(song_nr).composer;
                 oap_04_write_string(msg, composer);
-                PodEmuLog.debug("OAPM: AIR_MODE OUT - written composer: " + composer);
+                PodEmuLog.debug("OAPM: AIR_MODE OUT - written track " + song_nr + " composer: " + composer);
             }
             break;
 
