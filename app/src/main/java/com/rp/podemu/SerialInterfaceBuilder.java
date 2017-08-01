@@ -19,23 +19,28 @@
 
 package com.rp.podemu;
 
-import android.hardware.usb.UsbManager;
+import android.content.Context;
 
 public class SerialInterfaceBuilder
 {
     private static SerialInterface serialInterface=null;
 
-    public SerialInterface getSerialInterface(UsbManager manager)
+    public SerialInterface getSerialInterface(Context context)
     {
         if(serialInterface==null)
         {
             serialInterface = new SerialInterface_USBSerial();
-            if(!serialInterface.init(manager)) serialInterface=null;
+            if(!serialInterface.init(context)) serialInterface=null;
         }
         if(serialInterface==null)
         {
             serialInterface = new SerialInterface_FT31xD();
-            if(!serialInterface.init(manager)) serialInterface=null;
+            if(!serialInterface.init(context)) serialInterface=null;
+        }
+        if(serialInterface==null)
+        {
+            serialInterface = SerialInterface_BT.getInstance();
+            serialInterface.init(context);
         }
 
         return serialInterface;
@@ -48,6 +53,7 @@ public class SerialInterfaceBuilder
 
     public void detach()
     {
+        if( serialInterface != null ) serialInterface.close();
         serialInterface=null;
     }
 }

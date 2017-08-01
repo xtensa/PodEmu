@@ -32,6 +32,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.StrictMode;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
@@ -248,6 +249,11 @@ public class SettingsActivity extends AppCompatActivity
         {
             // do nothing
         }
+
+        // The below code is required to workaround file policy restrictions introduced in API 24
+        // For details see: https://stackoverflow.com/questions/38200282/android-os-fileuriexposedexception-file-storage-emulated-0-test-txt-exposed
+        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+        StrictMode.setVmPolicy(builder.build());
 
     }
 
@@ -562,7 +568,7 @@ public class SettingsActivity extends AppCompatActivity
                     public void onClick(DialogInterface dialog, int which)
                     {
                         // continue with erasing
-                        PodEmuLog.eraseDebug();
+                        PodEmuLog.eraseDebugFile();
                     }
                 })
                 .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {

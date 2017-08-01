@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.hardware.usb.UsbAccessory;
 import android.hardware.usb.UsbManager;
+import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 
 import com.hoho.android.usbserial.driver.UsbId;
@@ -63,17 +64,27 @@ public class SerialInterface_FT31xD implements SerialInterface
 
     }
 
+    public void setHandler(Handler handler)
+    {
+        // Doing nothing. This method is mainly for BT interface.
+    }
+
     /**
      * Initilize the device
-     * @param manager - already initialize UsbManager.
+     * @param context - application context
      * @return - true on success, false on failure
      */
 
-    public boolean init(UsbManager manager)
+    public boolean init(Context context)
     {
-        usbmanager=manager;
+        PodEmuLog.debug("FT31xD: initialization started.");
+        usbmanager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
 
-        if(ResumeAccessory()!=0) return false;
+        if(ResumeAccessory()!=0)
+        {
+            PodEmuLog.debug("FT31xD: no devices found. Exiting...");
+            return false;
+        }
 
         PodEmuLog.debug("FT31xD: openning connection with baud rate="+baudRate);
 

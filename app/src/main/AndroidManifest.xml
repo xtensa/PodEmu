@@ -44,20 +44,16 @@
 
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"/>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
             </intent-filter>
 
             <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-                       android:resource="@xml/device_filter" />
-
-
-            <intent-filter>
-                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"/>
-            </intent-filter>
+                android:resource="@xml/device_filter" />
 
             <meta-data
                 android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
-                android:resource="@xml/accessory_filter">
-            </meta-data>
+                android:resource="@xml/accessory_filter" />
 
 
         </activity>
@@ -109,7 +105,8 @@
     <uses-sdk android:minSdkVersion="12"  android:targetSdkVersion="25" />
     <uses-feature android:name="android.hardware.usb.host" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
 </manifest>
 

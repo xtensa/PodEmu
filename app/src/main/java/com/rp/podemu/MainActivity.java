@@ -19,6 +19,7 @@
 
 package com.rp.podemu;
 
+import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -69,6 +70,8 @@ public class MainActivity extends AppCompatActivity
     private boolean serviceBound = false;
     public PodEmuMessage currentlyPlaying=new PodEmuMessage();
 
+    private boolean isBtOn = true;
+
     //public static LooperThread looperThread;
 
     public void setCtrlAppProcessName(String processName)
@@ -80,6 +83,8 @@ public class MainActivity extends AppCompatActivity
     {
         return ctrlAppProcessName;
     }
+
+    public boolean isBtOn() { return isBtOn; }
 
 
     public void action_next(View v)
@@ -120,11 +125,11 @@ public class MainActivity extends AppCompatActivity
 
         try
         {
-            SerialInterface serialInterface=serialInterfaceBuilder.getSerialInterface((UsbManager) getSystemService(Context.USB_SERVICE));
-            // reconnect usb
+            SerialInterface serialInterface = serialInterfaceBuilder.getSerialInterface();
+                // reconnect usb
 
             updateSerialStatus();
-            if ( serialInterface != null )
+            if (serialInterface != null || isBtOn)
             {
                 startService(serviceIntent);
 
@@ -132,7 +137,8 @@ public class MainActivity extends AppCompatActivity
                 {
                     PodEmuLog.debug("MA: Service succesfully bound");
                     serviceBound = true;
-                } else
+                }
+                else
                 {
                     PodEmuLog.debug("MA: Service NOT bound");
                 }
@@ -154,6 +160,7 @@ public class MainActivity extends AppCompatActivity
         try
         {
             iPodConnected = OAPMessenger.IPOD_MODE_DISCONNECTED;
+            serialInterfaceBuilder.detach();
             unbindService(serviceConnection);
             stopService(serviceIntent);
             serviceBound = false;
@@ -268,17 +275,30 @@ public class MainActivity extends AppCompatActivity
         {
             try
             {
-                PodEmuMessage podEmuMessage = PodEmuIntentFilter.processBroadcast(context, intent);
+                String action = intent.getAction();
 
-                // if null is received then broadcast could be not from "our" app
-                if(podEmuMessage!=null)
+
+                if(action.contains(BluetoothDevice.ACTION_ACL_CONNECTED)
+                        && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName() == SerialInterface_BT.APP_NAME))
                 {
-                    currentlyPlaying.bulk_update(podEmuMessage);
-                    if (podEmuMessage.getAction() != PodEmuMessage.ACTION_QUEUE_CHANGED)
+                    PodEmuLog.debug("PES: Bluetooth device '" + SerialInterface_BT.APP_NAME + "' connected.");
+                    start_service(null);
+                }
+                else
+                {
+                    PodEmuMessage podEmuMessage = PodEmuIntentFilter.processBroadcast(context, intent);
+                    // if null is received then broadcast could be not from "our" app
+                    if(podEmuMessage!=null)
                     {
-                        updateCurrentlyPlayingDisplay();
+                        currentlyPlaying.bulk_update(podEmuMessage);
+                        if (podEmuMessage.getAction() != PodEmuMessage.ACTION_QUEUE_CHANGED)
+                        {
+                            updateCurrentlyPlayingDisplay();
+                        }
                     }
                 }
+
+
             }
             catch(Exception e)
             {
@@ -357,7 +377,8 @@ public class MainActivity extends AppCompatActivity
                 editor.apply();
 
                 appLogo.setImageDrawable(appInfo.loadIcon(pm));
-            } catch (PackageManager.NameNotFoundException e)
+            }
+            catch (PackageManager.NameNotFoundException e)
             {
                 ctrlAppStatusTitle.setText("Please go to the settings and setup controlled music application");
                 ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
@@ -481,16 +502,28 @@ public class MainActivity extends AppCompatActivity
 
     private void updateSerialStatus()
     {
-        SerialInterface serialInterface = serialInterfaceBuilder.getSerialInterface((UsbManager) getSystemService(Context.USB_SERVICE));
-        if(serialInterface != null )
+        SerialInterface serialInterface = serialInterfaceBuilder.getSerialInterface(this);
+        ImageView serialInterfaceImage = (ImageView) this.findViewById(R.id.SERIAL_status_icon);
+
+        if(serialInterface != null && serialInterface.isConnected())
         {
             this.serialStatusText.setTextColor(Color.rgb(0x00, 0xff, 0x00));
             this.serialStatusText.setText("connected");
 
-            this.serialStatusHint.setText(
-                    String.format("VID: 0x%04X, ", serialInterface.getVID()) +
-                            String.format("PID: 0x%04X\n", serialInterface.getPID()) +
-                            "Cable: " + serialInterface.getName());
+            if (serialInterface instanceof SerialInterface_BT)
+            {
+                serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.bluetooth)));
+                this.serialStatusHint.setText(String.format("Bluetooth adapter\nName: " + serialInterface.getName()));
+            }
+            else
+            {
+                this.serialStatusHint.setText(
+                        String.format("VID: 0x%04X, ", serialInterface.getVID()) +
+                                String.format("PID: 0x%04X\n", serialInterface.getPID()) +
+                                "Cable: " + serialInterface.getName());
+                serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.usb_serial_480x480)));
+            }
+
         }
         else
         {
@@ -498,7 +531,10 @@ public class MainActivity extends AppCompatActivity
             this.serialStatusText.setText("disconnected");
 
             this.serialStatusHint.setText(R.string.serial_status_hint);
+            serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.usb_serial_480x480)));
         }
+
+
     }
 
     private void updateIPodStatus()
@@ -602,6 +638,7 @@ public class MainActivity extends AppCompatActivity
                     case 3: // serial connection status changed
                     {
                         updateSerialStatus();
+
                     }
                     break;
                 }

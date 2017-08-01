@@ -205,7 +205,17 @@ public class PodEmuIntentFilter extends IntentFilter
         String PLAYBACK_STATE_CHANGED, METADATA_CHANGED, QUEUE_CHANGED, PLAYBACK_COMPLETE, UPDATE_PROGRESS;
 
         String action = intent.getAction();
-        String cmd = intent.getStringExtra("command");
+        String cmd = null;
+
+        try
+        {
+            cmd = intent.getStringExtra("command");
+        }
+        catch (android.os.BadParcelableException e)
+        {
+            // do nothing as we don't bother
+            // cmd is only used for informative purposes
+        }
 
         MediaPlayback mediaPlayback = MediaPlayback.getInstance();
         if(mediaPlayback == null)

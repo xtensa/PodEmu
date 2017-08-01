@@ -19,8 +19,10 @@
 
 package com.rp.podemu;
 
+import android.content.Context;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.os.Handler;
 
 import com.hoho.android.usbserial.driver.ProlificSerialDriver;
 import com.hoho.android.usbserial.driver.UsbId;
@@ -54,6 +56,11 @@ public class SerialInterface_USBSerial implements SerialInterface
     public int getBaudRate()
     {
         return baudRate;
+    }
+
+    public void setHandler(Handler handler)
+    {
+        // Doing nothing. This method is mainly for BT interface.
     }
 
     public SerialInterface_USBSerial()
@@ -116,26 +123,29 @@ public class SerialInterface_USBSerial implements SerialInterface
 
     /**
      * Initilize the device
-     * @param manager - already initialize UsbManager.
+     * @param context - application context
      * @return - true on success, false on failure
      */
-    public boolean init(UsbManager manager)
+    public boolean init(Context context)
     {
-        UsbManager usbManager=manager;
+        PodEmuLog.debug("USBSerial: initialization started.");
+        UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
 
         // Find all available drivers from attached devices.
-        List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager);
-        if (availableDrivers.isEmpty()) {
+        List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
+        if (availableDrivers.isEmpty())
+        {
+            PodEmuLog.debug("USBSerial: no devices found. Exiting...");
             return false;
         }
 
         // Open a connection to the first available driver.
         UsbSerialDriver driver = availableDrivers.get(0);
-        connection = manager.openDevice(driver.getDevice());
+        connection = usbManager.openDevice(driver.getDevice());
         if (connection == null)
         {
             // You probably need to call UsbManager.requestPermission(driver.getDevice(), ..)
-            PodEmuLog.log("USBSerial: Cannot establish serial connection!");
+            PodEmuLog.log("USBSerial: Cannot establish serial connection! Exiting...");
             return false;
         }
 
@@ -150,6 +160,7 @@ public class SerialInterface_USBSerial implements SerialInterface
         catch (IOException e)
         {
             // TODO Deal with error
+            PodEmuLog.debug("USBSerial: unknown exception occured! See trace log below:");
             PodEmuLog.error(e.getMessage());
             return false;
         }
