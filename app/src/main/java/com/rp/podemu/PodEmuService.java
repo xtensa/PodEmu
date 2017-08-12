@@ -283,15 +283,29 @@ public class PodEmuService extends Service
                                         }
                                     }
 
+
                                     // Reading incoming data
-                                    while ((numBytesRead = serialInterface.read(buffer)) > 0)
+                                    while (true)
                                     {
+                                        try
+                                        {
+                                            numBytesRead = serialInterface.read(buffer);
+                                        }
+                                        catch(NullPointerException e)
+                                        {
+                                            PodEmuLog.error("PES: read() attempt while serial interface is not connected. Cable suddenly disconnected?");
+                                            numBytesRead = 0;
+                                        }
+
+                                        if (numBytesRead <= 0) break;
+
                                         //PodEmuLog.debug("RECEIVED BYTES: " + numBytesRead);
                                         for (int j = 0; j < numBytesRead; j++)
                                         {
                                             inputBuffer.add(buffer[j]);
                                         }
                                     }
+
                                     if (numBytesRead == 0)
                                     {
                                         Thread.sleep(10);
