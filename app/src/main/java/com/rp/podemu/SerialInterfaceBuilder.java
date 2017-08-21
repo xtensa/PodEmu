@@ -39,7 +39,7 @@ public class SerialInterfaceBuilder
         }
         if(serialInterface==null)
         {
-            serialInterface = SerialInterface_BT.getInstance();
+            serialInterface = SerialInterface_BT.getInstance(context);
             serialInterface.init(context);
         }
 

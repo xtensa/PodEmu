@@ -19,6 +19,7 @@
 
 package com.rp.podemu;
 
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -62,12 +63,15 @@ public class MainActivity extends AppCompatActivity
 
 
     private String ctrlAppProcessName;
+    private boolean bluetoothEnabled;
     private int autoSwitchToApp;
     private Intent serviceIntent;
     private SerialInterfaceBuilder serialInterfaceBuilder;
     private PodEmuIntentFilter iF;
     private PodEmuService podEmuService;
     private boolean serviceBound = false;
+    private int REQUEST_ENABLE_BT = 176;
+    private boolean btRequestFailed = false;
     public PodEmuMessage currentlyPlaying=new PodEmuMessage();
 
     private boolean isBtOn = true;
@@ -279,9 +283,9 @@ public class MainActivity extends AppCompatActivity
 
 
                 if(action.contains(BluetoothDevice.ACTION_ACL_CONNECTED)
-                        && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName() == SerialInterface_BT.APP_NAME))
+                        && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName() == SerialInterface_BT.getInstance().getName()))
                 {
-                    PodEmuLog.debug("PES: Bluetooth device '" + SerialInterface_BT.APP_NAME + "' connected.");
+                    PodEmuLog.debug("PES: Bluetooth device '" + SerialInterface_BT.getInstance().getName() + "' connected.");
                     start_service(null);
                 }
                 else
@@ -318,6 +322,7 @@ public class MainActivity extends AppCompatActivity
             SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
             ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
             autoSwitchToApp = sharedPref.getInt("autoSwitchToApp", 0);
+            bluetoothEnabled=(sharedPref.getInt("bluetoothEnabled", 0)!=0);
             String enableDebug = sharedPref.getString("enableDebug", "false");
             Boolean ctrlAppUpdated = sharedPref.getBoolean("ControlledAppUpdated", false);
             Boolean playlistCountModeUpdated=sharedPref.getBoolean("PlaylistCountModeUpdated", false);
@@ -346,7 +351,7 @@ public class MainActivity extends AppCompatActivity
 
             if (podEmuService != null)
             {
-                podEmuService.reloadBaudRate();
+                podEmuService.reloadSettings();
                 podEmuService.setForceSimpleMode(forceSimpleMode);
             }
 
@@ -424,7 +429,10 @@ public class MainActivity extends AppCompatActivity
         try
         {
             loadPreferences();
-            start_service(null);
+            if( bluetoothEnabled )
+            {
+                start_service(null);
+            }
 
             iF = new PodEmuIntentFilter();
             iF.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
@@ -442,6 +450,36 @@ public class MainActivity extends AppCompatActivity
             throw e;
         }
 
+        if ( bluetoothEnabled && !btRequestFailed)
+        {
+            BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
+            if (bt == null)
+            {
+                //Does not support Bluetooth
+                PodEmuLog.debug("MA: bluetooth is not supported.");
+            }
+            else
+                {
+                    if (!bt.isEnabled())
+                    {
+
+                        Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                        startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
+                    }
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+        if (requestCode == REQUEST_ENABLE_BT)
+        {
+            if (resultCode != RESULT_OK)
+            {
+                btRequestFailed = true;
+            }
+        }
     }
 
 

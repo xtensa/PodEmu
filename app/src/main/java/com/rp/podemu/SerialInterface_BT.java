@@ -26,6 +26,7 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Message;
 
@@ -42,11 +43,13 @@ import java.util.UUID;
 public class SerialInterface_BT implements SerialInterface
 {
     private BluetoothDevice btDevice;
-    private Context baseContext;
+    private static Context baseContext;
     private Activity baseActivity;
+    private static SharedPreferences sharedPref;
 
-    public final static String APP_NAME = "PodEmuBT";
-    public final UUID APP_UUID=UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+
+    public final static String BTDEV_NAME_DEFAULT = "BT device not set";
+    public final UUID BTDEV_UUID=UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private static final int REQUEST_DISCOVERABLE_BT = 0x1e;
     private static final int BUFFER_SIZE = 1024;
 
@@ -60,7 +63,7 @@ public class SerialInterface_BT implements SerialInterface
 
     private final BluetoothServerSocket btServerSocket;
     private final BluetoothAdapter btAdapter;
-    private BluetoothSocket btSocket;
+    //private BluetoothSocket btSocket;
     private int btState;
     private Handler mHandler = null;
 
@@ -70,6 +73,13 @@ public class SerialInterface_BT implements SerialInterface
 
     private boolean isBtAskingDiscoverability = false;
     private static SerialInterface_BT serialInterfaceBTInstance = null;
+
+    public static synchronized SerialInterface_BT getInstance(Context context)
+    {
+        baseContext = context;
+        sharedPref = baseContext.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+        return getInstance();
+    }
 
     public static synchronized SerialInterface_BT getInstance()
     {
@@ -115,11 +125,15 @@ public class SerialInterface_BT implements SerialInterface
         {
             // Device does not support Bluetooth
             PodEmuLog.debug("SIBT: device does not support Bluetooth.");
+            btServerSocket = null;
+            return;
         }
         if (!btAdapter.isEnabled())
         {
             // Bluetooth is still disabled :(
             PodEmuLog.debug("SIBT: Bluetooth is disabled. Not trying to turn it on though...");
+            btServerSocket = null;
+            return;
         }
 
         // Use a temporary object that is later assigned to mmServerSocket
@@ -128,7 +142,7 @@ public class SerialInterface_BT implements SerialInterface
         try
         {
             // MY_UUID is the app's UUID string, also used by the client code.
-            tmp = btAdapter.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID);
+            tmp = btAdapter.listenUsingRfcommWithServiceRecord(getName(), BTDEV_UUID);
         }
         catch (IOException e)
         {
@@ -144,6 +158,7 @@ public class SerialInterface_BT implements SerialInterface
     {
         boolean podEmuBTFound = false;
         baseContext = context;
+        sharedPref = baseContext.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
 
         if(context instanceof MainActivity)
         {
@@ -194,7 +209,7 @@ public class SerialInterface_BT implements SerialInterface
 
                 PodEmuLog.verbose("SIBT: paired device found: " + deviceName + " (" + deviceHardwareAddress + ")");
 
-                if(deviceName.equals(APP_NAME))
+                if(deviceName.equals(getName()))
                 {
                     podEmuBTFound = true;
                     btDevice = device;
@@ -256,7 +271,8 @@ public class SerialInterface_BT implements SerialInterface
 
     public String getName()
     {
-        return APP_NAME;
+        String bluetoothDeviceName=sharedPref.getString("bluetoothDeviceName", SerialInterface_BT.BTDEV_NAME_DEFAULT);
+        return bluetoothDeviceName;
     }
 
     public int getVID()
@@ -314,6 +330,12 @@ public class SerialInterface_BT implements SerialInterface
         setState(STATE_NONE);
     }
 
+    public void restart()
+    {
+        close();
+        init(baseContext);
+    }
+
     /**
      * Set the current state of the chat connection
      * @param state  An integer defining the current connection state
@@ -335,6 +357,7 @@ public class SerialInterface_BT implements SerialInterface
 
         //if(!btAdapter.isEnabled() )// ||
         //        ((statusBT != STATUS_DISCOVERABLE) && (statusBT != STATUS_CONNECTED)))
+        if(btAdapter!=null && btAdapter.isEnabled())
         {
             PodEmuLog.debug("SIBT: Bluetooth adapter is enabled");
             if(btAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE)
@@ -577,7 +600,7 @@ public class SerialInterface_BT implements SerialInterface
             // given BluetoothDevice
             try
             {
-                tmp = device.createRfcommSocketToServiceRecord(APP_UUID);
+                tmp = device.createRfcommSocketToServiceRecord(BTDEV_UUID);
             }
             catch (IOException e)
             {

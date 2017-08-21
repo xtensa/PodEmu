@@ -27,6 +27,7 @@
     <string name="title_activity_license">PodEmu License</string>
     <string name="title_activity_credits">PodEmu Credits</string>
     <string name="dialog_select_controlled_app">Select Application</string>
+    <string name="dialog_select_bluetooth_device">Select Bluetooth Device</string>
     <string name="dialog_playlist_count_mode">Select Playlist Size Mode</string>
     <string name="serial_status_hint">Please connect one of the following serial adapters: PL2303, CP21xx, FT232 or FT312.</string>
     <string name="enable_debug_hint">This option will enable collecting debug information. You can later review it by yourself or send to the developer.</string>
@@ -80,5 +81,7 @@ http://www.clipartpanda.com/categories/animated-question-mark-for-powerpoint
 
     </string>
     <string name="switchToAppHint">Check if PodEmu should automatically switch to controlled app when cable is connected.</string>
-    <string name="forceSimpleModeHint">In this mode track titles will not be displayed on docking station or car display. Howerver, song navigation might work better. This setting will take effect only after service restart or cable reconnect.</string>
+    <string name="forceSimpleModeHint">In this mode track titles will not be displayed on docking station or car display. However, song navigation might work better. This setting will take effect only after service restart or cable reconnect.</string>
+    <string name="bluetoothEnableHint">Disable this option if you are not using Bluetooth module. If enabled, application will automatically try to connect with selected SPP bluetooth module after it starts.s</string>
+    <string name="bluetoothDeviceHint">Select bluetooth device which will be used by PodEmu. Device should support serial communication protocol (SPP). Only paired devices are shown on this list. If your device is not listed please go to phone BT settings and pair your device. After device is paired it will appear on the list.</string>
 </resources>

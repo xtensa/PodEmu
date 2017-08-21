@@ -102,7 +102,7 @@
 
     </application>
 
-    <uses-sdk android:minSdkVersion="12"  android:targetSdkVersion="25" />
+    <uses-sdk android:minSdkVersion="15"  android:targetSdkVersion="25" />
     <uses-feature android:name="android.hardware.usb.host" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.BLUETOOTH" />

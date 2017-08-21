@@ -22,7 +22,6 @@ package com.rp.podemu;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -61,10 +60,11 @@ public class PodEmuService extends Service
     public boolean isAppLaunched=false;
     private static String baudRate;
     private static int forceSimpleMode;
+    private static boolean bluetoothEnabled;
 
     // timeout after which interface will be closed if not connected (ms)
-    public final static int TIMEOUT = 5000;
-    private long serviceStartTime;
+    public final static int BT_CONNECT_TIMEOUT = 1000;
+    private long markerTime;
 
 
 
@@ -176,11 +176,12 @@ public class PodEmuService extends Service
         return true;
     }
 
-    public void reloadBaudRate()
+    public void reloadSettings()
     {
         SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
         baudRate = sharedPref.getString("BaudRate", "57600");
-        forceSimpleMode=(sharedPref.getInt("ForceSimpleMode", 0));
+        forceSimpleMode = (sharedPref.getInt("ForceSimpleMode", 0));
+        bluetoothEnabled = (sharedPref.getInt("bluetoothEnabled", 0)!=0);
     }
 
     @Override
@@ -194,7 +195,7 @@ public class PodEmuService extends Service
                 return Service.START_STICKY;
             }
 
-            reloadBaudRate();
+            reloadSettings();
 
 // Creates an explicit intent for an Activity in your app
             Intent resultIntent = new Intent(this, MainActivity.class);
@@ -291,7 +292,7 @@ public class PodEmuService extends Service
                                         {
                                             numBytesRead = serialInterface.read(buffer);
                                         }
-                                        catch(NullPointerException e)
+                                        catch(Exception e)
                                         {
                                             PodEmuLog.error("PES: read() attempt while serial interface is not connected. Cable suddenly disconnected?");
                                             numBytesRead = 0;
@@ -437,13 +438,19 @@ public class PodEmuService extends Service
                                 }
                                 oapMessenger.flush();
 
-                                long currTimeMillis=System.currentTimeMillis();
-                                if (        serialInterface != null
-                                        && !serialInterface.isConnected()
-                                        && currTimeMillis-serviceStartTime > TIMEOUT)
+                                if ( bluetoothEnabled && serialInterface instanceof SerialInterface_BT )
                                 {
-                                    PodEmuLog.debug("PES: waited too long for interface to connect. Stopping service.");
-                                    closeServiceGracefully();
+                                    long currTimeMillis = System.currentTimeMillis();
+                                    SerialInterface_BT ifBT = (SerialInterface_BT) serialInterface;
+
+                                    if (ifBT != null
+                                            && !ifBT.isConnected()
+                                            && currTimeMillis - markerTime > BT_CONNECT_TIMEOUT)
+                                    {
+                                        PodEmuLog.debug("PES: waited too long for BT interface to connect (" + BT_CONNECT_TIMEOUT + " ms.). Resetting BT interface.");
+                                        markerTime = System.currentTimeMillis();
+                                        ifBT.restart();
+                                    }
                                 }
 
                                 if (numBytesRead == 0)
@@ -489,7 +496,7 @@ public class PodEmuService extends Service
 
         try
         {
-            serviceStartTime=System.currentTimeMillis();
+            markerTime=System.currentTimeMillis();
             serialInterfaceBuilder=new SerialInterfaceBuilder();
 
             //SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
@@ -500,7 +507,7 @@ public class PodEmuService extends Service
             //iF.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
             iF.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
             registerReceiver(mReceiver, iF);
-            reloadBaudRate();
+            reloadSettings();
         }
         catch(Exception e)
         {
@@ -594,7 +601,7 @@ public class PodEmuService extends Service
                 if (action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
                         || action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
                         || (action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-                            && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName().equals(SerialInterface_BT.APP_NAME)) )
+                            && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName().equals(SerialInterface_BT.getInstance().getName())) )
                    )
                 {
                     closeServiceGracefully();
