@@ -295,7 +295,7 @@ public class PodEmuService extends Service
                                         catch(Exception e)
                                         {
                                             PodEmuLog.error("PES: read() attempt while serial interface is not connected. Cable suddenly disconnected?");
-                                            numBytesRead = 0;
+                                            numBytesRead = -1;
                                         }
 
                                         if (numBytesRead <= 0) break;
@@ -595,7 +595,7 @@ public class PodEmuService extends Service
                 PodEmuLog.debug("PES: (S) Broadcast received: " + cmd + " - " + action);
                 if(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) instanceof  BluetoothDevice)
                 {
-                    PodEmuLog.debug("SIBT: BT device disconnected: " + ((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
+                    PodEmuLog.debug("PES: BT device disconnected: " + ((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
                 }
 
                 if (action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
@@ -604,8 +604,8 @@ public class PodEmuService extends Service
                             && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName().equals(SerialInterface_BT.getInstance().getName())) )
                    )
                 {
+                    PodEmuLog.debug("PES: PodEmu serial interface disconnected. Initiating closing service.");
                     closeServiceGracefully();
-
                 }
                 else
                 {
