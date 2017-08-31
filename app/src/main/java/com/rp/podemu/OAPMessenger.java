@@ -2163,7 +2163,16 @@ public class OAPMessenger
         oap_print_podmsg(msg, false, false);
 
         SerialInterfaceBuilder serialInterfaceBuilder=new SerialInterfaceBuilder();
-        serialInterfaceBuilder.getSerialInterface().write(msg, len + 5);
+        SerialInterface serialInterface = serialInterfaceBuilder.getSerialInterface();
+
+        if (serialInterface != null)
+        {
+            serialInterface.write(msg, len + 5);
+        }
+        else
+        {
+            PodEmuLog.error("OAPM: attempt to write while serial interface is not connected");
+        }
     }
 
     /**

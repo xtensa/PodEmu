@@ -22,6 +22,7 @@ package com.rp.podemu;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -59,6 +60,11 @@ public class PodEmuService extends Service
     public boolean isAppLaunched=false;
     private static String baudRate;
     private static int forceSimpleMode;
+    private static boolean bluetoothEnabled;
+
+    // timeout after which interface will be closed if not connected (ms)
+    public final static int BT_CONNECT_TIMEOUT = 1000;
+    private long markerTime;
 
 
 
@@ -122,6 +128,17 @@ public class PodEmuService extends Service
     {
         this.mHandler=handler;
         oapMessenger.setHandler(handler);
+
+        if( serialInterface != null)
+        {
+            serialInterface.setHandler(handler);
+        }
+        else
+        {
+            PodEmuLog.error("PES: sth went wrong, probably random cable disconnection. Destroying service.");
+            serialInterfaceBuilder.detach();
+            stopSelf();
+        }
     }
 
     void setMediaEngine()
@@ -159,11 +176,12 @@ public class PodEmuService extends Service
         return true;
     }
 
-    public void reloadBaudRate()
+    public void reloadSettings()
     {
         SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
         baudRate = sharedPref.getString("BaudRate", "57600");
-        forceSimpleMode=(sharedPref.getInt("ForceSimpleMode", 0));
+        forceSimpleMode = (sharedPref.getInt("ForceSimpleMode", 0));
+        bluetoothEnabled = (sharedPref.getInt("bluetoothEnabled", 0)!=0);
     }
 
     @Override
@@ -177,7 +195,7 @@ public class PodEmuService extends Service
                 return Service.START_STICKY;
             }
 
-            reloadBaudRate();
+            reloadSettings();
 
 // Creates an explicit intent for an Activity in your app
             Intent resultIntent = new Intent(this, MainActivity.class);
@@ -221,7 +239,7 @@ public class PodEmuService extends Service
                             if(serialInterface == null)
                             {
                                 PodEmuLog.debug("PES: buffer thread started before serial interface initialization. Trying to reinitialize.");
-                                serialInterface=serialInterfaceBuilder.getSerialInterface((UsbManager) getSystemService(Context.USB_SERVICE));
+                                serialInterface=serialInterfaceBuilder.getSerialInterface( getBaseContext() );
                                 if(serialInterface != null)
                                 {
                                     PodEmuLog.debug("PES: reinitialization successfull.");
@@ -241,7 +259,7 @@ public class PodEmuService extends Service
                             // size (due to android bug 28023), therefore we need to set
                             // expected buffer size equal to internal buffer size of the device
                             byte buffer[] = new byte[serialInterface.getReadBufferSize()];
-                            PodEmuLog.debug("PES: Buffer thread started.");
+                            PodEmuLog.debug("PES: buffer thread started.");
 
                             serialInterface.setBaudRate(Integer.parseInt(baudRate));
                             oapMessenger.setForceSimpleMode(forceSimpleMode);
@@ -254,7 +272,7 @@ public class PodEmuService extends Service
                             {
                                 try
                                 {
-                                    if (numBytesRead<0 || !serialInterface.isConnected())
+                                    if ( !(serialInterface instanceof SerialInterface_BT) && ( numBytesRead<0 || !serialInterface.isConnected() ) )
                                     {
                                         PodEmuLog.error("PES: Read attempt nr " + failedReadCount + " when interface is disconnected");
                                         Thread.sleep(100);
@@ -266,15 +284,29 @@ public class PodEmuService extends Service
                                         }
                                     }
 
+
                                     // Reading incoming data
-                                    while ((numBytesRead = serialInterface.read(buffer)) > 0)
+                                    while (true)
                                     {
+                                        try
+                                        {
+                                            numBytesRead = serialInterface.read(buffer);
+                                        }
+                                        catch(Exception e)
+                                        {
+                                            PodEmuLog.error("PES: read() attempt while serial interface is not connected. Cable suddenly disconnected?");
+                                            numBytesRead = -1;
+                                        }
+
+                                        if (numBytesRead <= 0) break;
+
                                         //PodEmuLog.debug("RECEIVED BYTES: " + numBytesRead);
                                         for (int j = 0; j < numBytesRead; j++)
                                         {
                                             inputBuffer.add(buffer[j]);
                                         }
                                     }
+
                                     if (numBytesRead == 0)
                                     {
                                         Thread.sleep(10);
@@ -406,15 +438,32 @@ public class PodEmuService extends Service
                                 }
                                 oapMessenger.flush();
 
+                                if ( bluetoothEnabled && serialInterface instanceof SerialInterface_BT )
+                                {
+                                    long currTimeMillis = System.currentTimeMillis();
+                                    SerialInterface_BT ifBT = (SerialInterface_BT) serialInterface;
+
+                                    if (ifBT != null
+                                            && !ifBT.isConnected()
+                                            && currTimeMillis - markerTime > BT_CONNECT_TIMEOUT)
+                                    {
+                                        PodEmuLog.debug("PES: waited too long for BT interface to connect (" + BT_CONNECT_TIMEOUT + " ms.). Resetting BT interface.");
+                                        markerTime = System.currentTimeMillis();
+                                        ifBT.restart();
+                                    }
+                                }
+
                                 if (numBytesRead == 0)
                                 {
                                     Thread.sleep(10);
                                 }
                             }
-                        } catch (InterruptedException e)
+                        }
+                        catch (InterruptedException e)
                         {
                             PodEmuLog.debug("PES: Background processing thread interrupted!");
-                        } catch (Exception e)
+                        }
+                        catch (Exception e)
                         {
                             PodEmuLog.printStackTrace(e);
                             throw e;
@@ -447,6 +496,7 @@ public class PodEmuService extends Service
 
         try
         {
+            markerTime=System.currentTimeMillis();
             serialInterfaceBuilder=new SerialInterfaceBuilder();
 
             //SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
@@ -454,8 +504,10 @@ public class PodEmuService extends Service
             iF = new PodEmuIntentFilter();
             iF.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
             iF.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
+            //iF.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
+            iF.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
             registerReceiver(mReceiver, iF);
-            reloadBaudRate();
+            reloadSettings();
         }
         catch(Exception e)
         {
@@ -488,7 +540,7 @@ public class PodEmuService extends Service
             }
 
             serialInterfaceBuilder.detach();
-            if(serialInterface!=null) serialInterface.close();
+            serialInterface = null;
 
             PodEmuLog.debug("PES: Service destroyed");
         }
@@ -502,6 +554,25 @@ public class PodEmuService extends Service
     public PodEmuMessage getCurrentlyPlaying()
     {
         return MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrack().toPodEmuMessage();
+    }
+
+    private void closeServiceGracefully()
+    {
+        MediaPlayback mediaPlaybackInstance=MediaPlayback.getInstance();
+        serialInterfaceBuilder.detach();
+
+        Message message = mHandler.obtainMessage(0);
+        message.arg1 = 2; // indicate ipod dock connection status changed
+        message.arg2 = OAPMessenger.IPOD_MODE_DISCONNECTED;
+        mHandler.sendMessage(message);
+
+        message = mHandler.obtainMessage(0);
+        message.arg1 = 3; // indicate serial connection status changed
+        mHandler.sendMessage(message);
+
+        mediaPlaybackInstance.action_stop();
+
+        stopSelf();
     }
 
 
@@ -522,25 +593,19 @@ public class PodEmuService extends Service
                 }
 
                 PodEmuLog.debug("PES: (S) Broadcast received: " + cmd + " - " + action);
+                if(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) instanceof  BluetoothDevice)
+                {
+                    PodEmuLog.debug("PES: BT device disconnected: " + ((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
+                }
 
                 if (action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
-                        || action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED))
+                        || action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
+                        || (action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+                            && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName().equals(SerialInterface_BT.getInstance().getName())) )
+                   )
                 {
-                    serialInterfaceBuilder.detach();
-                    serialInterface.close();
-
-                    Message message = mHandler.obtainMessage(0);
-                    message.arg1 = 2; // indicate ipod dock connection status changed
-                    message.arg2 = OAPMessenger.IPOD_MODE_DISCONNECTED;
-                    mHandler.sendMessage(message);
-
-                    message = mHandler.obtainMessage(0);
-                    message.arg1 = 3; // indicate serial connection status changed
-                    mHandler.sendMessage(message);
-
-                    mediaPlaybackInstance.action_stop();
-
-                    stopSelf();
+                    PodEmuLog.debug("PES: PodEmu serial interface disconnected. Initiating closing service.");
+                    closeServiceGracefully();
                 }
                 else
                 {

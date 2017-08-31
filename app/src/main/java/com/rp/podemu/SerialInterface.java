@@ -19,12 +19,16 @@
 
 package com.rp.podemu;
 
-import android.hardware.usb.UsbManager;
+//import android.hardware.usb.UsbManager;
 
+
+import android.content.Context;
+import android.os.Handler;
 
 public interface SerialInterface
 {
-    boolean init(UsbManager manager);
+//    boolean init(UsbManager manager);
+    boolean init(Context context);
 
     int write(byte[] buffer, int numBytes);
 
@@ -36,6 +40,8 @@ public interface SerialInterface
 
     int getVID();
     int getPID();
+
+    void setHandler(Handler handler);
 
     void setBaudRate(int rate);
     int getBaudRate();

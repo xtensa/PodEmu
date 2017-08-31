@@ -22,6 +22,8 @@ package com.rp.podemu;
 //import android.support.v4.app.FragmentManager;
 
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -47,24 +49,26 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.jar.Manifest;
 
 
 
 public class SettingsActivity extends AppCompatActivity
             implements  ControlledAppDialogFragment.ControlledAppDialogListener,
                         PlaylistCountDialogFragment.PlaylistCountDialogListener,
-                        BaudRateDialogFragment.BaudRateDialogListener
+                        BaudRateDialogFragment.BaudRateDialogListener,
+                        BluetoothDeviceDialogFragment.BluetoothDeviceDialogListener
 {
 
     private ArrayList<ApplicationInfo> appInfos = new ArrayList<>(0);
     private ArrayList<Integer> baudRateList = new ArrayList<>(0);
+    private ArrayList<BluetoothDevice> btDevices = new ArrayList<>(0);
+
 
     private PodEmuLog podEmuLog;
 
     private boolean enableListCountSelection = false;
 
-    SharedPreferences sharedPref;
+    private SharedPreferences sharedPref;
 
 /*
     private saveSettings()
@@ -92,6 +96,27 @@ public class SettingsActivity extends AppCompatActivity
         setCtrlApplicationInfo();
 
         PodEmuLog.debug("Selected app: " + appInfos.get(which).packageName);
+
+    }
+
+    // The dialog fragment receives a reference to this Activity through the
+    // Fragment.onAttach() callback, which it uses to call the following methods
+    // defined by the NoticeDialogFragment.NoticeDialogListener interface
+    @Override
+    public void onBluetoothDeviceSelected(DialogInterface dialog, int which)
+    {
+        //saving to shared preferences
+        SharedPreferences.Editor editor = sharedPref.edit();
+        String oldBluetoothDevice=sharedPref.getString("bluetoothDeviceName", SerialInterface_BT.BTDEV_NAME_DEFAULT);
+        Boolean bluetoothDeviceUpdated=sharedPref.getBoolean("bluetoothDeviceUpdated", false);
+        editor.putString("bluetoothDeviceName", btDevices.get(which).getName());
+        editor.putBoolean("bluetoothDeviceUpdated",!oldBluetoothDevice.equals(btDevices.get(which).getName()) || bluetoothDeviceUpdated);
+        editor.apply();
+
+        // loading information to the activity
+        setBluetoothDevInfo();
+
+        PodEmuLog.debug("Selected BT device: " + btDevices.get(which).getName());
 
     }
 
@@ -166,7 +191,7 @@ public class SettingsActivity extends AppCompatActivity
         //using hashset so that there will be no duplicate packages,
         //if no duplicate packages then there will be no duplicate apps
         HashSet<String> packageNames = new HashSet<String>(0);
-        appInfos = new ArrayList<ApplicationInfo>(0);
+        appInfos = new ArrayList<>(0);
 
         //getting package names and adding them to the hashset
         for (ResolveInfo resolveInfo : packages)
@@ -254,7 +279,28 @@ public class SettingsActivity extends AppCompatActivity
         // For details see: https://stackoverflow.com/questions/38200282/android-os-fileuriexposedexception-file-storage-emulated-0-test-txt-exposed
         StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
         StrictMode.setVmPolicy(builder.build());
-        
+
+        // initializing BT device list
+        BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        if (btAdapter == null)
+        {
+            // Device does not support Bluetooth
+            PodEmuLog.debug("SA: device does not support Bluetooth.");
+        }
+        /*
+        else if (!btAdapter.isEnabled())
+        {
+            // Bluetooth is still disabled :(
+            PodEmuLog.debug("SA: Bluetooth is disabled. Not trying to turn it on though...");
+        }
+        */
+        else
+        {
+            btDevices = new ArrayList<>(btAdapter.getBondedDevices());
+            PodEmuLog.debug("SA: bluetooth present. Found devices: " + btDevices);
+        }
+
     }
 
     @Override
@@ -263,10 +309,12 @@ public class SettingsActivity extends AppCompatActivity
         super.onResume();
         PodEmuLog.initialize(getApplicationContext());
         setCtrlApplicationInfo();
+        setBluetoothDevInfo();
         setPlaylistCountModeInfo();
         setBaudRateInfo();
         setDebugInfo();
         setToggleForceSimpleMode();
+        setToggleBluetoothEnabled();
         setAutoSwitchToApp();
 
         if( !enableListCountSelection )
@@ -302,6 +350,15 @@ public class SettingsActivity extends AppCompatActivity
     }
 
 
+    private void setBluetoothDevInfo()
+    {
+        String btdevName = sharedPref.getString("bluetoothDeviceName", SerialInterface_BT.BTDEV_NAME_DEFAULT);
+        TextView textView = (TextView) findViewById(R.id.bluetoothDeviceName);
+        textView.setText("BT device: " + btdevName);
+
+    }
+
+
     private void setPlaylistCountModeInfo()
     {
         int playlistCountMode = sharedPref.getInt("PlaylistCountMode", PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT);
@@ -330,17 +387,45 @@ public class SettingsActivity extends AppCompatActivity
     public void selectCtrlApp(View v)
     {
         ControlledAppDialogFragment ctrlAppDialog = new ControlledAppDialogFragment();
-        ctrlAppDialog.setApplicationInfos(appInfos, appInfos.size());
-        ctrlAppDialog.show(getSupportFragmentManager(), "new_tag");
+        ctrlAppDialog.setApplicationInfos(appInfos);
+        ctrlAppDialog.show(getSupportFragmentManager(), "ctrlapp_tag");
 
     }
 
     public void selectPlaylistCountMode(View v)
     {
         PlaylistCountDialogFragment playlistCountDialogFragment = new PlaylistCountDialogFragment();
-        playlistCountDialogFragment.show(getSupportFragmentManager(), "new_tag");
+        playlistCountDialogFragment.show(getSupportFragmentManager(), "cntmode_tag");
 
     }
+
+    public void selectBluetoothDevice(View v)
+    {
+        BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        if( btAdapter != null && btAdapter.isEnabled() && btDevices.size() > 0 )
+        {
+            BluetoothDeviceDialogFragment bluetoothDeviceDialog = new BluetoothDeviceDialogFragment();
+            bluetoothDeviceDialog.setBluetoothDevices(btDevices);
+            bluetoothDeviceDialog.show(getSupportFragmentManager(), "bt_tag");
+        }
+        else
+        {
+            new AlertDialog.Builder(this)
+                    .setTitle("Warning")
+                    .setMessage("No paired devices found or bluetooth is disabled. Please go to bluetooth settings and pair device first. Please also ensure that bluetooth is enabled.")
+                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener()
+                    {
+                        public void onClick(DialogInterface dialog, int which)
+                        {
+                            // continue with action
+                        }
+                    })
+                    .setIcon(android.R.drawable.ic_dialog_info)
+                    .show();
+        }
+    }
+
 
     public void toggleForceSimpleMode(View v)
     {
@@ -356,6 +441,22 @@ public class SettingsActivity extends AppCompatActivity
 
 
         PodEmuLog.debug("PESA: forceSimpleMode switched to: " + forceSimpleMode);
+    }
+
+    public void toggleBluetoothEnabled(View v)
+    {
+
+        //saving to shared preferences
+        SharedPreferences.Editor editor = sharedPref.edit();
+        int bluetoothEnabled=(sharedPref.getInt("bluetoothEnabled", 0)==0?1:0);
+        editor.putInt("bluetoothEnabled", bluetoothEnabled);
+        editor.apply();
+
+        // loading information to the activity
+        setToggleBluetoothEnabled();
+
+
+        PodEmuLog.debug("PESA: bluetoothEnabled switched to: " + bluetoothEnabled);
     }
 
     public void toggleAutoSwitchToApp(View v)
@@ -568,7 +669,7 @@ public class SettingsActivity extends AppCompatActivity
                     public void onClick(DialogInterface dialog, int which)
                     {
                         // continue with erasing
-                        PodEmuLog.eraseDebug();
+                        PodEmuLog.eraseDebugFile();
                     }
                 })
                 .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
@@ -634,6 +735,23 @@ public class SettingsActivity extends AppCompatActivity
             if ( enableListCountSelection ) layout.setVisibility(View.VISIBLE);
         }
     }
+
+    private void setToggleBluetoothEnabled()
+    {
+        int bluetoothEnabled = sharedPref.getInt("bluetoothEnabled", 0);
+        CheckedTextView toggleBluetoothEnabledView = (CheckedTextView) findViewById(R.id.bluetoothEnableHint);
+
+        if( bluetoothEnabled == 1 )
+        {
+            toggleBluetoothEnabledView.setChecked(true);
+        }
+        else
+        {
+            toggleBluetoothEnabledView.setChecked(false);
+        }
+    }
+
+
     private void setAutoSwitchToApp()
     {
         int autoSwitchToApp = sharedPref.getInt("autoSwitchToApp", 0);

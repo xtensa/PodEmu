@@ -129,7 +129,7 @@ public class PodEmuLog
         }
     }
 
-    public static void eraseDebug()
+    public static void eraseDebugFile()
     {
         if( !checkPermissions() ) return;
 

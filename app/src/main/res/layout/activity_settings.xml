@@ -35,7 +35,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:stackFromBottom="true"
-        android:transcriptMode="alwaysScroll">
+        android:transcriptMode="alwaysScroll"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_marginBottom="20dp">
 
         <RelativeLayout
             android:layout_width="wrap_content"
@@ -146,12 +150,116 @@
 
             </RelativeLayout>
 
+
+            <!-- Bluetooth  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+            <RelativeLayout
+                android:id="@+id/bluetoothEnableLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/switchToAppLayout"
+                android:onClick="toggleBluetoothEnabled"
+                android:layout_marginTop="7dp">
+
+
+                <TextView android:text="Bluetooth"
+                          android:id="@+id/bluetoothEnableTitle"
+                          android:layout_width="fill_parent"
+                          android:layout_height="wrap_content"
+                          android:clickable="true"
+                          android:padding="4dp"
+                          android:textColor="@color/settingsItemTitle"
+
+                          android:layout_alignParentTop="true"
+                          android:layout_alignParentLeft="true"
+                          android:layout_alignParentStart="true" />
+
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/bluetoothEnableIcon"
+                    android:layout_below="@id/bluetoothEnableTitle"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_signal"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/bluetoothEnableName"
+                    android:layout_toRightOf="@id/bluetoothEnableIcon"
+                    android:layout_below="@id/bluetoothEnableTitle"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Enable Bluetooth"/>
+
+                <CheckedTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/bluetoothEnableHint"
+                    android:layout_toRightOf="@id/bluetoothEnableIcon"
+                    android:layout_below="@id/bluetoothEnableName"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/bluetoothEnableHint"
+                    android:checkMark="?android:attr/listChoiceIndicatorMultiple"
+                    />
+
+            </RelativeLayout>
+
+
+            <!-- Bluetooth Device  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+            <RelativeLayout
+                android:id="@+id/bluetoothDeviceLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/bluetoothEnableLayout"
+                android:onClick="selectBluetoothDevice">
+
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/bluetoothDeviceIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_bluetooth"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/bluetoothDeviceName"
+                    android:layout_toRightOf="@id/bluetoothDeviceIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="[please select BT device]"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/bluetoothDeviceHint"
+                    android:layout_below="@id/bluetoothDeviceName"
+                    android:layout_toRightOf="@id/bluetoothDeviceIcon"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/bluetoothDeviceHint"/>
+
+            </RelativeLayout>
+
+
             <!-- Force Simple Mode  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
             <RelativeLayout
                 android:id="@+id/forceSimpleModeLayout"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/switchToAppLayout"
+                android:layout_below="@id/bluetoothDeviceLayout"
                 android:onClick="toggleForceSimpleMode"
                 android:layout_marginTop="7dp">
 

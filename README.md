@@ -4,7 +4,7 @@ PodEmu is Android application that allows you to connect your Android device to 
 
 This application is very similar to PodMode application that already [exists out there](http://forum.xda-developers.com/showthread.php?t=2220108). So why build new application? There are 3 (well, maybe 4) simple reasons:
  1. PodMode didn't work with my car
- 2. PodMode is not open source (so I couldn't fix point 1)
+ 2. PodMode is not open source (so I couldn't fix point 1. At least source code was not available at the moment I started this project. Now PodMode author released the code)
  3. PodMode is not maintained anymore (so author wouldn't fix point 1)
  4. for fun... :)
 
@@ -27,6 +27,7 @@ PodEmu in action:
  - Download docking station color image to android device. Car audios usually have this feature.
  - wide variaty of serial devices are supported (see detailed list below).
  - easy to use debug information gathering. If for some reason you car is not supported it is not a problem - using 2 clicks gather all necessary debug information and send it to the developer.
+ - support for Bluetooth serial devices. You can assemble the dongle and connect your android completely wirelesly.
  - Entirely Open Source :) You can modify and redistribute as long as you comply with GPLv3.
  
 ## Screenshots
@@ -50,6 +51,11 @@ PodEmu in action:
 <td align="center"><img width="250" src="/screenshots/Screenshot_05.png?raw=true" /></td>
 <td align="center"><img width="250" src="/screenshots/Screenshot_06.png?raw=true" /></td>
 </tr>
+
+<tr>
+<td align="center"><img width="250" src="/screenshots/PodEmy%202.03%20BT.png?raw=true" /></td>
+</tr>
+
 </table>
 
 ## Supported serial interfaces (for DIY cable)
@@ -57,8 +63,9 @@ PodEmu in action:
  - FTDI: FT232R, FT231X, FT311D, FT312D
  - Prolific: PL2303
  - SiLabs: CP2102, CP2105, CP2108, CP2110
+ - Any Bluetooth device that supports SPP, eg.: HC-05, RN52, etc...
  
-PodEmu was tested with FT312D, PL2303, FT232R and CP2102. Other chips should also work (as claimed by driver developer), but were never tested with PodEmu. 
+PodEmu was tested with FT312D, PL2303, FT232R, CP2102 and HC-05. Other chips should also work (as claimed by driver developer), but were never tested with PodEmu. 
 
 
 ## Supported Music Application List
@@ -124,10 +131,25 @@ If you don't see your favourite app in the table above, don't worry, it still co
 
 ListSize and ListPosition information is very important to be able to see the total amount of songs in the playlist from the docking station and to be able to select random song from list and jump to it. Whenever this information is missing PodEmu will not know how many songs are in the the current playlist and will not support "jump to" command. In such case you will see one album, that contains just 3 songs and currently played song is always song nr 2.  Also remember, that even if ListSize information is provided (which is count of songs in the current playlist), PodEmu don't know track names "a priori". Therefore, first time you browse them from docking station, you will see titles like "Track XYZ" for all of them. However, once the song is played, it's title is remembered at given position. This list is flushed when total count of song is changed or application is restarted.
 
-## TODO
+## Bluetooth
 
- - Bluetooth support 
- - Support for more apps (if your app is not on the list or behaves weirdly, just drop me a message)
+Bluetooth setup was tested with HC-05 as serial interface device and XS3868 to stream audio. Connection diagram that was used is the following:
+<img width="500" src="/schematics/HC-05%20and%20XS3868.png?raw=true" />
+Important notes: 
+ - do not short audio ground (pin 2) with power ground (pins 15 and 16). If you do it, significant noise will appear.
+ - voltage is set to 3,6V and not to 3,3V. 3,6V is within acceptable range for both modules. However, XS3868 is designed to work with battery and if voltage is dropped below ~3,5V it produces audible warning.
+ - before using HC-05 it need to be configured. You need to change Baud Rate to 57600 (or whatever rate is required by your car/dock station)
+	AT+UART=57600,0,0
+For details about configuring HC-05 please refer to [this manual](https://www.itead.cc/wiki/Serial_Port_Bluetooth_Module_%28Master/Slave%29_%3A_HC-05)
+ - changing device name is not required, because you can choose the device from paired devices list from the application
+ - after BT module is configured, you need to manually pair with it. Once paired, start PodEmu, go to settings and select your device from the list of paired devices. Then PodEmu will connect automatically.
+ - serial interface cable has higher priority to connect, so if it is attached, BT will not connect. Detach the cable first and then restart the app.
+
+## Known glitches
+
+ - both bluetooth modules (HC-05 and XS3868) are getting randomly disconnected. This happened to me every 3 hours on average. Not sure where is the reason. I simply waited 10-15 seconds and modules were reconnected.
+ - volume level produced by XS3868 is low (around 60%) comparing to direct audio connection.
+ - sometimes application cannot connect to HC-05, even though it is paired. I noticed (maybe I am wrong) HC-05 is visible for other devices only for some period of time after power up and only during this time the connection could be established. Therefore reset switch was added to HC-05 to simplify the process, otherwise it was required to cycle the power for HC-05 every time the app was restarted.
 
 ## Credits
 
