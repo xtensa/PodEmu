@@ -53,7 +53,7 @@ PodEmu in action:
 </tr>
 
 <tr>
-<td align="center"><img width="250" src="/screenshots/PodEmy%202.03%20BT.png?raw=true" /></td>
+<td align="center"><img width="250" src="/screenshots/PodEmu%202.03%20BT.png?raw=true" /></td>
 </tr>
 
 </table>
