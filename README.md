@@ -137,7 +137,7 @@ Bluetooth setup was tested with HC-05 as serial interface device and XS3868 to s
 <img width="500" src="/schematics/HC-05%20and%20XS3868.png?raw=true" />
 Important notes: 
  - do not short audio ground (pin 2) with power ground (pins 15 and 16). If you do it, significant noise will appear.
- - voltage is set to 3,6V and not to 3,3V. 3,6V is within acceptable range for both modules. However, XS3868 is designed to work with battery and if voltage is dropped below ~3,5V it produces audible warning.
+ - voltage is set to 3,55V and not to 3,3V. 3.3V is normal operating voltage for HC-05, 3.6V is maximum for HC-05. However 3.6V should be minimum voltage for XS3868. When voltage drops below 3.5V, XS3868 will produce audible warnings. To avoid it, but to stay within HC-05 voltage limits it is recommended to set voltage between 3.5V and 3.6V. There are known cases when slight exceeding 3.6V burned HC-05.
  - before using HC-05 it need to be configured. You need to change Baud Rate to 57600 (or whatever rate is required by your car/dock station)
 	AT+UART=57600,0,0
 For details about configuring HC-05 please refer to [this manual](https://www.itead.cc/wiki/Serial_Port_Bluetooth_Module_%28Master/Slave%29_%3A_HC-05)
@@ -145,11 +145,10 @@ For details about configuring HC-05 please refer to [this manual](https://www.it
  - after BT module is configured, you need to manually pair with it. Once paired, start PodEmu, go to settings and select your device from the list of paired devices. Then PodEmu will connect automatically.
  - serial interface cable has higher priority to connect, so if it is attached, BT will not connect. Detach the cable first and then restart the app.
 
-## Known glitches
+## Known problems
 
- - both bluetooth modules (HC-05 and XS3868) are getting randomly disconnected. This happened to me every 3 hours on average. Not sure where is the reason. I simply waited 10-15 seconds and modules were reconnected.
  - volume level produced by XS3868 is low (around 60%) comparing to direct audio connection.
- - sometimes application cannot connect to HC-05, even though it is paired. I noticed (maybe I am wrong) HC-05 is visible for other devices only for some period of time after power up and only during this time the connection could be established. Therefore reset switch was added to HC-05 to simplify the process, otherwise it was required to cycle the power for HC-05 every time the app was restarted.
+
 
 ## Credits
 
