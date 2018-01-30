@@ -63,7 +63,7 @@ public class PodEmuService extends Service
     private static boolean bluetoothEnabled;
 
     // timeout after which interface will be closed if not connected (ms)
-    public final static int BT_CONNECT_TIMEOUT = 1000;
+    public final static int BT_CONNECT_TIMEOUT = 1500;
     private long markerTime;
 
 
@@ -272,12 +272,12 @@ public class PodEmuService extends Service
                             {
                                 try
                                 {
-                                    if ( !(serialInterface instanceof SerialInterface_BT) && ( numBytesRead<0 || !serialInterface.isConnected() ) )
+                                    if ( numBytesRead<0 || ( !(serialInterface instanceof SerialInterface_BT) && !serialInterface.isConnected() ) )
                                     {
                                         PodEmuLog.error("PES: Read attempt nr " + failedReadCount + " when interface is disconnected");
                                         Thread.sleep(100);
                                         failedReadCount++;
-                                        if (failedReadCount > 50) // 5 seconds
+                                        if (failedReadCount > 100) // 10 seconds
                                         {
                                             PodEmuLog.error("PES: Something wrong happen. Reading from serial interface constantly failing. Terminating service.");
                                             stopSelf();
@@ -598,13 +598,15 @@ public class PodEmuService extends Service
                     PodEmuLog.debug("PES: BT device disconnected: " + ((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
                 }
 
-                if (action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
+                if (   (   action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
                         || action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
-                        || (action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+                        || (action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)   )
                             && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName().equals(SerialInterface_BT.getInstance().getName())) )
                    )
                 {
                     PodEmuLog.debug("PES: PodEmu serial interface disconnected. Initiating closing service.");
+                    PodEmuLog.debug("PES: Connected BT device: " + SerialInterface_BT.getInstance().getName());
+                    PodEmuLog.debug("PES: Dropped BT device: " + ((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
                     closeServiceGracefully();
                 }
                 else

@@ -132,7 +132,7 @@ public class DockingLogoView extends View
     public void onDraw(Canvas canvas)
     {
         super.onDraw(canvas);
-        PodEmuLog.debug("onDraw");
+        //PodEmuLog.debug("onDraw");
 
         if(resizedBitmap!=null)
         {

@@ -202,7 +202,7 @@ public class MainActivity extends AppCompatActivity
             setContentView(R.layout.activity_main);
             // required to create logdir
             PodEmuLog.initialize(this);
-            PodEmuLog.printSystemInfo();
+            //PodEmuLog.printSystemInfo();
 
 
             // Make scroll view automatically scroll to the bottom
@@ -441,6 +441,8 @@ public class MainActivity extends AppCompatActivity
 //            iF.addDataAuthority(ctrlAppProcessName, null);
 
             registerReceiver(mReceiver, iF);
+
+            PodEmuLog.printSystemInfo();
 
             PodEmuLog.debug("MA: onResume done");
         }

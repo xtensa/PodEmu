@@ -308,7 +308,9 @@ public class OAPMessenger
             if (line_buf[line_cmd_len - 1] != checksum)
             {
                 PodEmuLog.error("OAPM: Line " + line + String.format(": ERROR: checksum error. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
-            } else
+                // if checksum is wrong iPOD should not respond with any command. Such message is simply treated as corrupted and is skipped.
+            }
+            else
             {
                 // Received message is OK. We cen process it and prepare the reply
                 PodEmuLog.verbose("OAPM: Line " + line + String.format(": Checksum OK. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
@@ -504,15 +506,15 @@ public class OAPMessenger
                     byte msg[] = new byte[3];
                     byte bl = line_buf[8 + pos_shift];
 
-                    // if bit 3 is set then accessory can communicate in Simple Mode
+                    // if bit 2 is set then accessory can communicate in Simple Mode
                     if ((bl & 0x04) == 0x04)
                     {
-                        ipod_mode = IPOD_MODE_AIR;
+                        ipod_mode = IPOD_MODE_SIMPLE;
                         PodEmuLog.debug("OAPM: accessory supports Simple Mode. Switching to Simple Mode.");
                     }
 
                     // if bit 4 is set then accessory can communicate in Extended Mode
-                    if ((bl & 0x08) == 0x08)
+                    if ((bl & 0x10) == 0x10)
                     {
                         if(forceSimpleMode == 1)
                         {

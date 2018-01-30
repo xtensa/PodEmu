@@ -117,7 +117,8 @@ public class PodEmuLog
         // Get the directory for the user's public pictures directory.
         logdir = new File(Environment.getExternalStorageDirectory(), dirname);
         PodEmuLog.log("Log dir: " + logdir.getPath());
-        if (!logdir.mkdirs()) {
+        if(!logdir.exists() && !logdir.mkdirs())
+        {
             log("Directory not created");
         }
         logfile = new File(logdir, filename);
@@ -204,6 +205,7 @@ public class PodEmuLog
     public static void printSystemInfo()
     {
         String uname;
+
         try
         {
             Process process = Runtime.getRuntime().exec("uname -a");
@@ -227,19 +229,44 @@ public class PodEmuLog
             version="NA";
         }
 
+        SharedPreferences sharedPref = context.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+        //SharedPreferences.Editor editor = sharedPref.edit();
+        String ctrlApp=sharedPref.getString("ControlledAppProcessName", "unknown app");
+        String processName = sharedPref.getString("ControlledAppProcessName", "unknown application");
+        int autoSwitchToApp=sharedPref.getInt("autoSwitchToApp", 0);
+
+        int playlistCountMode=sharedPref.getInt("PlaylistCountMode", PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT);
+        int forceSimpleMode=sharedPref.getInt("ForceSimpleMode", 0);
+
+        int bluetoothEnabled=sharedPref.getInt("bluetoothEnabled", 0);
+        String bluetoothDevice=sharedPref.getString("bluetoothDeviceName", SerialInterface_BT.BTDEV_NAME_DEFAULT);
+        String baudRate = sharedPref.getString("BaudRate", "unknown baud rate");
+
+        String enableDebug = sharedPref.getString("enableDebug", "false");
 
         log(
-                "\nBoard: " + Build.BOARD +
-                "\nBrand: " + Build.BRAND +
-                "\nDevice: " + Build.DEVICE +
-                "\nDisplay: " + Build.DISPLAY +
-                "\nHardware: " + Build.HARDWARE +
-                "\nManufacturer: " + Build.MANUFACTURER +
-                "\nModel: " + Build.MODEL +
-                "\nProduct: " + Build.PRODUCT +
-                "\nAPI level: " + Build.VERSION.SDK_INT +
+                "\nBoard        : " + Build.BOARD +
+                "\nBrand        : " + Build.BRAND +
+                "\nDevice       : " + Build.DEVICE +
+                "\nDisplay      : " + Build.DISPLAY +
+                "\nHardware     : " + Build.HARDWARE +
+                "\nManufacturer : " + Build.MANUFACTURER +
+                "\nModel        : " + Build.MODEL +
+                "\nProduct      : " + Build.PRODUCT +
+                "\nAPI level    : " + Build.VERSION.SDK_INT +
                 "\n" + uname +
-                "\nPodEmu Version: " + version
+                "\nPodEmu Version: " + version +
+                "\n\nSETTINGS DUMP: " +
+                "\n     Controlled app         : " + ctrlApp +
+                "\n     Ctonrolled app process : " + processName +
+                "\n     Auto switch to app     : " + autoSwitchToApp +
+                "\n     Playlist count mode    : " + playlistCountMode +
+                "\n     Force simple mode      : " + forceSimpleMode +
+                "\n     BT enabled             : " + bluetoothEnabled +
+                "\n     BT device              : " + bluetoothDevice +
+                "\n     Baud rate              : " + baudRate +
+                "\n     Debug enabled          : " + enableDebug +
+                "\n\n"
         );
     }
 
