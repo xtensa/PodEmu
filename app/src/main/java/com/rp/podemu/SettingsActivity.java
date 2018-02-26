@@ -22,6 +22,7 @@ package com.rp.podemu;
 //import android.support.v4.app.FragmentManager;
 
 
+import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
@@ -45,6 +46,7 @@ import android.widget.CheckedTextView;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -56,12 +58,14 @@ public class SettingsActivity extends AppCompatActivity
             implements  ControlledAppDialogFragment.ControlledAppDialogListener,
                         PlaylistCountDialogFragment.PlaylistCountDialogListener,
                         BaudRateDialogFragment.BaudRateDialogListener,
-                        BluetoothDeviceDialogFragment.BluetoothDeviceDialogListener
+                        BluetoothDeviceDialogFragment.BluetoothDeviceDialogListener,
+                        BluetoothLEDeviceDialogFragment.BluetoothLEDeviceDialogListener
 {
 
     private ArrayList<ApplicationInfo> appInfos = new ArrayList<>(0);
     private ArrayList<Integer> baudRateList = new ArrayList<>(0);
     private ArrayList<BluetoothDevice> btDevices = new ArrayList<>(0);
+    static private ArrayList<BluetoothDevice> bleDevices = new ArrayList<>(0);
 
 
     private PodEmuLog podEmuLog;
@@ -69,6 +73,11 @@ public class SettingsActivity extends AppCompatActivity
     private boolean enableListCountSelection = false;
 
     private SharedPreferences sharedPref;
+
+    static ArrayList<BluetoothDevice> getBleDevices()
+    {
+        return bleDevices;
+    }
 
 /*
     private saveSettings()
@@ -99,26 +108,53 @@ public class SettingsActivity extends AppCompatActivity
 
     }
 
+
+    private void saveBluetoothDevice(int which, boolean isBle)
+    {
+        ArrayList<BluetoothDevice> btDevs;
+        if(isBle)
+            btDevs = bleDevices;
+        else
+            btDevs = btDevices;
+
+        boolean btDevUpdated;
+
+        //saving to shared preferences
+        SharedPreferences.Editor editor = sharedPref.edit();
+        String oldBluetoothDeviceAddress = sharedPref.getString("bluetoothDeviceAddress", SerialInterface_BT.BTDEV_NAME_DEFAULT);
+        Boolean bluetoothDeviceUpdated = sharedPref.getBoolean("bluetoothDeviceUpdated", false);
+        btDevUpdated = !oldBluetoothDeviceAddress.equals(btDevs.get(which).getAddress()) || bluetoothDeviceUpdated;
+        editor.putString("bluetoothDeviceName", btDevs.get(which).getName());
+        editor.putString("bluetoothDeviceAddress", btDevs.get(which).getAddress());
+        editor.putBoolean("bluetoothDeviceUpdated", btDevUpdated);
+        editor.putBoolean("bluetoothIsBle", isBle);
+        editor.apply();
+
+        // loading information to the activity
+        setBluetoothDevInfo();
+
+        if(btDevUpdated) PodEmuService.stopService(getBaseContext());
+
+        PodEmuLog.debug("Selected BT (" + (isBle?"LE":"not LE") + ") device: " + btDevs.get(which).getName());
+    }
+
+
     // The dialog fragment receives a reference to this Activity through the
     // Fragment.onAttach() callback, which it uses to call the following methods
     // defined by the NoticeDialogFragment.NoticeDialogListener interface
     @Override
     public void onBluetoothDeviceSelected(DialogInterface dialog, int which)
     {
-        //saving to shared preferences
-        SharedPreferences.Editor editor = sharedPref.edit();
-        String oldBluetoothDevice=sharedPref.getString("bluetoothDeviceName", SerialInterface_BT.BTDEV_NAME_DEFAULT);
-        Boolean bluetoothDeviceUpdated=sharedPref.getBoolean("bluetoothDeviceUpdated", false);
-        editor.putString("bluetoothDeviceName", btDevices.get(which).getName());
-        editor.putBoolean("bluetoothDeviceUpdated",!oldBluetoothDevice.equals(btDevices.get(which).getName()) || bluetoothDeviceUpdated);
-        editor.apply();
-
-        // loading information to the activity
-        setBluetoothDevInfo();
-
-        PodEmuLog.debug("Selected BT device: " + btDevices.get(which).getName());
-
+        saveBluetoothDevice(which, false);
     }
+
+
+    @Override
+    public void onBluetoothLEDeviceSelected(DialogInterface dialog, int which)
+    {
+        saveBluetoothDevice(which, true);
+    }
+
 
 
     // The dialog fragment receives a reference to this Activity through the
@@ -301,6 +337,12 @@ public class SettingsActivity extends AppCompatActivity
             PodEmuLog.debug("SA: bluetooth present. Found devices: " + btDevices);
         }
 
+        if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE))
+            PodEmuLog.debug("SA: BLE supported");
+        else
+            PodEmuLog.debug("SA: BLE not supported");
+
+
     }
 
     @Override
@@ -421,6 +463,22 @@ public class SettingsActivity extends AppCompatActivity
                             // continue with action
                         }
                     })
+                    .setNegativeButton("Scan BLE", new DialogInterface.OnClickListener()
+                    {
+                        public void onClick(DialogInterface dialog, int which)
+                        {
+                            if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE))
+                            {
+                                BluetoothLEDeviceDialogFragment bluetoothLEDeviceDialog = new BluetoothLEDeviceDialogFragment();
+                                bluetoothLEDeviceDialog.show(getSupportFragmentManager(), "ble_tag");
+                            }
+                            else
+                            {
+                                Toast.makeText(SettingsActivity.this, R.string.bleNotSupported, Toast.LENGTH_SHORT).show();
+                            }
+
+                        }
+                    })
                     .setIcon(android.R.drawable.ic_dialog_info)
                     .show();
         }
@@ -513,7 +571,7 @@ public class SettingsActivity extends AppCompatActivity
                         new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},
                         100);
 
-                boolean firstTimeRequestPermissions = sharedPref.getBoolean("firstTimeRequestPermissions", true);
+                boolean firstTimeRequestPermissions = sharedPref.getBoolean("firstTimeRequestPermissionsStorage", true);
 
                 if( !firstTimeRequestPermissions )
                 {
@@ -530,7 +588,7 @@ public class SettingsActivity extends AppCompatActivity
 
                 }
                 SharedPreferences.Editor editor = sharedPref.edit();
-                editor.putBoolean("firstTimeRequestPermissions", false);
+                editor.putBoolean("firstTimeRequestPermissionsStorage", false);
                 editor.apply();
             }
         }

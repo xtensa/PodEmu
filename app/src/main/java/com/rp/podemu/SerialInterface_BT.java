@@ -28,8 +28,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
-import android.os.Message;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -40,7 +38,7 @@ import java.util.UUID;
  * Created by rp on 07/22/2017.
  */
 
-public class SerialInterface_BT implements SerialInterface
+public class SerialInterface_BT extends SerialInterface_Common implements SerialInterface
 {
     private BluetoothDevice btDevice;
     private static Context baseContext;
@@ -49,10 +47,11 @@ public class SerialInterface_BT implements SerialInterface
 
 
     public final static String BTDEV_NAME_DEFAULT = "BT device not set";
-    public final UUID BTDEV_UUID[]=
-            { UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"),
-              UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb"),
-              UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb")
+    public final static String BTDEV_ADDRESS_DEFAULT = "unknown";
+    public final static UUID BTDEV_UUID[]=
+            { UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")//,
+            //  UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb"),
+            //  UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb")
             };
     public static int btdev_uuid_idx = 0;
     private static final int REQUEST_DISCOVERABLE_BT = 0x1e;
@@ -60,7 +59,7 @@ public class SerialInterface_BT implements SerialInterface
 
     // Constants that indicate the current connection state
     public static final int STATE_NONE = 0;
-    public static final int STATE_LISTEN = 1;
+    public static final int STATE_SEARCHING = 1;
     public static final int STATE_CONNECTING = 2;
     public static final int STATE_CONNECTED = 3;
     public static final int STATE_LOST = 4;
@@ -72,27 +71,43 @@ public class SerialInterface_BT implements SerialInterface
     private int btState;
     private Handler mHandler = null;
 
-    private AcceptThread mAcceptThread;
+    //private AcceptThread mAcceptThread;
     private ConnectThread mConnectThread;
     private ConnectedThread mConnectedThread;
 
     private boolean isBtAskingDiscoverability = false;
     private static SerialInterface_BT serialInterfaceBTInstance = null;
 
+    // timeout after which interface will be closed if not connected (ms)
+    public final static int BT_CONNECT_TIMEOUT = 1500;
+
+    private static SharedPreferences getSharedPref(Context context)
+    {
+        if(sharedPref == null)
+            sharedPref = context.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+        return sharedPref;
+    }
+
+
     public static synchronized SerialInterface_BT getInstance(Context context)
     {
         baseContext = context;
-        sharedPref = baseContext.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
         return getInstance();
     }
 
     public static synchronized SerialInterface_BT getInstance()
     {
-        if(serialInterfaceBTInstance == null)
+        int bluetoothEnabled=getSharedPref(baseContext).getInt("bluetoothEnabled", 0);
+        if(bluetoothEnabled==0)
+        {
+            serialInterfaceBTInstance = null;
+        }
+        else if(serialInterfaceBTInstance == null)
         {
             PodEmuLog.debug("SIBT: initializing new instance");
             serialInterfaceBTInstance = new SerialInterface_BT();
         }
+
         return serialInterfaceBTInstance;
     }
 
@@ -101,38 +116,6 @@ public class SerialInterface_BT implements SerialInterface
         mHandler = handler;
     }
 
-
-    /**
-     * Inform Main Activity that serial connection status changed
-     */
-    private void communicateSerialStatusChange()
-    {
-        PodEmuLog.debug("SIBT: communicateSerialStatusChange()");
-        // if mHandler is not set then service is not ready. This method will be called again once service is ready.
-        if (mHandler != null)
-        {
-            Message message = mHandler.obtainMessage(0);
-            message.arg1 = 3; // indicate serial status change message
-            mHandler.sendMessage(message);
-            PodEmuLog.verbose("SIBT: communicateSerialStatusChange() - sent");
-
-            // FIXME: temporarily send some bytes
-            byte b[]={ (byte)0xFF };
-            if(write(b,1)>0)
-            {
-                PodEmuLog.debug("SIBT: temp 0xFF write sucessfull.");
-            }
-            else
-            {
-                PodEmuLog.debug("SIBT: temp 0xFF write failed");
-            }
-
-        }
-        else
-        {
-            PodEmuLog.verbose("SIBT: communicateSerialStatusChange() - not sent");
-        }
-    }
 
 
     public SerialInterface_BT ()
@@ -158,8 +141,8 @@ public class SerialInterface_BT implements SerialInterface
         BluetoothServerSocket tmp = null;
         try
         {
-            // MY_UUID is the app's UUID string, also used by the client code.
-            tmp = btAdapter.listenUsingRfcommWithServiceRecord(getName(), BTDEV_UUID[btdev_uuid_idx]);
+            PodEmuLog.debug("SIBT: SerialInterface_BT connecting with btdev_uuid_idx=0");
+            tmp = btAdapter.listenUsingRfcommWithServiceRecord(getName(), BTDEV_UUID[0]);
         }
         catch (IOException e)
         {
@@ -175,7 +158,6 @@ public class SerialInterface_BT implements SerialInterface
     {
         boolean podEmuBTFound = false;
         baseContext = context;
-        sharedPref = baseContext.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
 
         if(context instanceof MainActivity)
         {
@@ -183,6 +165,7 @@ public class SerialInterface_BT implements SerialInterface
         }
 
         btdev_uuid_idx = (btdev_uuid_idx+1) % BTDEV_UUID.length;
+
         PodEmuLog.debug("SIBT: Bluetooth initialization started with btdev_uuid_idx=" + btdev_uuid_idx);
         ensureDiscoverable();
 
@@ -198,11 +181,13 @@ public class SerialInterface_BT implements SerialInterface
             return false;
         }
 
+        /*
         if(mAcceptThread!=null)
         {
             PodEmuLog.debug("SIBT: mAcceptThread active. Aborting init.");
             return false;
         }
+        */
 
         if(btAdapter == null)
         {
@@ -225,7 +210,7 @@ public class SerialInterface_BT implements SerialInterface
                 String deviceName = device.getName();
                 String deviceHardwareAddress = device.getAddress(); // MAC address
 
-                PodEmuLog.verbose("SIBT: paired device found: " + deviceName + " (" + deviceHardwareAddress + ")");
+                PodEmuLog.debugVerbose("SIBT: paired device found: " + deviceName + " (" + deviceHardwareAddress + ")");
 
                 if(deviceName.equals(getName()))
                 {
@@ -246,6 +231,27 @@ public class SerialInterface_BT implements SerialInterface
 
         //BluetoothDevice actualBtDevice = btAdapter.getRemoteDevice(btDevice.getAddress());
         connect(btDevice);
+
+        /*
+        // give background threads time to actually establish the connection
+        try
+        {
+            Thread.sleep(BT_CONNECT_TIMEOUT + 150);
+        }
+        catch(java.lang.InterruptedException e)
+        {
+            // do nothing
+
+        }
+    */
+        try
+        {
+            wait();
+        }
+        catch(InterruptedException e)
+        {
+            PodEmuLog.debug("SIBLE: connection wait interrupted.");
+        }
 
         PodEmuLog.debug("SIBT: init finishing with status: " + isConnected());
 
@@ -289,8 +295,12 @@ public class SerialInterface_BT implements SerialInterface
 
     public String getName()
     {
-        String bluetoothDeviceName=sharedPref.getString("bluetoothDeviceName", SerialInterface_BT.BTDEV_NAME_DEFAULT);
-        return bluetoothDeviceName;
+        return getSharedPref(baseContext).getString("bluetoothDeviceName", SerialInterface_BT.BTDEV_NAME_DEFAULT);
+    }
+
+    public String getAddress()
+    {
+        return getSharedPref(baseContext).getString("bluetoothDeviceAddress", SerialInterface_BT.BTDEV_ADDRESS_DEFAULT);
     }
 
     public int getVID()
@@ -315,6 +325,13 @@ public class SerialInterface_BT implements SerialInterface
         return 57600;
     }
 
+
+    public boolean isConnecting()
+    {
+        return false;
+    }
+
+
     public boolean isConnected()
     {
         return (btState == STATE_CONNECTED);
@@ -325,12 +342,13 @@ public class SerialInterface_BT implements SerialInterface
         return BUFFER_SIZE;
     }
 
-    public void close()
+    public synchronized void close()
     {
         PodEmuLog.debug("SIBT: close requested");
         if (mConnectThread != null)
         {
             mConnectThread.cancel();
+            PodEmuLog.debug("SIBT: close() resetting mConnectThread");
             mConnectThread = null;
         }
         if (mConnectedThread != null)
@@ -339,11 +357,13 @@ public class SerialInterface_BT implements SerialInterface
             mConnectedThread = null;
         }
 
+        /*
         if (mAcceptThread != null)
         {
             mAcceptThread.cancel();
             mAcceptThread = null;
         }
+        */
 
         setState(STATE_NONE);
     }
@@ -354,15 +374,34 @@ public class SerialInterface_BT implements SerialInterface
         init(baseContext);
     }
 
+
+    static public String getStateName(int state)
+    {
+        switch (state)
+        {
+            case STATE_CONNECTED: return "CONNECTED";
+            case STATE_CONNECTING: return "CONNECTING";
+            case STATE_LOST: return "LOST";
+            case STATE_FAILED: return "FAILED";
+            case STATE_SEARCHING: return "SEARCHING";
+            case STATE_NONE:
+            default:
+                return "NONE";
+
+        }
+    }
+
     /**
      * Set the current state of the chat connection
      * @param state  An integer defining the current connection state
      */
     private synchronized void setState(int state) 
     {
-        PodEmuLog.debug("SIBT: setState() " + btState + " -> " + state);
+        PodEmuLog.debug("SIBT: setState() " + getStateName(btState) + " -> " + getStateName(state));
         btState = state;
         //mHandler.obtainMessage(MainActivity.MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
+
+        PodEmuService.communicateSerialStatusChange();
     }
     public synchronized int getState()
     {
@@ -402,14 +441,12 @@ public class SerialInterface_BT implements SerialInterface
 
     private void connectionFailed()
     {
-        setState(STATE_LISTEN);
         setState(STATE_FAILED);
-        communicateSerialStatusChange();
     }
+
     private void connectionLost()
     {
         setState(STATE_LOST);
-        communicateSerialStatusChange();
     }
 
     public synchronized void connected(BluetoothSocket socket, BluetoothDevice device)
@@ -418,6 +455,7 @@ public class SerialInterface_BT implements SerialInterface
         if (mConnectThread != null)
         {
             mConnectThread.cancel();
+            PodEmuLog.debug("SIBT: connected() resetting mConnectThread");
             mConnectThread = null;
         }
         if (mConnectedThread != null)
@@ -426,12 +464,13 @@ public class SerialInterface_BT implements SerialInterface
             mConnectedThread = null;
         }
 
+        /*
         if (mAcceptThread != null)
         {
             mAcceptThread.cancel();
             mAcceptThread = null;
         }
-
+        */
 
         mConnectedThread = new ConnectedThread(socket);
         mConnectedThread.start();
@@ -445,7 +484,10 @@ public class SerialInterface_BT implements SerialInterface
         mHandler.sendMessage(msg);
         */
         setState(STATE_CONNECTED);
-        communicateSerialStatusChange();
+        synchronized (this)
+        {
+            notifyAll();
+        }
     }
 
     /**
@@ -458,8 +500,12 @@ public class SerialInterface_BT implements SerialInterface
         if (mConnectThread != null)
         {
             mConnectThread.cancel();
+            PodEmuLog.debug("SIBT: start() resetting mConnectThread");
             mConnectThread = null;
+            connect(btDevice);
         }
+
+        /*
         if (mConnectedThread != null)
         {
             mConnectedThread.cancel();
@@ -472,7 +518,10 @@ public class SerialInterface_BT implements SerialInterface
             mAcceptThread.start();
         }
 
-        setState(STATE_LISTEN);
+
+        setState(STATE_SEARCHING);
+
+        */
     }
 
 
@@ -484,6 +533,7 @@ public class SerialInterface_BT implements SerialInterface
             if (mConnectThread != null)
             {
                 mConnectThread.cancel();
+                PodEmuLog.debug("SIBT: connect() resetting mConnectThread");
                 mConnectThread = null;
             }
         }
@@ -517,6 +567,7 @@ public class SerialInterface_BT implements SerialInterface
             // Create a new listening server socket
             try
             {
+                PodEmuLog.debug("SIBT: AcceptThread connecting with btdev_uuid_idx=" + btdev_uuid_idx);
                 tmp = btAdapter.listenUsingRfcommWithServiceRecord(getName(), BTDEV_UUID[btdev_uuid_idx]);
             }
             catch (IOException e)
@@ -558,7 +609,7 @@ public class SerialInterface_BT implements SerialInterface
                         PodEmuLog.debug("SIBT: AcceptThread connection accepted, State: " + btState);
                         switch (btState)
                         {
-                            case STATE_LISTEN:
+                            case STATE_SEARCHING:
                             case STATE_CONNECTING:
                                 // Situation normal. Start the connected thread.
                                 PodEmuLog.debug("SIBT: AcceptThread starting mConnectedThread.");
@@ -583,6 +634,7 @@ public class SerialInterface_BT implements SerialInterface
                     }
                 }
             }
+
             PodEmuLog.debug("SIBT: AcceptThread END");
         }
 
@@ -621,6 +673,8 @@ public class SerialInterface_BT implements SerialInterface
             // given BluetoothDevice
             try
             {
+                PodEmuLog.debug("SIBT: ConnectThread connecting with btdev_uuid_idx=" + btdev_uuid_idx);
+                setState(STATE_CONNECTING);
                 tmp = device.createRfcommSocketToServiceRecord(BTDEV_UUID[btdev_uuid_idx]);
             }
             catch (IOException e)
@@ -672,6 +726,7 @@ public class SerialInterface_BT implements SerialInterface
             // Reset the ConnectThread because we're done
             synchronized (SerialInterface_BT.this)
             {
+                PodEmuLog.debug("SIBT: run() resetting mConnectThread");
                 mConnectThread = null;
             }
 
@@ -768,13 +823,6 @@ public class SerialInterface_BT implements SerialInterface
             try
             {
                 mmOutStream.write(buffer, 0, numBytes);
-
-                byte cr = 0xd;
-                byte lf = 0xa;
-
-                //mmOutStream.write(cr);
-                //mmOutStream.write(lf);
-
             }
             catch (IOException e)
             {

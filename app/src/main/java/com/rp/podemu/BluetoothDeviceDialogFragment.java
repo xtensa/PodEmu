@@ -24,8 +24,11 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.bluetooth.BluetoothDevice;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Vector;
@@ -92,6 +95,24 @@ public class BluetoothDeviceDialogFragment extends DialogFragment // implements 
                         // The 'which' argument contains the index position
                         // of the selected item
                         mListener.onBluetoothDeviceSelected(dialog, which);
+                    }
+                })
+                .setNegativeButton("SCAN BLE", new DialogInterface.OnClickListener()
+                {
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        if (getActivity().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+                                && SerialInterface_BLE.checkLocationPermissions(getActivity()))
+                        {
+                            PodEmuService.stopService(getActivity());
+
+                            BluetoothLEDeviceDialogFragment bluetoothLEDeviceDialog = new BluetoothLEDeviceDialogFragment();
+                            bluetoothLEDeviceDialog.show(getActivity().getSupportFragmentManager(), "ble_tag");
+                        }
+                        else
+                        {
+                            Toast.makeText(((Dialog)dialog).getContext(), R.string.bleNotSupported, Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
         // Create the AlertDialog object and return it

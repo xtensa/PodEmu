@@ -37,6 +37,10 @@ public interface SerialInterface
     String readString();
 
     String getName();
+    String getAddress();
+
+    String getAccessoryName();
+    void   setAccessoryName(String name);
 
     int getVID();
     int getPID();
@@ -46,6 +50,7 @@ public interface SerialInterface
     void setBaudRate(int rate);
     int getBaudRate();
 
+    boolean isConnecting();
     boolean isConnected();
 
     int getReadBufferSize();

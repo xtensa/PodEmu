@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 
-public class SerialInterface_USBSerial implements SerialInterface
+public class SerialInterface_USBSerial extends SerialInterface_Common implements SerialInterface
 {
     private static Map<Integer, String> deviceList = new LinkedHashMap<>();
     private static Map<Integer, Integer> deviceBufferSizes = new LinkedHashMap<>();
@@ -156,6 +156,8 @@ public class SerialInterface_USBSerial implements SerialInterface
             PodEmuLog.debug("USBSerial: openning connection with baud rate="+baudRate);
             port.open(connection);
             port.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+            PodEmuService.communicateSerialStatusChange();
+            PodEmuLog.debug("USBSerial: connection succesfully open");
         }
         catch (IOException e)
         {
@@ -231,11 +233,16 @@ public class SerialInterface_USBSerial implements SerialInterface
         return (connection!=null && port!=null);
     }
 
+    public boolean isConnecting()
+    {
+        return false;
+    }
+
     public void close()
     {
         if(connection!=null) connection.close();
         connection=null;
-
+        PodEmuService.communicateSerialStatusChange();
 
         try
         {
@@ -278,6 +285,11 @@ public class SerialInterface_USBSerial implements SerialInterface
             return deviceList.get(key);
         else
             return "USBSerial: Unknown device";
+    }
+
+    public String getAddress()
+    {
+        return "Cable";
     }
 
     public int getReadBufferSize()

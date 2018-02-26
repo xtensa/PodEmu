@@ -220,8 +220,12 @@ public class OAPMessenger
                  * instead of one byte. Thanks to that total message length could
                  * be more than 259 bytes. Byte 2 is treated as indicator of potential
                  * ext image msg. Length bytes are assumed to be 3 and 4
+                 *
+                 * Due to BLE speed limitation we will not recognise extended messages
+                 * when connected using BLE.
                  */
-                is_extended_image = true;
+                if(!(SerialInterfaceBuilder.getSerialInterface() instanceof SerialInterface_BLE))
+                    is_extended_image = true;
                 line_ext_pos = 2;
             }
 
@@ -230,7 +234,7 @@ public class OAPMessenger
         if (is_extended_image)
         {
             if (line_ext_pos <= 8)
-                PodEmuLog.verbose(String.format("OAPM: EXT MSG check - pos:%d, byte: 0x%02X", line_ext_pos, b));
+                PodEmuLog.debugVerbose(String.format("OAPM: EXT MSG check - pos:%d, byte: 0x%02X", line_ext_pos, b));
 
             if (line_ext_pos == 3 || line_ext_pos == 4)
             {
@@ -313,8 +317,8 @@ public class OAPMessenger
             else
             {
                 // Received message is OK. We cen process it and prepare the reply
-                PodEmuLog.verbose("OAPM: Line " + line + String.format(": Checksum OK. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
-                PodEmuLog.verbose("OAPM: Line " + line + ": Checksum OK");
+                PodEmuLog.debugVerbose("OAPM: Line " + line + String.format(": Checksum OK. Received: %02X  Should be: %02X", line_buf[line_cmd_len - 1], checksum));
+                PodEmuLog.debugVerbose("OAPM: Line " + line + ": Checksum OK");
 
                 oap_process_msg(line_buf, line_cmd_len, (line_cmd_len > 7 && is_extended_image));
             }
@@ -345,7 +349,7 @@ public class OAPMessenger
         int pos_shift = 0;
         int len;
 
-        PodEmuLog.verbose("OAPM: Processing message started");
+        PodEmuLog.debugVerbose("OAPM: Processing message started");
 
         if (is_ext)
         {
@@ -388,7 +392,7 @@ public class OAPMessenger
             //params[0]=0;
         }
 
-        PodEmuLog.verbose(String.format("OAPM: Received - Ext: %d, Len: %d, Mode: 0x%02X, CMD: 0x%04X", (is_ext ? 1 : 0), len, mode, cmd));
+        PodEmuLog.debugVerbose(String.format("OAPM: Received - Ext: %d, Len: %d, Mode: 0x%02X, CMD: 0x%04X", (is_ext ? 1 : 0), len, mode, cmd));
 
         if (mode == 0x00 && len>=2) // general mode
         {
@@ -535,11 +539,32 @@ public class OAPMessenger
                     {
                         oap_communicate_ipod_connected();
                     }
+
+                    // Real iPod will also reply with FF5503002700D6 and repeat it once after 5 seconds
+                    msg[0] = 0x27;
+                    msg[1] = 0x01;
+                    oap_write_cmd(msg, 2, (byte) 0x00);
+
+                } break;
+                case 0x28: // RetDeviceInfo
+                {
+                    byte[] msg = new byte[3];
+                    PodEmuLog.debug("OAPM: accessory info received" );
+                    if(scmd2==0x01) // name received
+                    {
+                        SerialInterfaceBuilder.getSerialInterface().setAccessoryName(new String(params));
+                        PodEmuLog.debug("OAPM: accessoryName received: " + new String(params));
+                        oap_communicate_ipod_connected();
+                    }
+                    msg[0] = 0x02; // ACK
+                    msg[1] = 0x00; // Response lingo
+                    msg[2] = 0x28; // Response command
+                    oap_write_cmd(msg, msg.length, (byte) 0x00);
                 } break;
                 default:
                 {
                     oap_00_write_return_code(scmd1, IPOD_ERROR_CMD_FAILED);
-                    PodEmuLog.debug(String.format("ERROR: Mode switching: unrecognized command 0x%04X received", cmd));
+                    PodEmuLog.debug(String.format("OAPM: ERROR: Mode switching: unrecognized command 0x%04X received", cmd));
                 }
             }
         }
@@ -1932,13 +1957,21 @@ public class OAPMessenger
      */
     private void oap_04_write_screen_resolution_34()
     {
-        byte msg[] = {0x00, 0x34, 0x00, 0x00, 0x00, 0x00, 0x01};
-        msg[2] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X >> 8) & 0xff);
-        msg[3] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X) & 0xff);
-        msg[4] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y >> 8) & 0xff);
-        msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
-        oap_04_write_cmd(msg);
-        PodEmuLog.debug("OAPM: AIR_MODE OUT - written screen resolution 34: " + DockingLogoView.IMAGE_MAX_RES_X + "x" + DockingLogoView.IMAGE_MAX_RES_Y);
+        if(SerialInterfaceBuilder.getSerialInterface() instanceof SerialInterface_BLE)
+        {
+            PodEmuLog.debug("OAPM: image upload is not supported for BLE interfaces");
+            oap_04_write_return_code(0x33, IPOD_ERROR_CMD_FAILED);
+        }
+        else
+        {
+            byte msg[] = {0x00, 0x34, 0x00, 0x00, 0x00, 0x00, 0x01};
+            msg[2] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X >> 8) & 0xff);
+            msg[3] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X) & 0xff);
+            msg[4] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y >> 8) & 0xff);
+            msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
+            oap_04_write_cmd(msg);
+            PodEmuLog.debug("OAPM: AIR_MODE OUT - written screen resolution 34: " + DockingLogoView.IMAGE_MAX_RES_X + "x" + DockingLogoView.IMAGE_MAX_RES_Y);
+        }
     }
 
     /**
@@ -1961,22 +1994,38 @@ public class OAPMessenger
      * @cmd 0x00 0x3A - colour version of 0x00 0x34
      * @response: number(2) - resolution X for mode 02
      * @response: number(2) - resolution Y for mode 02
-     * @response: number(1) - always 02 - mode unknown
-     * @response: number(2) - resolution X for mode 03
-     * @response: number(2) - resolution Y for mode 03
-     * @response: number(1) - always 02 - mode RGB_565 (2 bytes per pixel)
+     * @response: number(1) - mode RGB_565 (2 bytes per pixel)
+     *                              0x01 - monochrome 2 bit/pixel
+     *                              0x02 - RGB_565, little-endian
+     *                              0x03 - RGB_565, big-endian
      * iPod Touch 4G response: 00 A6 00 4C 02 00 A6 00 4C 03
      */
     private void oap_04_write_screen_resolution_3A()
     {
-        byte msg[] = {0x00, 0x3A, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x03};
-        msg[7] = msg[2] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X >> 8) & 0xff);
-        msg[8] = msg[3] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X) & 0xff);
-        msg[7] = msg[4] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y >> 8) & 0xff);
-        msg[10] = msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
+        if(SerialInterfaceBuilder.getSerialInterface() instanceof SerialInterface_BLE)
+        {
+            PodEmuLog.debug("OAPM: image upload is not supported for BLE interfaces");
+            oap_04_write_return_code(0x39, IPOD_ERROR_CMD_FAILED);
+        }
+        else
+        {
+            byte msg[] = {0x00, 0x3A, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x03};
+            msg[7] =
+            msg[12] =
+                    msg[2] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X >> 8) & 0xff);
+            msg[8] =
+            msg[13] =
+                    msg[3] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X) & 0xff);
+            msg[9] =
+            msg[14] =
+                    msg[4] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y >> 8) & 0xff);
+            msg[10] =
+            msg[15] =
+                    msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
 
-        oap_04_write_cmd(msg);
-        PodEmuLog.debug("OAPM: AIR_MODE OUT - written screen resolution 3A: " + DockingLogoView.IMAGE_MAX_RES_X + "x" + DockingLogoView.IMAGE_MAX_RES_Y);
+            oap_04_write_cmd(msg);
+            PodEmuLog.debug("OAPM: AIR_MODE OUT - written screen resolution 3A: " + DockingLogoView.IMAGE_MAX_RES_X + "x" + DockingLogoView.IMAGE_MAX_RES_Y);
+        }
     }
 
 
@@ -2047,9 +2096,9 @@ public class OAPMessenger
      * @param b   - byte
      * @param num - position from the beginning of message on which this byte was received
      */
-    void oap_print_char(int rw, byte b, int num)
+    private void oap_print_char(int rw, byte b, int num)
     {
-        PodEmuLog.verbose("Line " + line + ": len=" + line_cmd_len + " cnt=" + num + " " + String.format(": %s: %02X", (rw == READ ? "RCV" : "WRITE"), b));
+        PodEmuLog.debugVerbose("OAPM: Line " + line + ": len=" + line_cmd_len + " cnt=" + num + " " + String.format(": %s: %02X", (rw == READ ? "RCV" : "WRITE"), b));
     }
 
 
@@ -2060,7 +2109,7 @@ public class OAPMessenger
      * @param len - length of the byte array contained by buf
      * @return - resulting string
      */
-    String oap_hex_to_str(byte buf[], int len)
+    public static String oap_hex_to_str(byte buf[], int len)
     {
         int j;
         String str = "";
@@ -2122,7 +2171,7 @@ public class OAPMessenger
             tmp += "[" + rawstr + "]";
         }
 
-        PodEmuLog.verbose("OAPM: " + tmp);
+        PodEmuLog.debug("OAPM: " + tmp);
 
     }
 
@@ -2161,11 +2210,10 @@ public class OAPMessenger
         chksum = 0x100 - chksum;
         msg[i + 4] = (byte) chksum;
 
-        PodEmuLog.verbose("Line " + line + ": RAW MSG OUT: " + oap_hex_to_str(msg, msg.length));
+        PodEmuLog.debugVerbose("Line " + line + ": RAW MSG OUT: " + oap_hex_to_str(msg, msg.length));
         oap_print_podmsg(msg, false, false);
 
-        SerialInterfaceBuilder serialInterfaceBuilder=new SerialInterfaceBuilder();
-        SerialInterface serialInterface = serialInterfaceBuilder.getSerialInterface();
+        SerialInterface serialInterface = SerialInterfaceBuilder.getSerialInterface();
 
         if (serialInterface != null)
         {
@@ -2243,10 +2291,16 @@ public class OAPMessenger
 
     private void oap_send_bitmap()
     {
+        // RPP - FIXME
+        PodEmuLog.log("OAPM: oap_send_bitmap() - step 1");
         Message message = mHandler.obtainMessage(0);
+        PodEmuLog.log("OAPM: oap_send_bitmap() - step 2");
         message.arg1 = 1; //indication that we are sending a bitmap
+        PodEmuLog.log("OAPM: oap_send_bitmap() - step 3");
         message.obj = mBitmap;
+        PodEmuLog.log("OAPM: oap_send_bitmap() - step 4");
         mHandler.sendMessage(message);
+        PodEmuLog.log("OAPM: oap_send_bitmap() - step 5");
     }
 
 
@@ -2388,7 +2442,6 @@ public class OAPMessenger
         // write to serial success command
         byte msg[] = {0x00, 0x01, 0x00, 0x00, 0x32};
         oap_04_write_cmd(msg);
-        PodEmuLog.debug("OAPM: AIR_MODE OUT - ");
 
         // send updated bitmap to MainActivity
         oap_send_bitmap();

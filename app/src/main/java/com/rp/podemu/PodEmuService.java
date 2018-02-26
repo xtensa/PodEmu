@@ -57,13 +57,14 @@ public class PodEmuService extends Service
     private int failedReadCount=0;
     public Bitmap dockIconBitmap=null;
     public boolean isDockIconLoaded=false;
-    public boolean isAppLaunched=false;
+    public static boolean isAppLaunched=false;
     private static String baudRate;
     private static int forceSimpleMode;
     private static boolean bluetoothEnabled;
+    private static boolean isBTConnected=false;
 
-    // timeout after which interface will be closed if not connected (ms)
-    public final static int BT_CONNECT_TIMEOUT = 1500;
+    public static String INTENT_ACTION_CLOSE_SERVICE="com.podemu.rp.ACTION_CLOSE_SERVICE";
+
     private long markerTime;
 
 
@@ -77,6 +78,14 @@ public class PodEmuService extends Service
         }
 
     }
+
+    public static void stopService(Context context)
+    {
+        // closing Service
+        Intent intent=new Intent(PodEmuService.INTENT_ACTION_CLOSE_SERVICE);
+        context.sendBroadcast(intent);
+    }
+
 
     void registerMessage(PodEmuMessage podEmuMessage)
     {
@@ -129,6 +138,7 @@ public class PodEmuService extends Service
         this.mHandler=handler;
         oapMessenger.setHandler(handler);
 
+        /* should be set after serialInterface actualy initialized
         if( serialInterface != null)
         {
             serialInterface.setHandler(handler);
@@ -139,7 +149,31 @@ public class PodEmuService extends Service
             serialInterfaceBuilder.detach();
             stopSelf();
         }
+        */
     }
+
+
+    /**
+     * Inform Main Activity that serial connection status changed
+     */
+    public static void communicateSerialStatusChange()
+    {
+        PodEmuLog.debug("PES: communicateSerialStatusChange() - " +
+                (SerialInterfaceBuilder.getSerialInterface()!=null?SerialInterfaceBuilder.getSerialInterface().getAccessoryName():"unknown accessory"));
+        // if mHandler is not set then service is not ready. This method will be called again once service is ready.
+        if (mHandler != null)
+        {
+            Message message = mHandler.obtainMessage(0);
+            message.arg1 = 3; // indicate serial status change message
+            mHandler.sendMessage(message);
+            PodEmuLog.debugVerbose("PES: communicateSerialStatusChange() - sent");
+        }
+        else
+        {
+            PodEmuLog.debugVerbose("SIBT: communicateSerialStatusChange() - not sent");
+        }
+    }
+
 
     void setMediaEngine()
     {
@@ -184,6 +218,189 @@ public class PodEmuService extends Service
         bluetoothEnabled = (sharedPref.getInt("bluetoothEnabled", 0)!=0);
     }
 
+    private void runBufferThread()
+    {
+        /*
+         * Buffer thread is used only to read from serial interface and put bytes into internal buffer.
+         * It is important for this thread to have the highest priority, because internal buffer
+         * of serial devices usually has only 255 bytes and not reading data fast enough can cause
+         * some bytes to be lost.
+         */
+        if (bufferThread == null)
+        {
+            class SerialIFException extends Exception {
+                public SerialIFException() {
+                    super();
+                }
+            }
+
+            final SerialIFException serialIFException=new SerialIFException();
+
+            bufferThread = new Thread(new Runnable()
+            {
+                public void run()
+                {
+                    try
+                    {
+                        serialInterface = serialInterfaceBuilder.getSerialInterface();
+                        int numBytesRead;
+
+                        PodEmuLog.debug("PES: NEW bufferThread started. (Thread ID = " + bufferThread.getId() + ")");
+
+                        while(serialInterface == null)
+                        {
+
+                            PodEmuLog.debug("PES: Starting serial interface initialization. (Thread ID = " + bufferThread.getId() + ")");
+                            serialInterface = serialInterfaceBuilder.getSerialInterface(getBaseContext(), mHandler);
+
+                            if(serialInterface != null)
+                            {
+                                /*
+                                markerTime = System.currentTimeMillis();
+                                long currTimeMillis = markerTime;
+
+
+                                while ( !serialInterface.isConnected()
+                                        && (currTimeMillis - markerTime < SerialInterface_BT.BT_CONNECT_TIMEOUT)
+                                        //|| serialInterface instanceof SerialInterface_BLE
+                                        )
+                                {
+                                    Thread.sleep(50);
+                                    currTimeMillis = System.currentTimeMillis();
+                                }
+                                */
+
+                                //Thread.sleep(SerialInterface_BT.BT_CONNECT_TIMEOUT);
+
+                                if(serialInterface.isConnected())
+                                {
+                                    isBTConnected=true;
+                                    PodEmuLog.debug("PES: reinitialization successfull.");
+                                }
+                                else
+                                {
+                                    PodEmuLog.error("PES: serial interface initialized but not connected. Restarting...");
+                                    if(serialInterface!=null) // could be null if just disconnected
+                                    {
+                                        serialInterface.close();
+                                        // Allow everything to close
+                                        Thread.sleep(200);
+                                        serialInterfaceBuilder.detach();
+                                        serialInterface = null;
+
+                                    }
+                                }
+                            }
+                            else
+                            {
+
+                                // if we got here then probably BT is disabled. Aborting service.
+                                PodEmuLog.error("PES: reinitialization failed. Closing service!");
+                                serialInterfaceBuilder.detach();
+                                stopSelf();
+                                throw serialIFException;
+
+                                //PodEmuLog.error("PES: serial interface initialization failed. Restarting...");
+                            }
+
+                        }
+
+                        // some devices have problem reading less then internal chip buffer
+                        // size (due to android bug 28023), therefore we need to set
+                        // expected buffer size equal to internal buffer size of the device
+                        byte buffer[] = new byte[serialInterface.getReadBufferSize()];
+                        PodEmuLog.debug("PES: buffer thread started.");
+
+                        serialInterface.setBaudRate(Integer.parseInt(baudRate));
+                        oapMessenger.setForceSimpleMode(forceSimpleMode);
+
+                        Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+                        //android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
+
+                        numBytesRead=0;
+                        while(true)
+                        {
+                            try
+                            {
+                                if ( numBytesRead<0 || ( !(serialInterface instanceof SerialInterface_BT) && !serialInterface.isConnected() ) )
+                                {
+                                    //PodEmuLog.error("PES: Read attempt nr " + failedReadCount + " when interface is disconnected");
+                                    Thread.sleep(100);
+                                    failedReadCount++;
+                                    if (failedReadCount > 100) // 10 seconds
+                                    {
+                                        PodEmuLog.error("PES: Something wrong happen. Reading from serial interface constantly failing. Terminating service.");
+                                        serialInterface.close();
+                                        bufferThread.interrupt();
+                                        pollingThread.interrupt();
+                                        stopSelf();
+                                    }
+                                }
+
+
+                                // Reading incoming data
+                                // TODO: maybe some day will rewrite to read callback mechanism
+                                while (true)
+                                {
+                                    try
+                                    {
+                                        numBytesRead = serialInterface.read(buffer);
+                                    }
+                                    catch(Exception e)
+                                    {
+                                        PodEmuLog.error("PES: read() attempt while serial interface is not connected. Cable suddenly disconnected?");
+                                        PodEmuLog.printStackTrace(e);
+                                        numBytesRead = -1;
+                                    }
+
+                                    if (numBytesRead <= 0) break;
+
+                                    inputBuffer.add(buffer, numBytesRead);
+
+                                }
+
+                                if (numBytesRead == 0)
+                                {
+                                    Thread.sleep(10);
+                                    failedReadCount = 0;
+                                }
+
+                            }
+                            catch (Exception e)
+                            {
+                                if(!(e instanceof InterruptedException))
+                                {
+                                    // sth wrong happen, just log and throw it up
+                                    PodEmuLog.printStackTrace(e);
+                                }
+                                throw e;
+                            }
+                        }
+
+                    }
+                    catch (InterruptedException e)
+                    {
+                        PodEmuLog.error("PES: buffer thread interrupted! (Thread ID = " + bufferThread.getId() + ")");
+                        if(serialInterface!=null) serialInterface.close();
+                    }
+
+                    catch (SerialIFException e)
+                    {
+                        PodEmuLog.error("PES: buffer thread initialization failed.");
+                        synchronized (this)
+                        {
+                            bufferThread.interrupt();
+                        }
+                    }
+
+                    PodEmuLog.debug("PES: buffer thread finished.");
+                }
+            });
+            bufferThread.start();
+        }
+
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId)
     {
@@ -211,135 +428,8 @@ public class PodEmuService extends Service
                             .build();
             startForeground(1, notification);
 
-        /*
-         * Buffer thread is used only to read from serial interface and put bytes into internal buffer.
-         * It is important for this thread to have the highest priority, because internal buffer
-         * of serial devices usually has only 255 bytes and not reading data fast enough can cause
-         * some bytes to be lost.
-         */
-            if (bufferThread == null)
-            {
-                class SerialIFException extends Exception {
-                    public SerialIFException() {
-                        super();
-                    }
-                }
 
-                final SerialIFException serialIFException=new SerialIFException();
-
-                bufferThread = new Thread(new Runnable()
-                {
-                    public void run()
-                    {
-                        try
-                        {
-                            serialInterface = serialInterfaceBuilder.getSerialInterface();
-                            int numBytesRead;
-
-                            if(serialInterface == null)
-                            {
-                                PodEmuLog.debug("PES: buffer thread started before serial interface initialization. Trying to reinitialize.");
-                                serialInterface=serialInterfaceBuilder.getSerialInterface( getBaseContext() );
-                                if(serialInterface != null)
-                                {
-                                    PodEmuLog.debug("PES: reinitialization successfull.");
-                                }
-                                else
-                                {
-                                    PodEmuLog.error("PES: reinitialization failed. Closing service!");
-                                    serialInterfaceBuilder.detach();
-                                    stopSelf();
-
-                                    throw serialIFException;
-                                }
-
-                            }
-
-                            // some devices have problem reading less then internal chip buffer
-                            // size (due to android bug 28023), therefore we need to set
-                            // expected buffer size equal to internal buffer size of the device
-                            byte buffer[] = new byte[serialInterface.getReadBufferSize()];
-                            PodEmuLog.debug("PES: buffer thread started.");
-
-                            serialInterface.setBaudRate(Integer.parseInt(baudRate));
-                            oapMessenger.setForceSimpleMode(forceSimpleMode);
-
-                            Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
-                            //android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
-
-                            numBytesRead=0;
-                            while(true)
-                            {
-                                try
-                                {
-                                    if ( numBytesRead<0 || ( !(serialInterface instanceof SerialInterface_BT) && !serialInterface.isConnected() ) )
-                                    {
-                                        PodEmuLog.error("PES: Read attempt nr " + failedReadCount + " when interface is disconnected");
-                                        Thread.sleep(100);
-                                        failedReadCount++;
-                                        if (failedReadCount > 100) // 10 seconds
-                                        {
-                                            PodEmuLog.error("PES: Something wrong happen. Reading from serial interface constantly failing. Terminating service.");
-                                            stopSelf();
-                                        }
-                                    }
-
-
-                                    // Reading incoming data
-                                    while (true)
-                                    {
-                                        try
-                                        {
-                                            numBytesRead = serialInterface.read(buffer);
-                                        }
-                                        catch(Exception e)
-                                        {
-                                            PodEmuLog.error("PES: read() attempt while serial interface is not connected. Cable suddenly disconnected?");
-                                            numBytesRead = -1;
-                                        }
-
-                                        if (numBytesRead <= 0) break;
-
-                                        //PodEmuLog.debug("RECEIVED BYTES: " + numBytesRead);
-                                        for (int j = 0; j < numBytesRead; j++)
-                                        {
-                                            inputBuffer.add(buffer[j]);
-                                        }
-                                    }
-
-                                    if (numBytesRead == 0)
-                                    {
-                                        Thread.sleep(10);
-                                        failedReadCount = 0;
-                                    }
-
-                                }
-                                catch (Exception e)
-                                {
-                                    if(!(e instanceof InterruptedException))
-                                    {
-                                        // sth wrong happen, just log and throw it up
-                                        PodEmuLog.printStackTrace(e);
-                                    }
-                                    throw e;
-                                }
-                            }
-
-                        }
-                        catch (InterruptedException e)
-                        {
-                            PodEmuLog.debug("PES: buffer thread interrupted!");
-                        }
-                        catch (SerialIFException e)
-                        {
-                            PodEmuLog.error("PES: buffer thread initialization failed.");
-                            bufferThread.interrupt();
-                        }
-                        PodEmuLog.debug("PES: buffer thread finished.");
-                    }
-                });
-                bufferThread.start();
-            }
+            runBufferThread();
 
         /*
          * This is polling thread that will only post message 0x0027 to the serial interface if
@@ -365,10 +455,28 @@ public class PodEmuService extends Service
                                     {
                                         mediaPlayback.setTrackStatusChanged(false);
                                         oapMessenger.oap_04_write_polling_playback_stopped();
-
                                         oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback.getCurrentPlaylist().getCurrentTrackPos());
 
-                                        //oapMessenger.oap_04_write_polling_chapter_status_changed(0);
+                                        // repeat notification two times
+                                        final MediaPlayback mediaPlayback1 = mediaPlayback;
+                                        /*
+                                        mHandler.postDelayed(new Runnable()
+                                        {
+                                            @Override
+                                            public void run()
+                                            {
+                                                oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback1.getCurrentPlaylist().getCurrentTrackPos());
+                                            }
+                                        }, 200);
+                                        */
+                                        mHandler.postDelayed(new Runnable()
+                                        {
+                                            @Override
+                                            public void run()
+                                            {
+                                                oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback1.getCurrentPlaylist().getCurrentTrackPos());
+                                            }
+                                        }, 2000);
 
                                     }
 
@@ -425,6 +533,7 @@ public class PodEmuService extends Service
                                 // Reading incoming data
                                 while (inputBuffer.remove(buffer) > 0)
                                 {
+                                    PodEmuLog.debugVerbose(String.format("PES: reading byte: 0x%02X", buffer[0]));
                                     oapMessenger.oap_receive_byte(buffer[0]);
                                     numBytesRead++;
                                 }
@@ -437,7 +546,7 @@ public class PodEmuService extends Service
                                     podEmuMessageVector.remove(0);
                                 }
                                 oapMessenger.flush();
-
+/*
                                 if ( bluetoothEnabled && serialInterface instanceof SerialInterface_BT )
                                 {
                                     long currTimeMillis = System.currentTimeMillis();
@@ -445,14 +554,14 @@ public class PodEmuService extends Service
 
                                     if (ifBT != null
                                             && !ifBT.isConnected()
-                                            && currTimeMillis - markerTime > BT_CONNECT_TIMEOUT)
+                                            && currTimeMillis - markerTime > SerialInterface_BT.BT_CONNECT_TIMEOUT)
                                     {
-                                        PodEmuLog.debug("PES: waited too long for BT interface to connect (" + BT_CONNECT_TIMEOUT + " ms.). Resetting BT interface.");
+                                        PodEmuLog.debug("PES: waited too long for BT interface to connect (" + SerialInterface_BT.BT_CONNECT_TIMEOUT + " ms.). Resetting BT interface.");
                                         markerTime = System.currentTimeMillis();
                                         ifBT.restart();
                                     }
                                 }
-
+*/
                                 if (numBytesRead == 0)
                                 {
                                     Thread.sleep(10);
@@ -489,6 +598,7 @@ public class PodEmuService extends Service
 
     }
 
+
     @Override
     public void onCreate()
     {
@@ -497,7 +607,7 @@ public class PodEmuService extends Service
         try
         {
             markerTime=System.currentTimeMillis();
-            serialInterfaceBuilder=new SerialInterfaceBuilder();
+            serialInterfaceBuilder=SerialInterfaceBuilder.getInstance();
 
             //SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
             //String ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
@@ -506,6 +616,7 @@ public class PodEmuService extends Service
             iF.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
             //iF.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
             iF.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+            iF.addAction(INTENT_ACTION_CLOSE_SERVICE);
             registerReceiver(mReceiver, iF);
             reloadSettings();
         }
@@ -541,6 +652,7 @@ public class PodEmuService extends Service
 
             serialInterfaceBuilder.detach();
             serialInterface = null;
+            isBTConnected = false;
 
             PodEmuLog.debug("PES: Service destroyed");
         }
@@ -571,6 +683,7 @@ public class PodEmuService extends Service
         mHandler.sendMessage(message);
 
         mediaPlaybackInstance.action_stop();
+        isBTConnected = false;
 
         stopSelf();
     }
@@ -598,16 +711,40 @@ public class PodEmuService extends Service
                     PodEmuLog.debug("PES: BT device disconnected: " + ((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
                 }
 
-                if (   (   action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
+                if(action.equals(INTENT_ACTION_CLOSE_SERVICE))
+                {
+                    PodEmuLog.debug("PES: closing service in broadcast request");
+                    stopSelf();
+                }
+
+                BluetoothDevice btDev = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+
+                if (       action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
                         || action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
-                        || (action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)   )
-                            && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName().equals(SerialInterface_BT.getInstance().getName())) )
+                        || (  action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+                            && (                 isBTConnected &&     btDev != null &&
+                                                    SerialInterface_BT.getInstance(getBaseContext()) != null &&
+                                    (btDev.getName().equals(SerialInterface_BT.getInstance().getName())) )
+                            )
                    )
                 {
                     PodEmuLog.debug("PES: PodEmu serial interface disconnected. Initiating closing service.");
-                    PodEmuLog.debug("PES: Connected BT device: " + SerialInterface_BT.getInstance().getName());
-                    PodEmuLog.debug("PES: Dropped BT device: " + ((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
-                    closeServiceGracefully();
+                    if(bluetoothEnabled && SerialInterface_BT.getInstance()!=null && btDev != null)
+                    {
+                        PodEmuLog.debug("PES: Connected BT device: " + SerialInterface_BT.getInstance().getName());
+                        PodEmuLog.debug("PES: Dropped BT device: " + ((BluetoothDevice) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
+                        bufferThread.interrupt();
+                        serialInterfaceBuilder.detach();
+                        /*
+                        WARNING: this is not required because detach() will nullify serialInterface
+                        serialInterface.close();
+                        serialInterface=null;
+                        */
+                        bufferThread=null;
+                        runBufferThread();
+                    }
+                    else
+                        closeServiceGracefully();
                 }
                 else
                 {

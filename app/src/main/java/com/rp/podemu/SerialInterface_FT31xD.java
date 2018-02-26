@@ -20,7 +20,7 @@ import java.util.Map;
 /**
  * Created by rp on 10/22/15.
  */
-public class SerialInterface_FT31xD implements SerialInterface
+public class SerialInterface_FT31xD extends SerialInterface_Common implements SerialInterface
 {
     private static Map<String, String> deviceList = new LinkedHashMap<>();
     private static Map<String, Integer> deviceBufferSizes = new LinkedHashMap<>();
@@ -116,6 +116,8 @@ public class SerialInterface_FT31xD implements SerialInterface
 		/*send the UART configuration packet*/
         write(configData, 8);
 
+        PodEmuService.communicateSerialStatusChange();
+
         return true;
     }
 
@@ -185,6 +187,7 @@ public class SerialInterface_FT31xD implements SerialInterface
                 accessory_attached = false;
             }
 
+            PodEmuService.communicateSerialStatusChange();
 
         }
 
@@ -255,6 +258,11 @@ public class SerialInterface_FT31xD implements SerialInterface
         return str;
     }
 
+    public boolean isConnecting()
+    {
+        return false;
+    }
+
     public boolean isConnected()
     {
         boolean result=true;
@@ -270,6 +278,7 @@ public class SerialInterface_FT31xD implements SerialInterface
         PodEmuLog.debug("FT31xD: closing accessory.");
         if(accessory_attached)
             CloseAccessory();
+        PodEmuService.communicateSerialStatusChange();
     }
 
     public int getVID()
@@ -292,6 +301,11 @@ public class SerialInterface_FT31xD implements SerialInterface
             return deviceList.get(usbAccessory.getModel());
         else
             return "Unknown device";
+    }
+
+    public String getAddress()
+    {
+        return "Cable";
     }
 
     public int getReadBufferSize()
@@ -368,6 +382,9 @@ public class SerialInterface_FT31xD implements SerialInterface
         fileDescriptor = null;
         inputStream = null;
         outputStream = null;
+
+
+
     }
 
 }

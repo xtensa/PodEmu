@@ -267,9 +267,9 @@ public class PodEmuIntentFilter extends IntentFilter
 
         if( skip_broadcast )
         {
-            PodEmuLog.verbose("PEF: (" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
-            PodEmuLog.verbose("PEF: (" + context.getClass() + ") " + intent.getExtras());
-            PodEmuLog.verbose(skip_msg);
+            PodEmuLog.debugVerbose("PEF: (" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
+            PodEmuLog.debugVerbose("PEF: (" + context.getClass() + ") " + intent.getExtras());
+            PodEmuLog.debugVerbose(skip_msg);
             return null;
         }
         else
@@ -325,7 +325,23 @@ public class PodEmuIntentFilter extends IntentFilter
             timeSentInMs = System.currentTimeMillis();
 
             listSize = (int) intent.getLongExtra("ListSize", -1);
-            listPosition = (int) intent.getLongExtra("ListPosition", -1);
+
+            try
+            {
+                // some applications provide Integer instead of Long and it causes exception
+                listPosition = (int) intent.getLongExtra("ListPosition", -1);
+            }
+            catch(Exception e)
+            {
+                if(e instanceof java.lang.ClassCastException)
+                {
+                    listPosition = intent.getIntExtra("ListPosition", -1);
+                }
+                else
+                {
+                    throw e;
+                }
+            }
 
             METADATA_CHANGED=BroadcastTypes.ANDROID_METADATA_CHANGED;
             PLAYBACK_STATE_CHANGED=BroadcastTypes.ANDROID_PLAYBACK_STATE_CHANGED;

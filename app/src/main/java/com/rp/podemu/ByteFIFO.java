@@ -35,11 +35,13 @@ class ByteFIFO extends Object {
         return ( size == capacity );
     }
 
-    public synchronized void add(byte b)
-            throws InterruptedException {
+    public synchronized void add(byte b) throws InterruptedException
+    {
 
         // TODO decide if really wait here
         waitWhileFull();
+
+        //PodEmuLog.debug(String.format("BFIFO: byte 0x%02X", b));
 
         queue[head] = b;
         head = ( head + 1 ) % capacity;
@@ -48,27 +50,39 @@ class ByteFIFO extends Object {
         notifyAll(); // let any waiting threads know about change
     }
 
+    /**
+     * Copy 'count' bytes from 'bytes' array to buffer
+     * @param bytes - bytes to copy from
+     * @param count - count bytes to copy
+     */
+    public synchronized void add(byte[] bytes, int count) throws InterruptedException
+    {
+        for (int i = 0; i < count; i++)
+        {
+            add(bytes[i]);
+        }
+    }
+
 
     // TODO for now I need just 1 byte, but maybe worth extending to n bytes
-    public synchronized int remove(byte bytes[])
-            throws InterruptedException {
-
-        byte buf[]=new byte[1];
+    public synchronized int remove(byte bytes[]) throws InterruptedException
+    {
         int len=1;
 
         if(isEmpty()) return 0;
 
-        buf[0] = queue[tail];
+        bytes[0] = queue[tail];
         tail = ( tail + 1 ) % capacity;
         size--;
 
-        System.arraycopy(buf, 0, bytes, 0, len);
         notifyAll(); // let any waiting threads know about change
 
         return len;
     }
 
-    public synchronized byte[] removeAll() {
+    public synchronized byte[] removeSome(int count)
+    {
+        int fsize = Math.min(count, size);
         // For efficiency, the bytes are copied in blocks
         // instead of one at a time.
 
@@ -80,32 +94,39 @@ class ByteFIFO extends Object {
         }
 
         // based on the current size
-        byte[] list = new byte[size];
+        byte[] list = new byte[fsize];
 
         // copy in the block from tail to the end
         int distToEnd = capacity - tail;
-        int copyLen = Math.min(size, distToEnd);
+        int copyLen = Math.min(fsize, distToEnd);
         System.arraycopy(queue, tail, list, 0, copyLen);
 
         // If data wraps around, copy the remaining data
         // from the front of the array.
-        if ( size > copyLen ) {
+        if ( fsize > copyLen ) {
             System.arraycopy(
-                    queue, 0, list, copyLen, size - copyLen);
+                    queue, 0, list, copyLen, fsize - copyLen);
         }
 
-        tail = ( tail + size ) % capacity;
-        size = 0; // everything has been removed
+        tail = ( tail + fsize ) % capacity;
+        size -= fsize; // everything has been removed
 
         // Signal any and all waiting threads that
         // something has changed.
         notifyAll();
 
+        //PodEmuLog.debug("BFIFO: removeSome(): " + (new String(list)));
+
         return list;
     }
 
-    public synchronized byte[] removeAtLeastOne()
-            throws InterruptedException {
+    public synchronized byte[] removeAll()
+    {
+        return removeSome(size);
+    }
+
+    public synchronized byte[] removeAtLeastOne() throws InterruptedException
+    {
 
         waitWhileEmpty(); // wait for a least one to be in FIFO
         return removeAll();
@@ -133,35 +154,38 @@ class ByteFIFO extends Object {
         return isEmpty();
     }
 
-    public synchronized void waitUntilEmpty()
-            throws InterruptedException {
-
-        while ( !isEmpty() ) {
+    public synchronized void waitUntilEmpty() throws InterruptedException
+    {
+        while ( !isEmpty() )
+        {
             wait();
         }
     }
 
-    public synchronized void waitWhileEmpty()
-            throws InterruptedException {
-
-        while ( isEmpty() ) {
+    public synchronized void waitWhileEmpty() throws InterruptedException
+    {
+        while ( isEmpty() )
+        {
             wait();
         }
     }
 
-    public synchronized void waitUntilFull()
-            throws InterruptedException {
+    public synchronized void waitUntilFull() throws InterruptedException
+    {
 
-        while ( !isFull() ) {
+        while ( !isFull() )
+        {
             wait();
         }
     }
 
-    public synchronized void waitWhileFull()
-            throws InterruptedException {
+    public synchronized void waitWhileFull() throws InterruptedException
+    {
 
-        while ( isFull() ) {
+        while ( isFull() )
+        {
             wait();
         }
     }
+
 }

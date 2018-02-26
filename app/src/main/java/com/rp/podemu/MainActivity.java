@@ -64,6 +64,7 @@ public class MainActivity extends AppCompatActivity
 
     private String ctrlAppProcessName;
     private boolean bluetoothEnabled;
+    private boolean bluetoothIsBle;
     private int autoSwitchToApp;
     private Intent serviceIntent;
     private SerialInterfaceBuilder serialInterfaceBuilder;
@@ -112,6 +113,8 @@ public class MainActivity extends AppCompatActivity
 
     public void start_stop_service(View v)
     {
+
+
         if(serviceBound)
         {
             PodEmuLog.debug("MA: Stop service initiated...");
@@ -139,7 +142,7 @@ public class MainActivity extends AppCompatActivity
 
                 if (bindService(serviceIntent, serviceConnection, BIND_IMPORTANT))
                 {
-                    PodEmuLog.debug("MA: Service succesfully bound");
+                    PodEmuLog.debug("MA: Service successfully bound");
                     serviceBound = true;
                 }
                 else
@@ -161,7 +164,7 @@ public class MainActivity extends AppCompatActivity
 
     public void stop_service(View v)
     {
-        try
+    /*    try
         {
             iPodConnected = OAPMessenger.IPOD_MODE_DISCONNECTED;
             serialInterfaceBuilder.detach();
@@ -177,7 +180,8 @@ public class MainActivity extends AppCompatActivity
             PodEmuLog.printStackTrace(e);
             throw e;
         }
-
+    */
+        PodEmuService.stopService(this);
     }
 
 
@@ -224,7 +228,7 @@ public class MainActivity extends AppCompatActivity
                }
            });
 */
-            serialInterfaceBuilder = new SerialInterfaceBuilder();
+            serialInterfaceBuilder = SerialInterfaceBuilder.getInstance();
 
 //        LayoutInflater lif = getLayoutInflater();
 //        ViewGroup layout = (ViewGroup)lif.inflate(R.layout.board, null);
@@ -323,6 +327,7 @@ public class MainActivity extends AppCompatActivity
             ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
             autoSwitchToApp = sharedPref.getInt("autoSwitchToApp", 0);
             bluetoothEnabled=(sharedPref.getInt("bluetoothEnabled", 0)!=0);
+            bluetoothIsBle = sharedPref.getBoolean("bluetoothIsBle", false);
             String enableDebug = sharedPref.getString("enableDebug", "false");
             Boolean ctrlAppUpdated = sharedPref.getBoolean("ControlledAppUpdated", false);
             Boolean playlistCountModeUpdated=sharedPref.getBoolean("PlaylistCountModeUpdated", false);
@@ -429,7 +434,7 @@ public class MainActivity extends AppCompatActivity
         try
         {
             loadPreferences();
-            if( bluetoothEnabled )
+            //if( bluetoothEnabled )
             {
                 start_service(null);
             }
@@ -461,16 +466,37 @@ public class MainActivity extends AppCompatActivity
                 PodEmuLog.debug("MA: bluetooth is not supported.");
             }
             else
+            {
+                if (!bt.isEnabled())
                 {
-                    if (!bt.isEnabled())
-                    {
 
-                        Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                        startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
-                    }
+                    Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                    startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
+                }
+                SharedPreferences sharedPref = getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+                boolean firstTimeWarning = sharedPref.getBoolean("firstTimeMainActivityBleWarning", true);
+
+                if(bluetoothEnabled && bluetoothIsBle && firstTimeWarning)
+                {
+                    // needed to set the context
+                    SerialInterface_BLE.getInstance(getBaseContext());
+                    SerialInterface_BLE.checkLocationPermissions(this);
+                    SharedPreferences.Editor editor = sharedPref.edit();
+                    editor.putBoolean("firstTimeMainActivityBleWarning", false);
+                    editor.apply();
+                }
             }
         }
+
     }
+
+    @Override
+    protected void onPostResume()
+    {
+        super.onPostResume();
+
+    }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data)
@@ -542,31 +568,48 @@ public class MainActivity extends AppCompatActivity
 
     private void updateSerialStatus()
     {
-        SerialInterface serialInterface = serialInterfaceBuilder.getSerialInterface(this);
+        // we don't want to initialize serial interface here - just get the handler
+        SerialInterface serialInterface = serialInterfaceBuilder.getSerialInterface();
+
         ImageView serialInterfaceImage = (ImageView) this.findViewById(R.id.SERIAL_status_icon);
 
-        if(serialInterface != null && serialInterface.isConnected())
+        if(serialInterface != null)
         {
-            this.serialStatusText.setTextColor(Color.rgb(0x00, 0xff, 0x00));
-            this.serialStatusText.setText("connected");
-
-            if (serialInterface instanceof SerialInterface_BT)
+            if(serialInterface.isConnected())
             {
-                serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.bluetooth)));
-                this.serialStatusHint.setText(String.format("Bluetooth adapter\nName: " + serialInterface.getName()));
-            }
-            else
-            {
-                this.serialStatusHint.setText(
-                        String.format("VID: 0x%04X, ", serialInterface.getVID()) +
-                                String.format("PID: 0x%04X\n", serialInterface.getPID()) +
-                                "Cable: " + serialInterface.getName());
-                serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.usb_serial_480x480)));
-            }
+                this.serialStatusText.setTextColor(Color.rgb(0x00, 0xff, 0x00));
+                this.serialStatusText.setText("connected");
 
+                if (serialInterface instanceof SerialInterface_BT || serialInterface instanceof SerialInterface_BLE)
+                {
+                    serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.bluetooth)));
+                    this.serialStatusHint.setText(String.format("Bluetooth adapter\nName: " + serialInterface.getName() +
+                            "\nMAC: " + serialInterface.getAddress()));
+                } else
+                {
+                    this.serialStatusHint.setText(
+                            String.format("VID: 0x%04X, ", serialInterface.getVID()) +
+                                    String.format("PID: 0x%04X\n", serialInterface.getPID()) +
+                                    "Cable: " + serialInterface.getName());
+                    serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.usb_serial_480x480)));
+                }
+
+                // once service is bound we can launch controlled app
+                if (!podEmuService.isAppLaunched && autoSwitchToApp==1)
+                {
+                    launchControlledApp(null);
+                    podEmuService.isAppLaunched = true;
+                }
+            }
+            else if(serialInterface.isConnecting())
+            {
+                this.serialStatusText.setTextColor(Color.rgb(0xff, 0x96, 0x00));
+                this.serialStatusText.setText("connecting");
+            }
         }
         else
         {
+            podEmuService.isAppLaunched = false;
             this.serialStatusText.setTextColor(Color.rgb(0xff,0x00,0x00));
             this.serialStatusText.setText("disconnected");
 
@@ -583,17 +626,24 @@ public class MainActivity extends AppCompatActivity
         {
             if (iPodConnected == OAPMessenger.IPOD_MODE_AIR)
             {
+                String dockStatus = "AiR Mode";
+                if(SerialInterfaceBuilder.getSerialInterface() != null &&
+                        SerialInterfaceBuilder.getSerialInterface().getAccessoryName() != null)
+                    dockStatus += "\n" + SerialInterfaceBuilder.getSerialInterface().getAccessoryName();
+
                 this.dockStatusText.setTextColor(Color.rgb(0x00, 0xff, 0x00));
-                this.dockStatusText.setText("AiR mode");
+                this.dockStatusText.setText(dockStatus);
                 if (podEmuService.isDockIconLoaded)
                 {
                     dockingLogoView.setBitmap(podEmuService.dockIconBitmap);
                 }
-            } else if (iPodConnected == OAPMessenger.IPOD_MODE_SIMPLE)
+            }
+            else if (iPodConnected == OAPMessenger.IPOD_MODE_SIMPLE)
             {
                 this.dockStatusText.setTextColor(Color.rgb(0x00, 0xff, 0x00));
                 this.dockStatusText.setText("simple mode");
-            } else // docking station disconnected
+            }
+            else // docking station disconnected
             {
                 this.dockStatusText.setTextColor(Color.rgb(0xff, 0x00, 0x00));
                 this.dockStatusText.setText("disconnected");
@@ -678,7 +728,6 @@ public class MainActivity extends AppCompatActivity
                     case 3: // serial connection status changed
                     {
                         updateSerialStatus();
-
                     }
                     break;
                 }
@@ -733,12 +782,6 @@ public class MainActivity extends AppCompatActivity
                     dockingLogoView.setResizedBitmap(podEmuService.dockIconBitmap);
                 }
 
-                // once service is bound we can launch controlled app
-                if (!podEmuService.isAppLaunched && autoSwitchToApp==1)
-                {
-                    launchControlledApp(null);
-                    podEmuService.isAppLaunched = true;
-                }
             }
             catch(Exception e)
             {

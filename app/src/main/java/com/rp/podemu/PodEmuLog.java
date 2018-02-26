@@ -56,9 +56,9 @@ public class PodEmuLog
     public static final int LOGLEVEL_DISABLED=0;
     public static final int LOGLEVEL_LOG=1;
     public static final int LOGLEVEL_DEBUG=2;
-    public static final int LOGLEVEL_VERBOSE=3;
+    public static final int LOGLEVEL_DEBUG_VERBOSE=3;
 
-    public static int LOGLEVEL_DEFAULT=LOGLEVEL_VERBOSE;
+    public static int LOGLEVEL_DEFAULT=LOGLEVEL_DEBUG;
 
     public static int debug_level=LOGLEVEL_DEFAULT;
     public static Context context;
@@ -184,9 +184,9 @@ public class PodEmuLog
         log(str);
 
     }
-    public static void verbose(String str)
+    public static void debugVerbose(String str)
     {
-        if(debug_level<LOGLEVEL_VERBOSE) return;
+        if(debug_level<LOGLEVEL_DEBUG_VERBOSE) return;
         log(str);
     }
 
@@ -241,6 +241,8 @@ public class PodEmuLog
         int bluetoothEnabled=sharedPref.getInt("bluetoothEnabled", 0);
         String bluetoothDevice=sharedPref.getString("bluetoothDeviceName", SerialInterface_BT.BTDEV_NAME_DEFAULT);
         String baudRate = sharedPref.getString("BaudRate", "unknown baud rate");
+        String bluetoothDeviceAddress = sharedPref.getString("bluetoothDeviceAddress", "unknown");
+        boolean bluetoothIsBle = sharedPref.getBoolean("bluetoothIsBle", false);
 
         String enableDebug = sharedPref.getString("enableDebug", "false");
 
@@ -258,12 +260,14 @@ public class PodEmuLog
                 "\nPodEmu Version: " + version +
                 "\n\nSETTINGS DUMP: " +
                 "\n     Controlled app         : " + ctrlApp +
-                "\n     Ctonrolled app process : " + processName +
+                "\n     Controlled app process : " + processName +
                 "\n     Auto switch to app     : " + autoSwitchToApp +
                 "\n     Playlist count mode    : " + playlistCountMode +
                 "\n     Force simple mode      : " + forceSimpleMode +
                 "\n     BT enabled             : " + bluetoothEnabled +
                 "\n     BT device              : " + bluetoothDevice +
+                "\n     BT device address      : " + bluetoothDeviceAddress +
+                "\n     BT is LE device        : " + bluetoothIsBle +
                 "\n     Baud rate              : " + baudRate +
                 "\n     Debug enabled          : " + enableDebug +
                 "\n\n"
