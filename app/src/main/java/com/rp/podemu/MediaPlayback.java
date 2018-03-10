@@ -116,15 +116,17 @@ public abstract class MediaPlayback
     {
         int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
         int trackCount   = getCurrentPlaylist().getTrackCount();
+        int newTrackPos  = currentTrack + 1;
+        if (newTrackPos == trackCount) newTrackPos = 0;
 
         PodEmuLog.debug("PEMP: action NEXT requested");
 
         // TODO: implement repeat and shuffle
-        if(currentTrack == trackCount-1) return;
+        //no loops? if(currentTrack == trackCount-1) return;
 
         if( shouldUpdatePosition() )
         {
-            getCurrentPlaylist().setCurrentTrack(currentTrack+1);
+            getCurrentPlaylist().setCurrentTrack(newTrackPos);
         }
 
         execute_action(KeyEvent.KEYCODE_MEDIA_NEXT);
@@ -139,15 +141,18 @@ public abstract class MediaPlayback
     public synchronized void action_prev(int timeElapsed, boolean force)
     {
         int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
+        int trackCount   = getCurrentPlaylist().getTrackCount();
+        int newTrackPos  = currentTrack - 1;
+        if (newTrackPos == -1) newTrackPos = trackCount-1;
 
         PodEmuLog.debug("PEMP: action PREV requested, force=" + force);
 
         // TODO: implement repeat and shuffle
-        if(currentTrack == 0) return;
+        //no loops? if(currentTrack == 0) return;
 
         if( shouldUpdatePosition() )
         {
-            getCurrentPlaylist().setCurrentTrack(currentTrack-1);
+            getCurrentPlaylist().setCurrentTrack(newTrackPos);
         }
 
         // media players behave differently, depending on how much time elapsed
