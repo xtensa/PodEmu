@@ -332,7 +332,7 @@ public class MainActivity extends AppCompatActivity
             Boolean ctrlAppUpdated = sharedPref.getBoolean("ControlledAppUpdated", false);
             Boolean playlistCountModeUpdated=sharedPref.getBoolean("PlaylistCountModeUpdated", false);
             int forceSimpleMode = sharedPref.getInt("ForceSimpleMode", 0);
-            int playlistCountMode=sharedPref.getInt("PlaylistCountMode", PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT);
+            int playlistCountMode=sharedPref.getInt("PlaylistCountMode", PodEmuMediaStore.MODE_PLAYLIST_SIZE_DEFAULT);
 
             if(PodEmuMediaStore.getInstance()==null)
             {

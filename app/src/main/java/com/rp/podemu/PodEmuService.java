@@ -469,6 +469,8 @@ public class PodEmuService extends Service
                                             }
                                         }, 200);
                                         */
+
+                                        /*
                                         mHandler.postDelayed(new Runnable()
                                         {
                                             @Override
@@ -477,7 +479,7 @@ public class PodEmuService extends Service
                                                 oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback1.getCurrentPlaylist().getCurrentTrackPos());
                                             }
                                         }, 2000);
-
+                                        */
                                     }
 
                                     if(!mediaPlayback.isPlaying() && !stopCommandSent)

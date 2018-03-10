@@ -25,6 +25,7 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.pm.ApplicationInfo;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.support.v4.app.DialogFragment;
 
 import java.util.ArrayList;
@@ -35,11 +36,6 @@ import java.util.Vector;
 
 public class PlaylistCountDialogFragment extends DialogFragment // implements DialogInterface.OnClickListener
 {
-    public static final int MODE_PLAYLIST_SIZE_NORMAL = 0;
-    public static final int MODE_PLAYLIST_SIZE_SINGLE = 1;
-    public static final int MODE_PLAYLIST_SIZE_TRIPLE = 2;
-    public static final int MODE_PLAYLIST_SIZE_FIXED =  3;
-    public static final int MODE_PLAYLIST_SIZE_DEFAULT = MODE_PLAYLIST_SIZE_TRIPLE;
 
     public static Map<Integer, String> optionsList = new LinkedHashMap<>();
 
@@ -47,9 +43,9 @@ public class PlaylistCountDialogFragment extends DialogFragment // implements Di
     {
         if(optionsList.size()>0) return;
 
-        optionsList.put(MODE_PLAYLIST_SIZE_SINGLE, "Single track playlist");
-        optionsList.put(MODE_PLAYLIST_SIZE_TRIPLE, "Triple track playlist");
-        optionsList.put(MODE_PLAYLIST_SIZE_FIXED , "Fixed count playlist (20)");
+        optionsList.put(PodEmuMediaStore.MODE_PLAYLIST_SIZE_SINGLE, "Single track playlist");
+        optionsList.put(PodEmuMediaStore.MODE_PLAYLIST_SIZE_TRIPLE, "Triple track playlist");
+        optionsList.put(PodEmuMediaStore.MODE_PLAYLIST_SIZE_FIXED , "Fixed count playlist (20)");
     }
 
     public PlaylistCountDialogFragment()

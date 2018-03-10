@@ -166,7 +166,7 @@ public class SettingsActivity extends AppCompatActivity
         int mode = which+1;
         //saving to shared preferences
         SharedPreferences.Editor editor = sharedPref.edit();
-        int oldPlaylistCountMode=sharedPref.getInt("PlaylistCountMode", PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT);
+        int oldPlaylistCountMode=sharedPref.getInt("PlaylistCountMode", PodEmuMediaStore.MODE_PLAYLIST_SIZE_DEFAULT);
         Boolean playlistCountModeUpdated=sharedPref.getBoolean("PlaylistCountModeUpdated", false);
         editor.putInt("PlaylistCountMode", mode);
         editor.putBoolean("PlaylistCountModeUpdated", oldPlaylistCountMode != which || playlistCountModeUpdated);
@@ -403,7 +403,7 @@ public class SettingsActivity extends AppCompatActivity
 
     private void setPlaylistCountModeInfo()
     {
-        int playlistCountMode = sharedPref.getInt("PlaylistCountMode", PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT);
+        int playlistCountMode = sharedPref.getInt("PlaylistCountMode", PodEmuMediaStore.MODE_PLAYLIST_SIZE_DEFAULT);
 
         PlaylistCountDialogFragment.initialize();
         TextView textView = (TextView) findViewById(R.id.playlistCountName);

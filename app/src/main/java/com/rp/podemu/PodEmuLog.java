@@ -235,7 +235,7 @@ public class PodEmuLog
         String processName = sharedPref.getString("ControlledAppProcessName", "unknown application");
         int autoSwitchToApp=sharedPref.getInt("autoSwitchToApp", 0);
 
-        int playlistCountMode=sharedPref.getInt("PlaylistCountMode", PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT);
+        int playlistCountMode=sharedPref.getInt("PlaylistCountMode", PodEmuMediaStore.MODE_PLAYLIST_SIZE_DEFAULT);
         int forceSimpleMode=sharedPref.getInt("ForceSimpleMode", 0);
 
         int bluetoothEnabled=sharedPref.getInt("bluetoothEnabled", 0);

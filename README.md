@@ -97,7 +97,7 @@ Additionally, please remember, that in order support track/album/artist/playlist
 <td>Spotify</td>
 <td>yes</td>
 <td>yes</td>
-<td>Metadata does not contain ListSize and ListPosition information. Broadcasts should be enabled in Settings -> Device Broadcast Status.</td>
+<td>Metadata does not contain ListSize and ListPosition information. Broadcasts should be enabled in Settings -> Device Broadcast Status. Spotify also does not support Fast Forward / Rewind keycode injection.</td>
 </tr>
 <tr>
 <td>TIDAL</td>

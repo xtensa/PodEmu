@@ -967,6 +967,7 @@ public class OAPMessenger
                         int_to_byte_array(count, b);
                         byte msg[] = {0x00, 0x19, b[0], b[1], b[2], b[3]};
                         oap_04_write_cmd(msg);
+                        PodEmuLog.debug("OAPM: AIR_MODE OUT  - response to 0x0018, count=" + count);
                     }
                 }
                 break;
@@ -1185,7 +1186,7 @@ public class OAPMessenger
                             break;
                         case 0x07: // end skip FF/REV
                             PodEmuLog.debug("OAPM: AIR_MODE IN  - end skip FF/REV (NOT IMPLEMENTED)");
-                            abortPendingResponse("action not implemented", IPOD_SUCCESS);
+                            MediaPlayback.getInstance().action_stop_ff_rev();
                             break;
                         case 0x08: // next chapter
                             PodEmuLog.debug("OAPM: AIR_MODE IN  - next chapter (NOT IMPLEMENTED)");
@@ -1983,10 +1984,9 @@ public class OAPMessenger
         byte b[]=new byte[4];
         int count = MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount();
         int_to_byte_array(count, b);
-        // always say we have 3 songs to implement next/prev action
         byte msg[] = {0x00, 0x36, b[0], b[1], b[2], b[3]};
         oap_04_write_cmd(msg);
-        PodEmuLog.debug("OAPM: AIR_MODE OUT - written playlist song count: count");
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written playlist song count: " + count);
     }
 
 

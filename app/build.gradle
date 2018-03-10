@@ -1,31 +1,25 @@
 
 apply plugin: 'com.android.application'
 
-def getNewVersionCode()
+def getRevision()
 {
     println "getNewVersionCode started"
     def process = "git rev-list master --first-parent --count".execute()
     def version = process.text.toInteger()
     version = version
-    println sprintf("Returning version %d", version)
+    println sprintf("Returning version revision %d", version)
     return version
 }
 
 def getNewVersionName()
 {
     def majorVersion=project.MAJOR_VERSION
-    def minorVersion=[ getMinorVersionCode() ]
+    def minorVersion=project.MINOR_VERSION
+    def revision=[ getRevision() ]
     def versionName
-    versionName = minorVersion.collect { String.format( "${majorVersion}.%02d", it ) }
+    versionName = revision.collect { String.format( "${majorVersion}.${minorVersion}-%02d", it ) }
     println sprintf("Returning version name %s", versionName)
     return versionName[0]
-}
-
-def getMinorVersionCode()
-{
-    // on version 23 major version changed to 2
-    def minorVersion = getNewVersionCode() - 23
-    return minorVersion
 }
 
 android {
@@ -37,7 +31,7 @@ android {
         applicationId "com.rp.podemu"
         minSdkVersion 14
         targetSdkVersion 26
-        versionCode getNewVersionCode()
+        versionCode getRevision()
         versionName getNewVersionName()
     }
     buildTypes {

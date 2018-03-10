@@ -33,6 +33,15 @@ import java.util.Map;
  */
 public class PodEmuMediaStore
 {
+
+    public static final int MODE_PLAYLIST_SIZE_NORMAL = 0;
+    public static final int MODE_PLAYLIST_SIZE_SINGLE = 1;
+    public static final int MODE_PLAYLIST_SIZE_TRIPLE = 2;
+    public static final int MODE_PLAYLIST_SIZE_FIXED =  3;
+    public static final int MODE_PLAYLIST_SIZE_DEFAULT = MODE_PLAYLIST_SIZE_FIXED;
+
+
+
     private static Context context;
     private String ctrlAppDbName =null;
     private String ctrlAppProcessName =null;
@@ -69,7 +78,7 @@ public class PodEmuMediaStore
     private int nextComposerId =0;
     private int nextTrackId =0;
     private int nextPlaylistId =0;
-    private int playlistCountMode = PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_DEFAULT;
+    private int playlistCountMode = MODE_PLAYLIST_SIZE_DEFAULT;
 
     private Cursor selectionCursor=null;
     private byte selectionSortOrder=SORT_BY_SONG;
@@ -116,13 +125,13 @@ public class PodEmuMediaStore
     {
         switch (this.playlistCountMode)
         {
-            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_SINGLE:
+            case MODE_PLAYLIST_SIZE_SINGLE:
                 return 1;
-            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_FIXED:
-                return 20;
-            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_NORMAL:
+            case MODE_PLAYLIST_SIZE_FIXED:
+                return 11;
+            case MODE_PLAYLIST_SIZE_NORMAL:
                 return MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount();
-            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_TRIPLE:
+            case MODE_PLAYLIST_SIZE_TRIPLE:
             default:
                 return 3;
         }
@@ -378,8 +387,8 @@ public class PodEmuMediaStore
         public void setCurrentTrackPosToStart()
         {
             currentTrack = 0;
-            if ( PodEmuMediaStore.getInstance().getPlaylistCountMode() !=
-                    PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_NORMAL ) setCurrentTrackToCenter();
+            if ( PodEmuMediaStore.getInstance().getPlaylistCountMode() ==
+                    PodEmuMediaStore.MODE_PLAYLIST_SIZE_TRIPLE ) setCurrentTrackToCenter();
         }
 
         private void setCurrentTrackToCenter()

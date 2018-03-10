@@ -19,8 +19,10 @@
 
 package com.rp.podemu;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.SystemClock;
 import android.view.KeyEvent;
 
@@ -191,15 +193,30 @@ public abstract class MediaPlayback
 
     public void action_skip_forward()
     {
-        execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD);
+        execute_action(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD);
+        /*
+        if(Build.VERSION.SDK_INT >= 23)
+        {
+            execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD);
+        }
+        */
     }
 
     public void action_skip_backward()
     {
-        execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
+        execute_action(KeyEvent.KEYCODE_MEDIA_REWIND);
+        /*
+        if(Build.VERSION.SDK_INT >= 23)
+        {
+            execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
+        }
+        */
     }
 
-
+    public void action_stop_ff_rev()
+    {
+        execute_action(KeyEvent.KEYCODE_MEDIA_PLAY);
+    }
 
 
     public boolean jumpTo(int pos)
@@ -208,7 +225,7 @@ public abstract class MediaPlayback
         int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
         int trackCount   = getCurrentPlaylist().getTrackCount();
 
-        PodEmuLog.debug("PEMS.Playlist: jumTo: " + pos + " while current pos is " + currentTrack);
+        PodEmuLog.debug("PEMS.Playlist: jumpTo: " + pos + " while current pos is " + currentTrack);
 
         if(pos==0xffffffff)
         {
@@ -221,9 +238,25 @@ public abstract class MediaPlayback
         pos=Math.max(pos,0);
         pos=Math.min(pos,trackCount);
 
-        if(pos>currentTrack)
+        int count = pos - currentTrack;
+
+        if(PodEmuMediaStore.getInstance().getPlaylistCountMode() == PodEmuMediaStore.MODE_PLAYLIST_SIZE_FIXED)
         {
-            int count=pos-currentTrack;
+            int threshold = trackCount/2;
+            if(count > threshold)
+            {
+                count = -(currentTrack+trackCount-pos);
+            }
+            if(count < -threshold)
+            {
+                count = trackCount-currentTrack+pos;
+            }
+        }
+
+        //------------
+
+        if(count >= 0)
+        {
             for(int i=0;i<count;i++)
             {
                 action_next();
@@ -231,8 +264,7 @@ public abstract class MediaPlayback
         }
         else
         {
-            int count=currentTrack-pos;
-            for(int i=0;i<count;i++)
+            for(int i=0;i<-count;i++)
             {
                 action_prev(timeElapsed,true);
                 timeElapsed = 0;
@@ -246,8 +278,8 @@ public abstract class MediaPlayback
     {
         switch (PodEmuMediaStore.getInstance().getPlaylistCountMode())
         {
-            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_SINGLE:
-            case PlaylistCountDialogFragment.MODE_PLAYLIST_SIZE_TRIPLE:
+            case PodEmuMediaStore.MODE_PLAYLIST_SIZE_SINGLE:
+            case PodEmuMediaStore.MODE_PLAYLIST_SIZE_TRIPLE:
                 return false;
             default:
                 return true;
