@@ -454,7 +454,7 @@ public class PodEmuService extends Service
                                     if(mediaPlayback.getTrackStatusChanged())
                                     {
                                         mediaPlayback.setTrackStatusChanged(false);
-                                        oapMessenger.oap_04_write_polling_playback_stopped();
+                                        //oapMessenger.oap_04_write_polling_playback_stopped();
                                         oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback.getCurrentPlaylist().getCurrentTrackPos());
 
                                         // repeat notification two times
@@ -482,6 +482,9 @@ public class PodEmuService extends Service
                                         */
                                     }
 
+                                    oapMessenger.oap_04_write_polling_elapsed_time();
+
+                                    // stop polling message should be sent only once, when playback is really stopped
                                     if(!mediaPlayback.isPlaying() && !stopCommandSent)
                                     {
                                         oapMessenger.oap_04_write_polling_playback_stopped();
@@ -489,7 +492,6 @@ public class PodEmuService extends Service
                                     }
                                     if(mediaPlayback.isPlaying()) stopCommandSent=false;
 
-                                    oapMessenger.oap_04_write_polling_elapsed_time();
                                 }
 
                                 // abort pending commands if waited too long
@@ -754,7 +756,7 @@ public class PodEmuService extends Service
                     // if null is received then broadcast could be not from "our" app
                     if(podEmuMessage!=null)
                     {
-                        oapMessenger.respondPendingResponse(OAPMessenger.IPOD_SUCCESS);
+                        oapMessenger.respondPendingResponse("notification received", OAPMessenger.IPOD_SUCCESS);
                         mediaPlaybackInstance.updateCurrentlyPlayingTrack(podEmuMessage);
                     }
                 }

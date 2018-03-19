@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Created by rp on 9/25/15.
@@ -312,14 +313,21 @@ public class PodEmuIntentFilter extends IntentFilter
                 length = (int) intent.getLongExtra("duration", 0);
                 position = (int) intent.getLongExtra("position", 0);
             }
-
-            if (mediaPlayback.getCtrlAppProcessName().equals("com.htc.music"))
-            {
-                id = String.valueOf(intent.getIntExtra("id", 0));
-            }
-            else
+            
+            try
             {
                 id = String.valueOf(intent.getLongExtra("id", 0));
+            }
+            catch(Exception e)
+            {
+                if(e instanceof java.lang.ClassCastException)
+                {
+                    id = String.valueOf(intent.getIntExtra("id", 0));
+                }
+                else
+                {
+                    throw e;
+                }
             }
 
             timeSentInMs = System.currentTimeMillis();

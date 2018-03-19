@@ -114,11 +114,11 @@ public abstract class MediaPlayback
 
     public synchronized void action_next()
     {
-        int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
-        int trackCount   = getCurrentPlaylist().getTrackCount();
-        int newTrackPos  = currentTrack + 1;
-        if (newTrackPos == trackCount) newTrackPos = 0;
-
+        //int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
+        //int trackCount   = getCurrentPlaylist().getTrackCount();
+        //int newTrackPos  = currentTrack + 1;
+        //if (newTrackPos == trackCount) newTrackPos = 0;
+        //PodEmuLog.debug("PEMP: action NEXT requested. newTrackPos=" + newTrackPos);
         PodEmuLog.debug("PEMP: action NEXT requested");
 
         // TODO: implement repeat and shuffle
@@ -126,7 +126,8 @@ public abstract class MediaPlayback
 
         if( shouldUpdatePosition() )
         {
-            getCurrentPlaylist().setCurrentTrack(newTrackPos);
+            getCurrentPlaylist().setIncrement(+1);
+            //getCurrentPlaylist().setCurrentTrack(newTrackPos);
         }
 
         execute_action(KeyEvent.KEYCODE_MEDIA_NEXT);
@@ -140,11 +141,12 @@ public abstract class MediaPlayback
 
     public synchronized void action_prev(int timeElapsed, boolean force)
     {
-        int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
-        int trackCount   = getCurrentPlaylist().getTrackCount();
-        int newTrackPos  = currentTrack - 1;
-        if (newTrackPos == -1) newTrackPos = trackCount-1;
+        //int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
+        //int trackCount   = getCurrentPlaylist().getTrackCount();
+        //int newTrackPos  = currentTrack - 1;
+        //if (newTrackPos == -1) newTrackPos = trackCount-1;
 
+        //PodEmuLog.debug("PEMP: action PREV requested, force=" + force + ". newTrackPos=" + newTrackPos);
         PodEmuLog.debug("PEMP: action PREV requested, force=" + force);
 
         // TODO: implement repeat and shuffle
@@ -152,7 +154,8 @@ public abstract class MediaPlayback
 
         if( shouldUpdatePosition() )
         {
-            getCurrentPlaylist().setCurrentTrack(newTrackPos);
+            getCurrentPlaylist().setIncrement(-1);
+            //getCurrentPlaylist().setCurrentTrack(newTrackPos);
         }
 
         // media players behave differently, depending on how much time elapsed
@@ -220,43 +223,55 @@ public abstract class MediaPlayback
 
     public void action_stop_ff_rev()
     {
-        execute_action(KeyEvent.KEYCODE_MEDIA_PLAY);
+        if(isPlaying())
+        {
+            execute_action(KeyEvent.KEYCODE_MEDIA_PLAY);
+        }
     }
 
 
-    public boolean jumpTo(int pos)
+    // this function will calculate the number of tracks to jump forward or backward depending on
+    // track count distance
+    public int calcTrackCountFromPosition(int pos)
     {
-        int timeElapsed = MediaPlayback.getInstance().getCurrentTrackPositionMS();
         int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
-        int trackCount   = getCurrentPlaylist().getTrackCount();
+        int trackCount = getCurrentPlaylist().getTrackCount();
 
         PodEmuLog.debug("PEMS.Playlist: jumpTo: " + pos + " while current pos is " + currentTrack);
 
-        if(pos==0xffffffff)
+        if (pos == 0xffffffff)
         {
             //pos = playlistOffset;
             // don't want to process resetting playlist
-            pos=0;
+            pos = 0;
         }
 
         // this should not happen - just in case we fix the boundaries
-        pos=Math.max(pos,0);
-        pos=Math.min(pos,trackCount);
+        pos = Math.max(pos, 0);
+        pos = Math.min(pos, trackCount);
 
         int count = pos - currentTrack;
 
-        if(PodEmuMediaStore.getInstance().getPlaylistCountMode() == PodEmuMediaStore.MODE_PLAYLIST_SIZE_FIXED)
+        if (PodEmuMediaStore.getInstance().getPlaylistCountMode() == PodEmuMediaStore.MODE_PLAYLIST_SIZE_FIXED)
         {
-            int threshold = trackCount/2;
-            if(count > threshold)
+            int threshold = trackCount / 2;
+            if (count > threshold)
             {
-                count = -(currentTrack+trackCount-pos);
+                count = -(currentTrack + trackCount - pos);
             }
-            if(count < -threshold)
+            if (count < -threshold)
             {
-                count = trackCount-currentTrack+pos;
+                count = trackCount - currentTrack + pos;
             }
         }
+
+        PodEmuLog.debug("PEMS.Playlist: calculated track jump is: " + count);
+        return count;
+    }
+
+    public boolean jumpTrackCount(int count)
+    {
+        int timeElapsed = MediaPlayback.getInstance().getCurrentTrackPositionMS();
 
         //------------
 

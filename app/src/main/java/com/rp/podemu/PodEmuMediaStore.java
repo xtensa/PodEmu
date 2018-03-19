@@ -318,12 +318,27 @@ public class PodEmuMediaStore
 
         private int trackCount=0;
         private int currentTrack=0;
+        private int increment=1;
 
         private Map<Integer, Track> trackList = new LinkedHashMap<>();
 
         public void clear()
         {
             trackList.clear();
+        }
+
+        public void setIncrement(int i)
+        {
+            if(i>=0)
+            {
+                increment = +1;
+                PodEmuLog.debug("PEMS: increment set to POSITIVE");
+            }
+            else
+            {
+                increment = -1;
+                PodEmuLog.debug("PEMS: increment set to NEGATIVE");
+            }
         }
 
         public String getPrintableObject()
@@ -382,6 +397,25 @@ public class PodEmuMediaStore
             {
                 currentTrack=pos;
             }
+        }
+
+        public void positionPlusPlus()
+        {
+            int pos = (currentTrack+1)%trackCount;
+            setCurrentTrack(pos);
+        }
+
+
+        public void positionMinusMinus()
+        {
+            int pos = (currentTrack+trackCount-1)%trackCount;
+            setCurrentTrack(pos);
+        }
+
+        public void positionIncrement()
+        {
+            if(increment>0) positionPlusPlus();
+            else positionMinusMinus();
         }
 
         public void setCurrentTrackPosToStart()

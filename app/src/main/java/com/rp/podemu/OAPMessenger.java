@@ -46,6 +46,8 @@ public class OAPMessenger
     public static final byte IPOD_ERROR_OUT_OF_RESOURCES = 0x03;
     public static final byte IPOD_ERROR_OUT_OF_RANGE = 0x04;
     public static final byte IPOD_ERROR_UNKOWN_ID = 0x05;
+
+    private static int prev_polling_position = -1;
     private static Handler mHandler;
     private PodEmuMediaStore podEmuMediaStore;
     private MediaPlayback mediaPlayback;
@@ -75,9 +77,9 @@ public class OAPMessenger
     private static int current_byte_in_line=0;
 
     // processing action mechanism variables
-    private int pending_response_cmd;
-    private boolean is_response_pending=false;
-    private long pending_response_since;
+    private int responsePendingCmd;
+    private int responsePendingStatus=0;
+    private long responsePendingSince;
 
 
     // definition of the in/out line if more than one instance of object created
@@ -95,53 +97,55 @@ public class OAPMessenger
 
     public boolean getPendingResponseStatus()
     {
-        return is_response_pending;
+        return (responsePendingStatus>0);
     }
 
     public int getPendingResponse()
     {
-        return pending_response_cmd;
+        return responsePendingCmd;
     }
 
     public long getPendingResponseSince()
     {
-        return pending_response_since;
+        return responsePendingSince;
     }
 
-    public void setPendingResponse(int cmd)
+    public void setPendingResponse(int cmd, int count)
     {
         long currTimeMillis=System.currentTimeMillis();
 
         // first, if another command is pending we need to send respond with FAIL
-        if(is_response_pending) abortPendingResponse("new command received");
+        if(responsePendingStatus>0) abortPendingResponse("new command received");
 
-        pending_response_cmd=cmd;
-        is_response_pending=true;
-        pending_response_since=currTimeMillis;
+        responsePendingCmd=cmd;
+        responsePendingStatus=count;
+        responsePendingSince=currTimeMillis;
 
         PodEmuLog.debug("OAPM: PENDING_RESPONSE command set to " + String.format("0x%04X", cmd));
 
     }
 
-    public void abortPendingResponse(String reason, byte retval)
-    {
-        oap_04_write_return_code(pending_response_cmd, retval);
-        is_response_pending=false;
-        PodEmuLog.debug("OAPM: PENDING_RESPONSE aborted command " + String.format("0x%04X", pending_response_cmd) + ". Reason: " + reason);
-    }
 
     public void abortPendingResponse(String reason)
     {
-        abortPendingResponse(reason, IPOD_SUCCESS);
+        if(responsePendingStatus>0)
+        {
+            responsePendingStatus = 1;
+            respondPendingResponse(reason, IPOD_SUCCESS);
+        }
     }
 
-    public void respondPendingResponse(byte status)
+    public void respondPendingResponse(String reason, byte status)
     {
-        if (is_response_pending)
+        if (responsePendingStatus > 0)
         {
-            oap_04_write_return_code(pending_response_cmd, status);
-            is_response_pending = false;
-            PodEmuLog.debug("OAPM: PENDING_RESPONSE responded to command " + String.format("0x%04X", pending_response_cmd) + ". Status: " + status);
+            responsePendingStatus--;
+
+            if (responsePendingStatus == 0)
+            {
+                oap_04_write_return_code(responsePendingCmd, status);
+                PodEmuLog.debug("OAPM: PENDING_RESPONSE responded to command " + String.format("0x%04X", responsePendingCmd) + ". Reason: " + reason + ". Status: " + status);
+            }
         }
     }
 
@@ -572,7 +576,6 @@ public class OAPMessenger
 
         if (mode == 0x02 && ipod_mode == 0x02) // simple mode
         {
-
             switch (cmd)
             {
 
@@ -1128,9 +1131,10 @@ public class OAPMessenger
                     /*
                      * Do not immediately respond with SUCCESS. Wait for broadcast instead.
                      */
-                    setPendingResponse(cmd);
-                    if(!mediaPlayback.jumpTo(pos))
-                        abortPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
+                    int count = mediaPlayback.calcTrackCountFromPosition(pos);
+                    setPendingResponse(cmd, Math.abs(count));
+                    if(!mediaPlayback.jumpTrackCount(count))
+                        respondPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
 
                     break;
                 }
@@ -1157,7 +1161,7 @@ public class OAPMessenger
                     }
 
                     byte retval = IPOD_SUCCESS;
-                    setPendingResponse(cmd);
+                    setPendingResponse(cmd, 1);
                     switch (params[0])
                     {
                         case 0x01:
@@ -1185,16 +1189,16 @@ public class OAPMessenger
                             MediaPlayback.getInstance().action_skip_backward();
                             break;
                         case 0x07: // end skip FF/REV
-                            PodEmuLog.debug("OAPM: AIR_MODE IN  - end skip FF/REV (NOT IMPLEMENTED)");
+                            PodEmuLog.debug("OAPM: AIR_MODE IN  - end skip FF/REV");
                             MediaPlayback.getInstance().action_stop_ff_rev();
                             break;
                         case 0x08: // next chapter
                             PodEmuLog.debug("OAPM: AIR_MODE IN  - next chapter (NOT IMPLEMENTED)");
-                            abortPendingResponse("action not implemented", IPOD_SUCCESS);
+                            respondPendingResponse("action not implemented", IPOD_SUCCESS);
                             break;
                         case 0x09: // prev chapter
                             PodEmuLog.debug("OAPM: AIR_MODE IN  - previous chapter (NOT IMPLEMENTED)");
-                            abortPendingResponse("action not implemented", IPOD_SUCCESS);
+                            respondPendingResponse("action not implemented", IPOD_SUCCESS);
                             break;
                         default:
                             retval = IPOD_ERROR_CMD_FAILED;
@@ -1202,7 +1206,7 @@ public class OAPMessenger
                     }
                     if (retval != IPOD_SUCCESS)
                     {
-                        abortPendingResponse("0x0029 failed", retval);
+                        respondPendingResponse("0x0029 failed", retval);
                     }
                     //oap_04_write_return_code(cmd, retval);
                     break;
@@ -1317,9 +1321,10 @@ public class OAPMessenger
                         break;
                     }
 
-                    setPendingResponse(cmd);
-                    if(!mediaPlayback.jumpTo(byte_array_to_int(params)))
-                        abortPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
+                    int count = mediaPlayback.calcTrackCountFromPosition(byte_array_to_int(params));
+                    setPendingResponse(cmd, Math.abs(count));
+                    if(!mediaPlayback.jumpTrackCount(count))
+                        respondPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
 
                 }
                 break;
@@ -1847,6 +1852,8 @@ public class OAPMessenger
     public void oap_04_write_polling_track_status_changed(int pos)
     {
         if(!polling_mode) return;
+        if(prev_polling_position==pos) return;
+        prev_polling_position = pos;
 
         byte cmd[] = {
                 0x00,
@@ -2291,16 +2298,10 @@ public class OAPMessenger
 
     private void oap_send_bitmap()
     {
-        // RPP - FIXME
-        PodEmuLog.log("OAPM: oap_send_bitmap() - step 1");
         Message message = mHandler.obtainMessage(0);
-        PodEmuLog.log("OAPM: oap_send_bitmap() - step 2");
         message.arg1 = 1; //indication that we are sending a bitmap
-        PodEmuLog.log("OAPM: oap_send_bitmap() - step 3");
         message.obj = mBitmap;
-        PodEmuLog.log("OAPM: oap_send_bitmap() - step 4");
         mHandler.sendMessage(message);
-        PodEmuLog.log("OAPM: oap_send_bitmap() - step 5");
     }
 
 

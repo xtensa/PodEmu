@@ -106,6 +106,8 @@ public class MediaPlayback_Generic extends MediaPlayback
             PodEmuMediaStore podEmuMediaStore=PodEmuMediaStore.getInstance();
 
 
+            if(msg.getAction() == PodEmuMessage.ACTION_METADATA_CHANGED) currentPlaylist.positionIncrement();
+
             isPlaying = msg.isPlaying();
             timeSent = msg.getTimeSent();
             positionMS = msg.getPositionMS();
