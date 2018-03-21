@@ -733,7 +733,9 @@ public class PodEmuService extends Service
                    )
                 {
                     PodEmuLog.debug("PES: PodEmu serial interface disconnected. Initiating closing service.");
-                    if(bluetoothEnabled && SerialInterface_BT.getInstance()!=null && btDev != null)
+                    if(        !action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
+                            && !action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
+                            && bluetoothEnabled && SerialInterface_BT.getInstance()!=null && btDev != null)
                     {
                         PodEmuLog.debug("PES: Connected BT device: " + SerialInterface_BT.getInstance().getName());
                         PodEmuLog.debug("PES: Dropped BT device: " + ((BluetoothDevice) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
