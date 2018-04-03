@@ -7,3 +7,5 @@
 /captures
 *.log
 app/release/app-release-*
+app/release/output.json
+

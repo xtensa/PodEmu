@@ -97,6 +97,9 @@ public class BluetoothDeviceDialogFragment extends DialogFragment // implements 
                         mListener.onBluetoothDeviceSelected(dialog, which);
                     }
                 })
+
+                /* Disabled BLE in v45
+
                 .setNegativeButton("SCAN BLE", new DialogInterface.OnClickListener()
                 {
                     public void onClick(DialogInterface dialog, int which)
@@ -114,7 +117,9 @@ public class BluetoothDeviceDialogFragment extends DialogFragment // implements 
                             Toast.makeText(((Dialog)dialog).getContext(), R.string.bleNotSupported, Toast.LENGTH_SHORT).show();
                         }
                     }
-                });
+                })
+                */
+                ;
         // Create the AlertDialog object and return it
         return builder.create();
     }

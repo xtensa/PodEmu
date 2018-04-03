@@ -463,6 +463,9 @@ public class SettingsActivity extends AppCompatActivity
                             // continue with action
                         }
                     })
+
+                    /* Disabled BLE in v45
+
                     .setNegativeButton("Scan BLE", new DialogInterface.OnClickListener()
                     {
                         public void onClick(DialogInterface dialog, int which)
@@ -479,6 +482,8 @@ public class SettingsActivity extends AppCompatActivity
 
                         }
                     })
+                    */
+
                     .setIcon(android.R.drawable.ic_dialog_info)
                     .show();
         }
