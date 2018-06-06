@@ -1134,7 +1134,7 @@ public class OAPMessenger
                      */
                     int count = mediaPlayback.calcTrackCountFromPosition(pos);
 
-                    if(count!=0)
+                    if(count==0)
                     {
                         // if count is 0, then no jump is required and we can just reply with success
                         oap_04_write_return_code(cmd, IPOD_SUCCESS);
