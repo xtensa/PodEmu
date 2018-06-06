@@ -121,13 +121,14 @@ public class OAPMessenger
         responsePendingStatus=count;
         responsePendingSince=currTimeMillis;
 
-        PodEmuLog.debug("OAPM: PENDING_RESPONSE command set to " + String.format("0x%04X", cmd));
+        PodEmuLog.debug("OAPM: PENDING_RESPONSE command set to " + String.format("0x%04X", cmd) + " (status: "+responsePendingStatus+")" );
 
     }
 
 
     public void abortPendingResponse(String reason)
     {
+        PodEmuLog.debug("OAPM: aborting PENDING_RESPONSE for command " + String.format("0x%04X", responsePendingCmd) + " (status: "+responsePendingStatus+")" );
         if(responsePendingStatus>0)
         {
             responsePendingStatus = 1;
@@ -1132,7 +1133,17 @@ public class OAPMessenger
                      * Do not immediately respond with SUCCESS. Wait for broadcast instead.
                      */
                     int count = mediaPlayback.calcTrackCountFromPosition(pos);
-                    setPendingResponse(cmd, Math.abs(count));
+
+                    if(count!=0)
+                    {
+                        // if count is 0, then no jump is required and we can just reply with success
+                        oap_04_write_return_code(cmd, IPOD_SUCCESS);
+                    }
+                    else
+                    {
+                        setPendingResponse(cmd, Math.abs(count));
+                    }
+
                     if(!mediaPlayback.jumpTrackCount(count))
                         respondPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
 
