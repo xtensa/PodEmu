@@ -24,6 +24,8 @@
 package com.rp.podemu;
 
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -1963,7 +1965,7 @@ public class OAPMessenger
 
     /**
      * @cmd 0x00 0x34
-     * Return screen size:
+     * Return screen size for greyscale displays only:
      * Gen3: 120 * 65
      * 0x00 0x78 0x00 0x41 0x01
      * Gen5: 310 * 168
@@ -1979,6 +1981,11 @@ public class OAPMessenger
         if(SerialInterfaceBuilder.getSerialInterface() instanceof SerialInterface_BLE)
         {
             PodEmuLog.debug("OAPM: image upload is not supported for BLE interfaces");
+            oap_04_write_return_code(0x33, IPOD_ERROR_CMD_FAILED);
+        }
+        else if(SettingsActivity.logoDownloadBehaviour == SettingsActivity.LOGO_DOWNLOAD_DISABLED)
+        {
+            PodEmuLog.debug("OAPM: image upload is disabled in settings, returning error");
             oap_04_write_return_code(0x33, IPOD_ERROR_CMD_FAILED);
         }
         else
@@ -2022,27 +2029,47 @@ public class OAPMessenger
     {
         if(SerialInterfaceBuilder.getSerialInterface() instanceof SerialInterface_BLE)
         {
-            PodEmuLog.debug("OAPM: image upload is not supported for BLE interfaces");
+            PodEmuLog.debug("OAPM: image upload is not supported for BLE interfaces, returning error");
+            oap_04_write_return_code(0x39, IPOD_ERROR_CMD_FAILED);
+        }
+        else if(SettingsActivity.logoDownloadBehaviour == SettingsActivity.LOGO_DOWNLOAD_DISABLED)
+        {
+            PodEmuLog.debug("OAPM: image upload is disabled in settings, returning error");
             oap_04_write_return_code(0x39, IPOD_ERROR_CMD_FAILED);
         }
         else
         {
-            byte msg[] = {0x00, 0x3A, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x03};
+            byte mode;
+
+            switch(SettingsActivity.logoDownloadBehaviour)
+            {
+
+                case SettingsActivity.LOGO_DOWNLOAD_GREYSCALE: // greyscale
+                    mode = 0x01;
+                    break;
+                default: // color
+                    mode = 0x03;
+
+            }
+
+
+            byte msg[] = {0x00, 0x3A, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, mode};
             msg[7] =
-            msg[12] =
-                    msg[2] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X >> 8) & 0xff);
+                    msg[12] =
+                            msg[2] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X >> 8) & 0xff);
             msg[8] =
-            msg[13] =
-                    msg[3] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X) & 0xff);
+                    msg[13] =
+                            msg[3] = (byte) ((DockingLogoView.IMAGE_MAX_RES_X) & 0xff);
             msg[9] =
-            msg[14] =
-                    msg[4] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y >> 8) & 0xff);
+                    msg[14] =
+                            msg[4] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y >> 8) & 0xff);
             msg[10] =
-            msg[15] =
-                    msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
+                    msg[15] =
+                            msg[5] = (byte) ((DockingLogoView.IMAGE_MAX_RES_Y) & 0xff);
 
             oap_04_write_cmd(msg);
             PodEmuLog.debug("OAPM: AIR_MODE OUT - written screen resolution 3A: " + DockingLogoView.IMAGE_MAX_RES_X + "x" + DockingLogoView.IMAGE_MAX_RES_Y);
+            PodEmuLog.debug("OAPM: AIR_MODE OUT - written screen mode 3A: " + mode);
         }
     }
 

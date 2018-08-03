@@ -312,13 +312,60 @@
 
             </RelativeLayout>
 
-<!-- Playlist Count xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+            <!-- Logo Download Behaviour  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+            <RelativeLayout
+                android:id="@+id/logoDownloadLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/forceSimpleModeLayout"
+                android:onClick="logoDownloadBehaviour"
+                android:layout_marginTop="7dp">
+
+
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/logoDownloadIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_circles"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/logoDownloadName"
+                    android:layout_toRightOf="@id/logoDownloadIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Logo download: COLOR"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/logoDownloadHint"
+                    android:layout_toRightOf="@id/logoDownloadIcon"
+                    android:layout_below="@id/logoDownloadName"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/logoDownloadHint"
+                    android:checkMark="?android:attr/listChoiceIndicatorMultiple"
+                    />
+
+            </RelativeLayout>
+
+
+            <!-- Playlist Count xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
 
             <RelativeLayout
                 android:id="@+id/playlistCountLayout"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/forceSimpleModeLayout"
+                android:layout_below="@id/logoDownloadLayout"
                 android:onClick="selectPlaylistCountMode"
                 android:visibility="visible"
                 android:layout_marginTop="7dp">

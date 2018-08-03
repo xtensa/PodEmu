@@ -86,7 +86,12 @@ http://www.clipartpanda.com/categories/animated-question-mark-for-powerpoint
     </string>
     <string name="switchToAppHint">Check if PodEmu should automatically switch to controlled app when cable is connected.</string>
     <string name="forceSimpleModeHint">In this mode track titles will not be displayed on docking station or car display. However, song navigation might work better. This setting will take effect only after service restart or cable reconnect.</string>
+    <string name="logoDownloadHint">If you have stability issues during logo download, you can try changing this option or disabling at all.</string>
     <string name="bluetoothEnableHint">Disable this option if you are not using Bluetooth module. If enabled, application will automatically try to connect with selected SPP bluetooth module after it starts.s</string>
     <string name="bluetoothDeviceHint">Select bluetooth device which will be used by PodEmu. Device should support serial communication protocol (SPP). Only paired devices are shown on this list. If your device is not listed please go to phone BT settings and pair your device. After device is paired it will appear on the list.</string>
     <string name="bleNotSupported">Bluetooth LE is not supported on this device</string>
+
+    <string name="logoDownloadColor">COLOR</string>
+    <string name="logoDownloadGreyscale">GREYSCALE</string>
+    <string name="logoDownloadDisabled">DISABLED</string>
 </resources>

@@ -30,12 +30,14 @@ import java.util.ArrayList;
 import java.util.Vector;
 
 
-public class BaudRateDialogFragment extends DialogFragment // implements DialogInterface.OnClickListener
+
+public class LogoDownloadBehaviourDialogFragment extends DialogFragment // implements DialogInterface.OnClickListener
 {
-    private ArrayList<Integer> baudRateList;
+
+    private ArrayList<Integer> logoDownloadBehaviourList;
     // Use this instance of the interface to deliver action events
 
-    public BaudRateDialogFragment()
+    public LogoDownloadBehaviourDialogFragment()
     {
 
     }
@@ -43,13 +45,13 @@ public class BaudRateDialogFragment extends DialogFragment // implements DialogI
     /* The activity that creates an instance of this dialog fragment must
      * implement this interface in order to receive event callbacks.
      * Each method passes the DialogFragment in case the host needs to query it. */
-    public interface BaudRateDialogListener
+    public interface LogoDownloadBehaviourDialogListener
     {
-        void onBaudRateSelected(DialogInterface dialog, int which);
+        void onLogoDownloadBehaviourSelected(DialogInterface dialog, int which);
     }
 
     // Use this instance of the interface to deliver action events
-    BaudRateDialogListener mListener;
+    LogoDownloadBehaviourDialogListener mListener;
 
     // Override the Fragment.onAttach() method to instantiate the NoticeDialogListener
     @Override
@@ -58,23 +60,23 @@ public class BaudRateDialogFragment extends DialogFragment // implements DialogI
         // Verify that the host activity implements the callback interface
         try {
             // Instantiate the NoticeDialogListener so we can send events to the host
-            mListener = (BaudRateDialogListener) activity;
+            mListener = (LogoDownloadBehaviourDialogListener) activity;
         } catch (ClassCastException e) {
             // The activity doesn't implement the interface, throw exception
             throw new ClassCastException(activity.toString()
-                    + " must implement BaudRateDialogListener");
+                    + " must implement LogoDownloadBehaviourDialogListener");
         }
     }
 
 
-    public void setBaudRateList(ArrayList<Integer> b)
+    public void setLogoDownloadBehaviourList(ArrayList<Integer> b)
     {
-        baudRateList=b;
+        logoDownloadBehaviourList=b;
     }
 
-    public ArrayList<Integer> getBaudRateList()
+    public ArrayList<Integer> getLogoDownloadBehaviourList()
     {
-        return baudRateList;
+        return logoDownloadBehaviourList;
     }
 
     @Override
@@ -82,9 +84,9 @@ public class BaudRateDialogFragment extends DialogFragment // implements DialogI
     {
         //PackageManager pm = super.getPackageManager();
         Vector<String> appNames = new Vector<String>();
-        for (Integer i : baudRateList)
+        for (Integer i : logoDownloadBehaviourList)
         {
-            appNames.add(i.toString());
+            appNames.add(SettingsActivity.getLogoBehaviourOptionString(i, getContext()));
         }
 
         // converting Vector appNames to String[] appNamesStr
@@ -92,12 +94,12 @@ public class BaudRateDialogFragment extends DialogFragment // implements DialogI
 
         // Use the Builder class for convenient dialog construction
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle("Select Baud Rate")
+        builder.setTitle("Select logo download behaviour")
                 .setItems(appNamesStr, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         // The 'which' argument contains the index position
                         // of the selected item
-                        mListener.onBaudRateSelected(dialog, which);
+                        mListener.onLogoDownloadBehaviourSelected(dialog, which);
                     }
                 });
         // Create the AlertDialog object and return it

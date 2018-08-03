@@ -333,6 +333,7 @@ public class MainActivity extends AppCompatActivity
             Boolean playlistCountModeUpdated=sharedPref.getBoolean("PlaylistCountModeUpdated", false);
             int forceSimpleMode = sharedPref.getInt("ForceSimpleMode", 0);
             int playlistCountMode=sharedPref.getInt("PlaylistCountMode", PodEmuMediaStore.MODE_PLAYLIST_SIZE_DEFAULT);
+            SettingsActivity.logoDownloadBehaviour = sharedPref.getInt("LogoDownloadBehaviour", SettingsActivity.LOGO_DOWNLOAD_COLOR);
 
             if(PodEmuMediaStore.getInstance()==null)
             {

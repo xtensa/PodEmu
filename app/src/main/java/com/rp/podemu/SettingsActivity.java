@@ -58,12 +58,21 @@ public class SettingsActivity extends AppCompatActivity
             implements  ControlledAppDialogFragment.ControlledAppDialogListener,
                         PlaylistCountDialogFragment.PlaylistCountDialogListener,
                         BaudRateDialogFragment.BaudRateDialogListener,
+                        LogoDownloadBehaviourDialogFragment.LogoDownloadBehaviourDialogListener,
                         BluetoothDeviceDialogFragment.BluetoothDeviceDialogListener,
                         BluetoothLEDeviceDialogFragment.BluetoothLEDeviceDialogListener
 {
 
+    public static final int LOGO_DOWNLOAD_COLOR     = 0;
+    public static final int LOGO_DOWNLOAD_GREYSCALE = 1;
+    public static final int LOGO_DOWNLOAD_DISABLED  = 2;
+
+    public static int logoDownloadBehaviour = 0;
+
+
     private ArrayList<ApplicationInfo> appInfos = new ArrayList<>(0);
     private ArrayList<Integer> baudRateList = new ArrayList<>(0);
+    private ArrayList<Integer> logoDownloadBehaviourList = new ArrayList<>(0);
     private ArrayList<BluetoothDevice> btDevices = new ArrayList<>(0);
     static private ArrayList<BluetoothDevice> bleDevices = new ArrayList<>(0);
 
@@ -77,6 +86,19 @@ public class SettingsActivity extends AppCompatActivity
     static ArrayList<BluetoothDevice> getBleDevices()
     {
         return bleDevices;
+    }
+
+    public static String getLogoBehaviourOptionString(int i, Context context)
+    {
+        switch(i)
+        {
+            case 1:
+                return context.getResources().getString(R.string.logoDownloadGreyscale);
+            case 2:
+                return context.getResources().getString(R.string.logoDownloadDisabled);
+            default:
+                return context.getResources().getString(R.string.logoDownloadColor);
+        }
     }
 
 /*
@@ -181,9 +203,6 @@ public class SettingsActivity extends AppCompatActivity
 
 
 
-    // The dialog fragment receives a reference to this Activity through the
-    // Fragment.onAttach() callback, which it uses to call the following methods
-    // defined by the NoticeDialogFragment.NoticeDialogListener interface
     @Override
     public void onBaudRateSelected(DialogInterface dialog, int which)
     {
@@ -199,6 +218,22 @@ public class SettingsActivity extends AppCompatActivity
 
     }
 
+
+    @Override
+    public void onLogoDownloadBehaviourSelected(DialogInterface dialog, int which)
+    {
+        int logoDownloadBehaviour = logoDownloadBehaviourList.get(which);
+
+        //saving to shared preferances
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putInt("LogoDownloadBehaviour", logoDownloadBehaviour);
+        editor.commit();
+
+        // loading information to the activity
+        setLogoDownloadBehaviourInfo();
+
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -206,6 +241,8 @@ public class SettingsActivity extends AppCompatActivity
         setContentView(R.layout.activity_settings);
 
         sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+
+        logoDownloadBehaviour = sharedPref.getInt("LogoDownloadBehaviour", 0);
 
 
         //String[] controlledApp = new String[appsRunning.size()];
@@ -299,6 +336,11 @@ public class SettingsActivity extends AppCompatActivity
         baudRateList.add(57600);
         baudRateList.add(115200);
 
+        logoDownloadBehaviourList.add(LOGO_DOWNLOAD_COLOR);
+        logoDownloadBehaviourList.add(LOGO_DOWNLOAD_GREYSCALE);
+        logoDownloadBehaviourList.add(LOGO_DOWNLOAD_DISABLED);
+
+
         try
         {
             PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
@@ -354,6 +396,7 @@ public class SettingsActivity extends AppCompatActivity
         setBluetoothDevInfo();
         setPlaylistCountModeInfo();
         setBaudRateInfo();
+        setLogoDownloadBehaviourInfo();
         setDebugInfo();
         setToggleForceSimpleMode();
         setToggleBluetoothEnabled();
@@ -424,6 +467,24 @@ public class SettingsActivity extends AppCompatActivity
         // changing text
         TextView textView = (TextView) findViewById(R.id.baudRateValue);
         textView.setText(baudRate);
+    }
+
+
+    private void setLogoDownloadBehaviourInfo()
+    {
+        if (!sharedPref.contains("LogoDownloadBehaviour"))
+        {
+            // writing default baud rate
+            SharedPreferences.Editor editor = sharedPref.edit();
+            editor.putInt("LogoDownloadBehaviour", 0);
+            editor.apply();
+        }
+        logoDownloadBehaviour = sharedPref.getInt("LogoDownloadBehaviour", 0);
+        String logoDownloadBehaviourString = SettingsActivity.getLogoBehaviourOptionString(logoDownloadBehaviour, getBaseContext());
+
+        // changing text
+        TextView textView = (TextView) findViewById(R.id.logoDownloadName);
+        textView.setText("Logo download: " + logoDownloadBehaviourString);
     }
 
     public void selectCtrlApp(View v)
@@ -504,6 +565,13 @@ public class SettingsActivity extends AppCompatActivity
 
 
         PodEmuLog.debug("PESA: forceSimpleMode switched to: " + forceSimpleMode);
+    }
+
+    public void logoDownloadBehaviour(View v)
+    {
+        LogoDownloadBehaviourDialogFragment logoDownloadBehaviourDialog = new LogoDownloadBehaviourDialogFragment();
+        logoDownloadBehaviourDialog.setLogoDownloadBehaviourList(logoDownloadBehaviourList);
+        logoDownloadBehaviourDialog.show(getSupportFragmentManager(), "new_tag");
     }
 
     public void toggleBluetoothEnabled(View v)
