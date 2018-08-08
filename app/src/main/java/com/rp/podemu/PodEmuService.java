@@ -62,6 +62,7 @@ public class PodEmuService extends Service
     private static int forceSimpleMode;
     private static boolean bluetoothEnabled;
     private static boolean isBTConnected=false;
+    private static boolean enableCyrillicTransliteration=false;
 
     public static String INTENT_ACTION_CLOSE_SERVICE="com.podemu.rp.ACTION_CLOSE_SERVICE";
 
@@ -216,6 +217,7 @@ public class PodEmuService extends Service
         baudRate = sharedPref.getString("BaudRate", "57600");
         forceSimpleMode = (sharedPref.getInt("ForceSimpleMode", 0));
         bluetoothEnabled = (sharedPref.getInt("bluetoothEnabled", 0)!=0);
+        enableCyrillicTransliteration = (sharedPref.getBoolean("CyrillicTransliteration", false));
     }
 
     private void runBufferThread()
@@ -758,6 +760,7 @@ public class PodEmuService extends Service
                     // if null is received then broadcast could be not from "our" app
                     if(podEmuMessage!=null)
                     {
+                        podEmuMessage.setEnableCyrillicTransliteration(enableCyrillicTransliteration);
                         oapMessenger.respondPendingResponse("notification received", OAPMessenger.IPOD_SUCCESS);
                         mediaPlaybackInstance.updateCurrentlyPlayingTrack(podEmuMessage);
                     }

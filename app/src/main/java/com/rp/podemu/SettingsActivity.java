@@ -399,6 +399,7 @@ public class SettingsActivity extends AppCompatActivity
         setLogoDownloadBehaviourInfo();
         setDebugInfo();
         setToggleForceSimpleMode();
+        setToggleCyrillicTransliteration();
         setToggleBluetoothEnabled();
         setAutoSwitchToApp();
 
@@ -565,6 +566,23 @@ public class SettingsActivity extends AppCompatActivity
 
 
         PodEmuLog.debug("PESA: forceSimpleMode switched to: " + forceSimpleMode);
+    }
+
+
+    public void toggleTranslit(View v)
+    {
+
+        //saving to shared preferences
+        SharedPreferences.Editor editor = sharedPref.edit();
+        boolean enableTranslit=!(sharedPref.getBoolean("CyrillicTransliteration", false));
+        editor.putBoolean("CyrillicTransliteration", enableTranslit);
+        editor.apply();
+
+        // loading information to the activity
+        setToggleCyrillicTransliteration();
+
+
+        PodEmuLog.debug("PESA: enableTranslit switched to: " + enableTranslit);
     }
 
     public void logoDownloadBehaviour(View v)
@@ -865,6 +883,14 @@ public class SettingsActivity extends AppCompatActivity
             toggleForceSimpleModeView.setChecked(false);
             if ( enableListCountSelection ) layout.setVisibility(View.VISIBLE);
         }
+    }
+
+    private void setToggleCyrillicTransliteration()
+    {
+        boolean enableTranslit = sharedPref.getBoolean("CyrillicTransliteration", false);
+        CheckedTextView toggleCyrillicTransliteration = (CheckedTextView) findViewById(R.id.enableTranslitHint);
+
+        toggleCyrillicTransliteration.setChecked(enableTranslit);
     }
 
     private void setToggleBluetoothEnabled()

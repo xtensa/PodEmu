@@ -265,16 +265,16 @@
 
 
                 <TextView android:text="PodEmu behaviour"
-                    android:id="@+id/podEmuBehaviourTitle"
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:clickable="true"
-                    android:padding="4dp"
-                    android:textColor="@color/settingsItemTitle"
+                          android:id="@+id/podEmuBehaviourTitle"
+                          android:layout_width="fill_parent"
+                          android:layout_height="wrap_content"
+                          android:clickable="true"
+                          android:padding="4dp"
+                          android:textColor="@color/settingsItemTitle"
 
-                    android:layout_alignParentTop="true"
-                    android:layout_alignParentLeft="true"
-                    android:layout_alignParentStart="true" />
+                          android:layout_alignParentTop="true"
+                          android:layout_alignParentLeft="true"
+                          android:layout_alignParentStart="true" />
 
                 <ImageView
                     android:layout_width="50dp"
@@ -313,13 +313,57 @@
             </RelativeLayout>
 
 
+            <!-- Translit for Cyrillic Enable  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+            <RelativeLayout
+                android:id="@+id/enableTranslitLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/forceSimpleModeLayout"
+                android:onClick="toggleTranslit"
+                android:layout_marginTop="7dp">
+
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/enableTranslitIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_circles"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/enableTranslitName"
+                    android:layout_toRightOf="@id/enableTranslitIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Enable Cyrillic Transliteration"/>
+
+                <CheckedTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/enableTranslitHint"
+                    android:layout_toRightOf="@id/enableTranslitIcon"
+                    android:layout_below="@id/enableTranslitName"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/enableTranslitHint"
+                    android:checkMark="?android:attr/listChoiceIndicatorMultiple"
+                    />
+
+            </RelativeLayout>
+
+
 
             <!-- Logo Download Behaviour  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
             <RelativeLayout
                 android:id="@+id/logoDownloadLayout"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/forceSimpleModeLayout"
+                android:layout_below="@id/enableTranslitLayout"
                 android:onClick="logoDownloadBehaviour"
                 android:layout_marginTop="7dp">
 

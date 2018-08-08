@@ -331,6 +331,7 @@ public class MainActivity extends AppCompatActivity
             String enableDebug = sharedPref.getString("enableDebug", "false");
             Boolean ctrlAppUpdated = sharedPref.getBoolean("ControlledAppUpdated", false);
             Boolean playlistCountModeUpdated=sharedPref.getBoolean("PlaylistCountModeUpdated", false);
+            boolean enableTranslit = sharedPref.getBoolean("CyrillicTransliteration", false);
             int forceSimpleMode = sharedPref.getInt("ForceSimpleMode", 0);
             int playlistCountMode=sharedPref.getInt("PlaylistCountMode", PodEmuMediaStore.MODE_PLAYLIST_SIZE_DEFAULT);
             SettingsActivity.logoDownloadBehaviour = sharedPref.getInt("LogoDownloadBehaviour", SettingsActivity.LOGO_DOWNLOAD_COLOR);
@@ -364,6 +365,7 @@ public class MainActivity extends AppCompatActivity
             if(MediaPlayback.getInstance()!=null)
             {
                 currentlyPlaying.bulk_update(MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrack().toPodEmuMessage());
+                currentlyPlaying.setEnableCyrillicTransliteration(enableTranslit);
                 updateCurrentlyPlayingDisplay();
             }
 

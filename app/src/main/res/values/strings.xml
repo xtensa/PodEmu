@@ -94,4 +94,6 @@ http://www.clipartpanda.com/categories/animated-question-mark-for-powerpoint
     <string name="logoDownloadColor">COLOR</string>
     <string name="logoDownloadGreyscale">GREYSCALE</string>
     <string name="logoDownloadDisabled">DISABLED</string>
+
+    <string name="enableTranslitHint">If your car/docking station has troubles displaying cyrillic letters, you should enable this option. It will replace cyrillic characters with latin alphabet.</string>
 </resources>

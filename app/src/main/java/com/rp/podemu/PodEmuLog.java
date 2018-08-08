@@ -237,6 +237,7 @@ public class PodEmuLog
 
         int playlistCountMode=sharedPref.getInt("PlaylistCountMode", PodEmuMediaStore.MODE_PLAYLIST_SIZE_DEFAULT);
         int forceSimpleMode=sharedPref.getInt("ForceSimpleMode", 0);
+        boolean enableTranslit=sharedPref.getBoolean("CyrillicTransliteration", false);
 
         int bluetoothEnabled=sharedPref.getInt("bluetoothEnabled", 0);
         String bluetoothDevice=sharedPref.getString("bluetoothDeviceName", SerialInterface_BT.BTDEV_NAME_DEFAULT);
@@ -260,18 +261,19 @@ public class PodEmuLog
                 "\n" + uname +
                 "\nPodEmu Version: " + version +
                 "\n\nSETTINGS DUMP: " +
-                "\n     Controlled app          : " + ctrlApp +
-                "\n     Controlled app process  : " + processName +
-                "\n     Auto switch to app      : " + autoSwitchToApp +
-                "\n     Playlist count mode     : " + playlistCountMode +
-                "\n     Force simple mode       : " + forceSimpleMode +
-                "\n     BT enabled              : " + bluetoothEnabled +
-                "\n     BT device               : " + bluetoothDevice +
-                "\n     BT device address       : " + bluetoothDeviceAddress +
-                "\n     BT is LE device         : " + bluetoothIsBle +
-                "\n     Baud rate               : " + baudRate +
-                "\n     Logo download behaviour : " + logoDownloadBehaviour +
-                "\n     Debug enabled           : " + enableDebug +
+                "\n     Controlled app           : " + ctrlApp +
+                "\n     Controlled app process   : " + processName +
+                "\n     Auto switch to app       : " + autoSwitchToApp +
+                "\n     Playlist count mode      : " + playlistCountMode +
+                "\n     Force simple mode        : " + forceSimpleMode +
+                "\n     Cyrillic transliteration : " + enableTranslit +
+                "\n     Logo download behaviour  : " + logoDownloadBehaviour +
+                "\n     BT enabled               : " + bluetoothEnabled +
+                "\n     BT device                : " + bluetoothDevice +
+                "\n     BT device address        : " + bluetoothDeviceAddress +
+                "\n     BT is LE device          : " + bluetoothIsBle +
+                "\n     Baud rate                : " + baudRate +
+                "\n     Debug enabled            : " + enableDebug +
                 "\n\n"
         );
     }
