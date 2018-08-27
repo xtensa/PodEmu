@@ -154,6 +154,12 @@ public class PodEmuMessage
         translitMap.put('э',"e");
         translitMap.put('ю',"ju");
         translitMap.put('я',"ja");
+
+
+        // Additional characters not covered by Normalizer
+        translitMap.put('Ł',"L");
+        translitMap.put('ł',"l");
+
     }
 
     public void bulk_update(PodEmuMessage msg)
@@ -198,14 +204,18 @@ public class PodEmuMessage
             StringBuilder transStr = new StringBuilder();
             for (int i=0; i<str.length(); i++)
             {
-                transStr.append(cyrillicReplace(str.charAt(i), (i+1<str.length() && Character.isLowerCase(str.charAt(i+1))) ) );
+                transStr.append(diacriticsReplace(str.charAt(i), (i+1<str.length() && Character.isLowerCase(str.charAt(i+1))) ) );
             }
-            return transStr.toString();
+
+            String normalized = java.text.Normalizer.normalize(transStr.toString(), java.text.Normalizer.Form.NFD);
+            String finalStr = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+
+            return finalStr;
         }
 
     }
 
-    private String cyrillicReplace(char c, boolean nextCharIsLowerCase)
+    private String diacriticsReplace(char c, boolean nextCharIsLowerCase)
     {
         String str = translitMap.get(c);
         if(str == null)

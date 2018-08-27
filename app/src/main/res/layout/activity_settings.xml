@@ -313,7 +313,7 @@
             </RelativeLayout>
 
 
-            <!-- Translit for Cyrillic Enable  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+            <!-- Translit Enable  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
             <RelativeLayout
                 android:id="@+id/enableTranslitLayout"
                 android:layout_width="fill_parent"
@@ -338,7 +338,7 @@
                     android:paddingLeft="8dp"
                     android:textStyle="bold"
                     android:textColor="@color/settingsItemText"
-                    android:text="Enable Cyrillic Transliteration"/>
+                    android:text="Enable Transliteration"/>
 
                 <CheckedTextView
                     android:layout_width="wrap_content"

@@ -6,7 +6,6 @@ def getRevision()
     println "getNewVersionCode started"
     def process = "git rev-list master --first-parent --count".execute()
     def version = process.text.toInteger()
-    version = version
     println sprintf("Returning version revision %d", version)
     return version
 }
