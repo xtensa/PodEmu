@@ -58,6 +58,16 @@ PodEmu in action:
 
 </table>
 
+## Hardware
+
+To use PodEmu with your car you will need to connect it to Android. There two communication channels that you need to connect: AUDIO channel (obvious) and DATA channel. Both of them can be connected by wires or with use of Bluetooth modules. So there multiple combinations and setups. 
+
+Audio channel can be connected directly, by wires, or with use of BT module that supports A2DP profile, for example XS3868, RN52, BK8000L.
+
+Data channel could be connected by wires. In this case you will need any USB-to-serial interface like FT232R, FT231X, FT311D, FT312D, PL2303, CP2102, CP2105, CP2108 or CP2110. Alternatively, you can also connect it with any BT module that supports SPP profile (except BLE devices which are too slow). For BT you can use modules like HC05, HC06, RN52.
+
+Obviously you will also need to power all the modules up. There are multiple ways to do it. Below is an example of wiring diagram for XS3868 and HC05 modules that are powered up by LM2596, but you can use any power suply that can provide appropreate voltage and current.
+
 ## Supported serial interfaces (for DIY cable)
 
  - FTDI: FT232R, FT231X, FT311D, FT312D
@@ -131,7 +141,7 @@ If you don't see your favourite app in the table above, don't worry, it still co
 
 ListSize and ListPosition information is very important to be able to see the total amount of songs in the playlist from the docking station and to be able to select random song from list and jump to it. Whenever this information is missing PodEmu will not know how many songs are in the the current playlist and will not support "jump to" command. In such case you will see one album, that contains just 3 songs and currently played song is always song nr 2.  Also remember, that even if ListSize information is provided (which is count of songs in the current playlist), PodEmu don't know track names "a priori". Therefore, first time you browse them from docking station, you will see titles like "Track XYZ" for all of them. However, once the song is played, it's title is remembered at given position. This list is flushed when total count of song is changed or application is restarted.
 
-## Bluetooth
+## Bluetooth - XS3868
 
 Bluetooth setup was tested with HC-05 as serial interface device and XS3868 to stream audio. Connection diagram that was used is the following:
 <img width="500" src="/schematics/HC-05%20and%20XS3868.png?raw=true" />
