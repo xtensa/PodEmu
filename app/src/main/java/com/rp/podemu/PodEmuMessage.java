@@ -20,10 +20,14 @@
 package com.rp.podemu;
 
 
+import android.graphics.Bitmap;
+import android.os.Parcel;
+import android.os.Parcelable;
+
 import java.util.HashMap;
 import java.util.Map;
 
-public class PodEmuMessage
+public class PodEmuMessage implements Parcelable
 {
     private String artist;
     private String album;
@@ -32,14 +36,16 @@ public class PodEmuMessage
     private String genre="Unknown Genre";
     private String composer="Unknown Composer";
     private String uri="unknown uri";
-    private int lengthSec;
-    private int positionMS;
+    private String application="Unknown App";
+    private long durationMS;
+    private long positionMS;
     private boolean isPlaying;
     private int action;
     private long timeSent;
     private int track_number;
     private int listSize;
     private int listPosition;
+    private boolean isInitialized = false;
 
     private boolean enableCyrillicTransliteration=false;
 
@@ -47,37 +53,40 @@ public class PodEmuMessage
     public final static int ACTION_PLAYBACK_STATE_CHANGED=2;
     public final static int ACTION_QUEUE_CHANGED=4;
 
-    public String getArtist()  { return transliterate(artist); }
-    public String getAlbum()   { return transliterate(album); }
-    public String getTrackName()   { return transliterate(track); }
-    public String getExternalId() { return external_id; }
-    public String getGenre() { return transliterate(genre); }
-    public String getComposer() { return transliterate(composer); }
-    public int getLength()     { return lengthSec; }
-    public boolean isPlaying() { return isPlaying; }
-    public int getAction()     { return action; }
-    public long getTimeSent() { return timeSent; }
-    public int getPositionMS() { return positionMS; }
-    public String getUri()    {        return uri;    }
-    public int getTrackNumber()    {        return track_number;    }
-    public int getListSize()    {   return listSize; }
-    public int getListPosition()    {   return listPosition; }
+    public String getArtist()        { return transliterate(artist); }
+    public String getAlbum()         { return transliterate(album); }
+    public String getTrackName()     { return transliterate(track); }
+    public String getExternalId()    { return external_id; }
+    public String getGenre()         { return transliterate(genre); }
+    public String getComposer()      { return transliterate(composer); }
+    public String getApplication()   { return application; }
+    public boolean isPlaying()       { return isPlaying; }
+    public int     getAction()       { return action; }
+    public long    getTimeSent()     { return timeSent; }
+    public long    getPositionMS()   { return positionMS; }
+    public long    getDurationMS()   { return durationMS; }
+    public String  getUri()          { return uri;    }
+    public int     getTrackNumber()  { return track_number;    }
+    public int     getListSize()     { return listSize; }
+    public int     getListPosition() { return listPosition; }
+    public boolean isInitialized()   { return isInitialized; }
 
-    public void setArtist(String artist)   { this.artist = artist; }
-    public void setAlbum(String album)     { this.album = album;   }
-    public void setGenre(String genre)     { this.genre = genre;   }
-    public void setComposer(String composer)     { this.composer = composer;   }
-    public void setTrackName(String track)     { this.track = track;    }
-    public void setExternalId(String external_id) { this.external_id = external_id;  }
-    public void setLength(int length)      { this.lengthSec = length;    }
-    public void setPositionMS(int positionMS)    { this.positionMS = positionMS;  }
-    public void setIsPlaying(boolean isPlaying)  { this.isPlaying = isPlaying;  }
-    public void setAction(int action)            { this.action = action; }
-    public void setTimeSent(long timeSent) { this.timeSent = timeSent; }
-    public void setUri(String uri)    {        this.uri = uri;    }
-    public void setTrackNumber(int track_number)    {        this.track_number = track_number;    }
-    public void setListSize(int listSize)   {   this.listSize = listSize; }
-    public void setListPosition(int listPosition)   {   this.listPosition = listPosition; }
+    public void setArtist(String artist)           { this.artist = artist; }
+    public void setAlbum(String album)             { this.album = album;   }
+    public void setGenre(String genre)             { this.genre = genre;   }
+    public void setComposer(String composer)       { this.composer = composer;   }
+    public void setTrackName(String track)         { this.track = track;    }
+    public void setExternalId(String external_id)  { this.external_id = external_id;  }
+    public void setApplication(String application) { this.application = application; }
+    public void setDurationMS(long durationMS)     { this.durationMS = durationMS;    }
+    public void setPositionMS(long positionMS)     { this.positionMS = positionMS;  }
+    public void setIsPlaying(boolean isPlaying)    { this.isPlaying = isPlaying;  }
+    public void setAction(int action)              { this.action = action; }
+    public void setTimeSent(long timeSent)         { this.timeSent = timeSent; }
+    public void setUri(String uri)                 { this.uri = uri;    }
+    public void setTrackNumber(int track_number)   { this.track_number = track_number;    }
+    public void setListSize(int listSize)          { this.listSize = listSize; }
+    public void setListPosition(int listPosition)  { this.listPosition = listPosition; }
 
     public void setEnableCyrillicTransliteration(boolean enableTranslit) { enableCyrillicTransliteration = enableTranslit; }
 
@@ -169,7 +178,7 @@ public class PodEmuMessage
             this.setIsPlaying(msg.isPlaying());
             this.setTimeSent(msg.getTimeSent());
             this.setAction(msg.getAction());
-            this.setLength(msg.getLength());
+            this.setDurationMS(msg.getDurationMS());
             this.setExternalId(msg.getExternalId());
             this.setTrackName(msg.getTrackName());
             this.setAlbum(msg.getAlbum());
@@ -181,15 +190,17 @@ public class PodEmuMessage
             this.setTrackNumber(msg.getTrackNumber());
             this.setListSize(msg.getListSize());
             this.setListPosition(msg.getListPosition());
+            this.setApplication(msg.getApplication());
+            this.isInitialized = true;
         }
     }
 
     public String getLengthHumanReadable()
     {
-        int length=getLength();
-        int hours=getLength()/1000/60/60;
-        int mins=(length-hours*60*60*1000)/1000/60;
-        int secs=(length-hours*60*60*1000-mins*60*1000)/1000;
+        long length=getDurationMS();
+        int hours=(int)(length/1000/60/60);
+        int mins=(int)(length-hours*60*60*1000)/1000/60;
+        int secs=(int)(length-hours*60*60*1000-mins*60*1000)/1000;
 
         return String.format("%02d:%02d", mins, secs);
     }
@@ -234,6 +245,74 @@ public class PodEmuMessage
         return str;
     }
 
+
+    @Override
+    public int describeContents()
+    {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel out, int flags)
+    {
+        // order is meaningful
+        out.writeString(artist);
+        out.writeString(album);
+        out.writeString(track);
+        out.writeString(external_id);
+        out.writeString(genre);
+        out.writeString(composer);
+        out.writeString(uri);
+        out.writeString(application);
+        out.writeLong(durationMS);
+        out.writeLong(positionMS);
+        out.writeInt(isPlaying?1:0);
+        out.writeInt(action);
+        out.writeLong(timeSent);
+        out.writeInt(track_number);
+        out.writeInt(listSize);
+        out.writeInt(listPosition);
+
+    }
+
+
+
+    // this is used to regenerate your object. All Parcelables must have a CREATOR that implements these two methods
+    public static final Parcelable.Creator<PodEmuMessage> CREATOR = new Parcelable.Creator<PodEmuMessage>()
+    {
+        public PodEmuMessage createFromParcel(Parcel in)
+        {
+            return new PodEmuMessage(in);
+        }
+
+        public PodEmuMessage[] newArray(int size)
+        {
+            return new PodEmuMessage[size];
+        }
+    };
+
+    private PodEmuMessage(Parcel in)
+    {
+        // order is meaningful
+        artist = in.readString();
+        album = in.readString();
+        track = in.readString();
+        external_id = in.readString();
+        genre = in.readString();
+        composer = in.readString();
+        uri = in.readString();
+        application = in.readString();
+        durationMS = in.readLong();
+        positionMS = in.readLong();
+        isPlaying = (in.readInt()==1);
+        action = in.readInt();
+        timeSent = in.readLong();
+        track_number = in.readInt();
+        listSize = in.readInt();
+        listPosition = in.readInt();
+
+        isInitialized = true;
+    }
 
 }
 

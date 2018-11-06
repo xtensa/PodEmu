@@ -55,7 +55,7 @@ import java.util.List;
 
 
 public class SettingsActivity extends AppCompatActivity
-            implements  ControlledAppDialogFragment.ControlledAppDialogListener,
+            implements  //ControlledAppDialogFragment.ControlledAppDialogListener,
                         PlaylistCountDialogFragment.PlaylistCountDialogListener,
                         BaudRateDialogFragment.BaudRateDialogListener,
                         LogoDownloadBehaviourDialogFragment.LogoDownloadBehaviourDialogListener,
@@ -108,7 +108,7 @@ public class SettingsActivity extends AppCompatActivity
     }
 */
 
-
+/*
     // The dialog fragment receives a reference to this Activity through the
     // Fragment.onAttach() callback, which it uses to call the following methods
     // defined by the NoticeDialogFragment.NoticeDialogListener interface
@@ -129,7 +129,7 @@ public class SettingsActivity extends AppCompatActivity
         PodEmuLog.debug("Selected app: " + appInfos.get(which).packageName);
 
     }
-
+*/
 
     private void saveBluetoothDevice(int which, boolean isBle)
     {
@@ -392,7 +392,7 @@ public class SettingsActivity extends AppCompatActivity
     {
         super.onResume();
         PodEmuLog.initialize(getApplicationContext());
-        setCtrlApplicationInfo();
+        //setCtrlApplicationInfo();
         setBluetoothDevInfo();
         setPlaylistCountModeInfo();
         setBaudRateInfo();
@@ -401,7 +401,7 @@ public class SettingsActivity extends AppCompatActivity
         setToggleForceSimpleMode();
         setToggleCyrillicTransliteration();
         setToggleBluetoothEnabled();
-        setAutoSwitchToApp();
+        //setAutoSwitchToApp();
 
         if( !enableListCountSelection )
         {
@@ -410,6 +410,7 @@ public class SettingsActivity extends AppCompatActivity
         }
     }
 
+    /*
     private void setCtrlApplicationInfo()
     {
         String processName = sharedPref.getString("ControlledAppProcessName", "unknown application");
@@ -434,7 +435,7 @@ public class SettingsActivity extends AppCompatActivity
         }
 
     }
-
+*/
 
     private void setBluetoothDevInfo()
     {
@@ -618,7 +619,7 @@ public class SettingsActivity extends AppCompatActivity
         editor.apply();
 
         // loading information to the activity
-        setAutoSwitchToApp();
+        //setAutoSwitchToApp();
 
         PodEmuLog.debug("PESA: autoSwitchToApp switched to: " + autoSwitchToApp);
     }
@@ -908,7 +909,7 @@ public class SettingsActivity extends AppCompatActivity
         }
     }
 
-
+/*
     private void setAutoSwitchToApp()
     {
         int autoSwitchToApp = sharedPref.getInt("autoSwitchToApp", 0);
@@ -923,7 +924,7 @@ public class SettingsActivity extends AppCompatActivity
             autoSwitchToAppView.setChecked(false);
         }
     }
-
+*/
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu)

@@ -19,12 +19,16 @@
 
 package com.rp.podemu;
 
-import android.annotation.TargetApi;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
+import android.media.session.MediaController;
+import android.media.session.MediaSessionManager;
+import android.media.session.PlaybackState;
 import android.os.SystemClock;
 import android.view.KeyEvent;
+
+import java.util.List;
 
 /**
  * Created by rp on 10/31/15.
@@ -35,10 +39,33 @@ public abstract class MediaPlayback
 
     protected static Context context=null;
     protected static String ctrlAppProcessName=null;
-    protected static String ctrlAppDbName=null;
+    //protected static String ctrlAppDbName=null;
     private long lastPrevExecuted=System.currentTimeMillis();
 
 
+    public static MediaController getActiveMediaController()
+    {
+        ComponentName componentName = new ComponentName(context, NotificationListener2.class);
+
+        MediaSessionManager mediaSessionManager = (MediaSessionManager)context.getSystemService(Context.MEDIA_SESSION_SERVICE);
+        List<MediaController> mediaControllerList = null;
+
+        try
+        {
+            mediaControllerList = mediaSessionManager.getActiveSessions(componentName);
+
+            for(MediaController mediaController: mediaControllerList)
+            {
+                if(mediaController.getPackageName().equals(ctrlAppProcessName)) return mediaController;
+            }
+        }
+        catch(Exception e)
+        {
+            PodEmuLog.error("MPlayback: Notification Listener permissions not granted");
+        }
+
+        return null;
+    }
 
     public static MediaPlayback getInstance()
     {
@@ -46,16 +73,17 @@ public abstract class MediaPlayback
         return instance;
     }
 
-    public static void initialize(Context c, String app, String appDbName)
+    public static void setCtrlAppProcessName(String app)
+    {
+        ctrlAppProcessName = app;
+    }
+
+    public static void initialize(Context c, String a)
     {
         context=c;
 
-        if(ctrlAppProcessName==null || !ctrlAppProcessName.equals(app) )
-        {
-            ctrlAppProcessName = app;
-            ctrlAppDbName = appDbName;
-            instance = new MediaPlayback_Generic();
-        }
+        //ctrlAppDbName = appDbName;
+        instance = new MediaPlayback_Generic();
 
     }
 
@@ -69,7 +97,7 @@ public abstract class MediaPlayback
 
     public abstract boolean isPlaying();
 
-    public abstract int getCurrentTrackPositionMS();
+    public abstract long getCurrentTrackPositionMS();
 
     public void execute_action(int keyCode)
     {
@@ -80,19 +108,23 @@ public abstract class MediaPlayback
         {
             PodEmuLog.error("MPlayback: media control attempt before ctrlAppProcessName");
         }
+        PodEmuLog.debug("MPlayback: executing action for " + ctrlAppProcessName);
 
-        intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
-        intent.setPackage(ctrlAppProcessName);
-        keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_DOWN, keyCode, 0);
-        intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
-        context.sendOrderedBroadcast(intent, null);
 
-        intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
-        intent.setPackage(ctrlAppProcessName);
-        keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_UP, keyCode, 0);
-        intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
-        context.sendOrderedBroadcast(intent, null);
+        //if(false)
+        {
+            intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+            intent.setPackage(ctrlAppProcessName);
+            keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_DOWN, keyCode, 0);
+            intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
+            context.sendOrderedBroadcast(intent, null);
 
+            intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+            intent.setPackage(ctrlAppProcessName);
+            keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_UP, keyCode, 0);
+            intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
+            context.sendOrderedBroadcast(intent, null);
+        }
     }
 
     public void execute_action_long_press(int keyCode) {
@@ -130,16 +162,25 @@ public abstract class MediaPlayback
             //getCurrentPlaylist().setCurrentTrack(newTrackPos);
         }
 
-        execute_action(KeyEvent.KEYCODE_MEDIA_NEXT);
+        MediaController mediaController=getActiveMediaController();
+        if( mediaController != null) // && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_SKIP_TO_NEXT) == PlaybackState.ACTION_SKIP_TO_NEXT)
+        {
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_SKIP_TO_NEXT)");
+            mediaController.getTransportControls().skipToNext();
+        }
+        else
+        {
+            execute_action(KeyEvent.KEYCODE_MEDIA_NEXT);
+        }
 
     }
 
-    public synchronized void action_prev(int timeElapsed)
+    public synchronized void action_prev(long timeElapsed)
     {
         action_prev(timeElapsed, false);
     }
 
-    public synchronized void action_prev(int timeElapsed, boolean force)
+    public synchronized void action_prev(long timeElapsed, boolean force)
     {
         //int currentTrack = getCurrentPlaylist().getCurrentTrackPos();
         //int trackCount   = getCurrentPlaylist().getTrackCount();
@@ -158,14 +199,37 @@ public abstract class MediaPlayback
             //getCurrentPlaylist().setCurrentTrack(newTrackPos);
         }
 
-        // media players behave differently, depending on how much time elapsed
-        // from the beginning of the song. Usually pressing "back" button after
-        // 2 second elapsed from the beginning of the song will only rewind to the beginning of the song.
-        if(force && timeElapsed>2000)
+        MediaController mediaController=getActiveMediaController();
+//        PlaybackState playbackState = mediaController.getPlaybackState();
+        if(mediaController != null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_SKIP_TO_PREVIOUS) == PlaybackState.ACTION_SKIP_TO_PREVIOUS) )
         {
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_SKIP_TO_PREVIOUS)");
+            // media players behave differently, depending on how much time elapsed
+            // from the beginning of the song. Usually pressing "back" button after
+            // 2 second elapsed from the beginning of the song will only rewind to the beginning of the song.
+            if (force && timeElapsed > 2000)
+            {
+                mediaController.getTransportControls().skipToPrevious();
+            }
+            mediaController.getTransportControls().skipToPrevious();
+
+
+            //KeyEvent keyEvent = new KeyEvent(0,200,KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, 0);
+            //mediaController.dispatchMediaButtonEvent(keyEvent);
+        }
+
+        else
+        {
+            PodEmuLog.debug("PEMP: executing action through KeyEvent");
+            // media players behave differently, depending on how much time elapsed
+            // from the beginning of the song. Usually pressing "back" button after
+            // 2 second elapsed from the beginning of the song will only rewind to the beginning of the song.
+            if (force && timeElapsed > 2000)
+            {
+                execute_action(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+            }
             execute_action(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
         }
-        execute_action(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
 
         lastPrevExecuted=System.currentTimeMillis();
     }
@@ -178,47 +242,110 @@ public abstract class MediaPlayback
     public void action_play()
     {
         PodEmuLog.debug("PEMP: action PLAY requested");
-        execute_action(KeyEvent.KEYCODE_MEDIA_PLAY);
+        MediaController mediaController=getActiveMediaController();
+        if( mediaController != null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_PLAY) == PlaybackState.ACTION_PLAY)
+        {
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_PLAY)");
+            mediaController.getTransportControls().play();
+        }
+        else
+        {
+            PodEmuLog.debug("PEMP: executing action through KeyEvent");
+            execute_action(KeyEvent.KEYCODE_MEDIA_PLAY);
+        }
     }
 
     public void action_pause()
     {
         PodEmuLog.debug("PEMP: action PAUSE requested");
-        execute_action(KeyEvent.KEYCODE_MEDIA_PAUSE);
+        MediaController mediaController=getActiveMediaController();
+        if( mediaController != null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_PAUSE) == PlaybackState.ACTION_PAUSE)
+        {
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_PAUSE)");
+            mediaController.getTransportControls().pause();
+        }
+        else
+        {
+            PodEmuLog.debug("PEMP: executing action through KeyEvent");
+            execute_action(KeyEvent.KEYCODE_MEDIA_PAUSE);
+        }
     }
 
     public void action_play_pause()
     {
         PodEmuLog.debug("PEMP: action PLAY_PAUSE requested");
-        execute_action(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
+        MediaController mediaController=getActiveMediaController();
+        if( mediaController != null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_PLAY_PAUSE) == PlaybackState.ACTION_PLAY_PAUSE)
+        {
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_PLAY_PAUSE)");
+            if(mediaController.getPlaybackState().getState() == PlaybackState.STATE_PLAYING)
+                mediaController.getTransportControls().pause();
+            else
+                mediaController.getTransportControls().play();
+        }
+        else
+        {
+            PodEmuLog.debug("PEMP: executing action through KeyEvent");
+            execute_action(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
+        }
     }
 
     public void action_stop()
     {
         PodEmuLog.debug("PEMP: action STOP requested");
-        execute_action(KeyEvent.KEYCODE_MEDIA_STOP);
+        MediaController mediaController=getActiveMediaController();
+        if( mediaController != null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_STOP) == PlaybackState.ACTION_STOP)
+        {
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_STOP)");
+            mediaController.getTransportControls().stop();
+        }
+        else
+        {
+            PodEmuLog.debug("PEMP: executing action through KeyEvent");
+            execute_action(KeyEvent.KEYCODE_MEDIA_STOP);
+        }
     }
 
     public void action_skip_forward()
     {
-        execute_action(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD);
-        /*
-        if(Build.VERSION.SDK_INT >= 23)
+        MediaController mediaController=getActiveMediaController();
+        if( mediaController != null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_FAST_FORWARD) == PlaybackState.ACTION_FAST_FORWARD)
         {
-            execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD);
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_FAST_FORWARD)");
+            mediaController.getTransportControls().fastForward();
         }
-        */
+        else
+        {
+            PodEmuLog.debug("PEMP: executing action through KeyEvent");
+            execute_action(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD);
+            /*
+            if(Build.VERSION.SDK_INT >= 23)
+            {
+                execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD);
+            }
+            */
+        }
     }
 
     public void action_skip_backward()
     {
-        execute_action(KeyEvent.KEYCODE_MEDIA_REWIND);
-        /*
-        if(Build.VERSION.SDK_INT >= 23)
+        MediaController mediaController=getActiveMediaController();
+        if( mediaController != null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_REWIND) == PlaybackState.ACTION_REWIND)
         {
-            execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_REWIND)");
+            mediaController.getTransportControls().fastForward();
         }
-        */
+        else
+        {
+            PodEmuLog.debug("PEMP: executing action through KeyEvent");
+            execute_action(KeyEvent.KEYCODE_MEDIA_REWIND);
+            /*
+            if(Build.VERSION.SDK_INT >= 23)
+            {
+                execute_action(KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD);
+            }
+            */
+        }
     }
 
     public void action_stop_ff_rev()
@@ -271,7 +398,7 @@ public abstract class MediaPlayback
 
     public boolean jumpTrackCount(int count)
     {
-        int timeElapsed = MediaPlayback.getInstance().getCurrentTrackPositionMS();
+        long timeElapsed = MediaPlayback.getInstance().getCurrentTrackPositionMS();
 
         //------------
 

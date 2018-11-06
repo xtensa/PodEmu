@@ -406,7 +406,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
                 if (amtWritten <= 0) {
                     throw new IOException("Error writing " + writeLength
-                            + " bytes at offset " + offset + " length="
+                            + " bytes at offset " + offset + " duration="
                             + src.length);
                 }
 

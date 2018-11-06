@@ -351,7 +351,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
                 if (amtWritten <= 0) {
                     throw new IOException("Error writing " + writeLength
-                            + " bytes at offset " + offset + " length=" + src.length);
+                            + " bytes at offset " + offset + " duration=" + src.length);
                 }
 
                 Log.d(TAG, "Wrote amtWritten=" + amtWritten + " attempted=" + writeLength);

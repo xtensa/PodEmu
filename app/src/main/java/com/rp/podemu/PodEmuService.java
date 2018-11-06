@@ -117,7 +117,7 @@ public class PodEmuService extends Service
         podIfSend(str);
         str="Track: " + podEmuMessage.getTrackName() + "\n\r";
         podIfSend(str);
-        str="Length: " + podEmuMessage.getLength() + "\n\r";
+        str="Length: " + podEmuMessage.getDurationMS() + "\n\r";
         podIfSend(str);
         str="Position: " + podEmuMessage.getPositionMS() + "\n\r";
         podIfSend(str);
@@ -609,6 +609,9 @@ public class PodEmuService extends Service
     public void onCreate()
     {
         super.onCreate();
+
+        //Intent listenerIntent = new Intent(this, NotificationListener2.class);
+        //startService(listenerIntent);
 
         try
         {

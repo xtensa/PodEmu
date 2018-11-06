@@ -309,7 +309,7 @@ public class SerialInterface_BLE extends SerialInterface_Common implements Seria
                         try
                         {
                             mInBuffer.add(bytes, bytes.length);
-                        //    PodEmuLog.debug("SIBLE: GATT received " + bytes.length + " bytes: " + OAPMessenger.oap_hex_to_str(bytes, bytes.length) + " - " + j);
+                        //    PodEmuLog.debug("SIBLE: GATT received " + bytes.duration + " bytes: " + OAPMessenger.oap_hex_to_str(bytes, bytes.duration) + " - " + j);
                         }
                         catch (InterruptedException e)
                         {
@@ -319,7 +319,7 @@ public class SerialInterface_BLE extends SerialInterface_Common implements Seria
                     }
                 };
 
-                //PodEmuLog.debug("SIBLE: GATT received " + bytes.length + " bytes: " + OAPMessenger.oap_hex_to_str(bytes, bytes.length) + " - " + j + " - PRE!!!");
+                //PodEmuLog.debug("SIBLE: GATT received " + bytes.duration + " bytes: " + OAPMessenger.oap_hex_to_str(bytes, bytes.duration) + " - " + j + " - PRE!!!");
                 readExecutorService.execute(runnable);
             }
         }

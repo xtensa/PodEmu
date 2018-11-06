@@ -24,13 +24,13 @@ import android.content.Intent;
 import android.content.IntentFilter;
 
 import java.util.ArrayList;
-import java.util.concurrent.ExecutorService;
 
 /**
  * Created by rp on 9/25/15.
  */
 public class PodEmuIntentFilter extends IntentFilter
 {
+    public final static String INTENT_ACTION="com.rp.podemu.METADATA_CHANGED";
     private static ArrayList<String> appList = new ArrayList<>(0);
     private static boolean appListInitialized=false;
     private static void initializeAppList()
@@ -40,6 +40,7 @@ public class PodEmuIntentFilter extends IntentFilter
             appList.add("com.aspiro.tidal");            // Tidal
             appList.add("com.maxmpz.audioplayer");      // PowerAmp
             appList.add("com.apple.android.music");     // Apple Music
+            appList.add("com.google.android.youtube");  // YouTube
 
             appListInitialized=true;
         }
@@ -55,14 +56,14 @@ public class PodEmuIntentFilter extends IntentFilter
     {
         initializeAppList();
 
-        //if(processName.contains("com.spotify.music"))
+
+        // switched to internal broadcasts
+/*
         {
             this.addAction("com.spotify.music.playbackstatechanged");
             this.addAction("com.spotify.music.metadatachanged");
             this.addAction("com.spotify.music.queuechanged");
-        //}
-        //else
-        //{
+
             this.addAction("com.android.music.musicservicecommand");
             this.addAction("com.android.music.metachanged");
             this.addAction("com.android.music.playstatechanged");
@@ -89,9 +90,9 @@ public class PodEmuIntentFilter extends IntentFilter
             this.addAction("com.samsung.sec.android.MusicPlayer.metachanged");
             this.addAction("com.andrew.apollo.metachanged");
         }
+*/
 
-
-
+        this.addAction(INTENT_ACTION);
 
     }
 
@@ -141,7 +142,7 @@ public class PodEmuIntentFilter extends IntentFilter
     *       duration=212000,
     *       playstate=true,
     *       artist=Kelli O'Hara,
-    *       length=212000,
+    *       duration=212000,
     *       albumId=spotify:album:4MCsklkiBP9KTADPWmrhWB,
     *       playing=true,
     *       playbackPosition=68,
@@ -197,8 +198,8 @@ public class PodEmuIntentFilter extends IntentFilter
         String album;
         String track;
         String id;
-        int length;
-        int position;
+        long durationMS;
+        long positionMS;
         int action_code=0;
         int listSize=-1;
         int listPosition=-1;
@@ -206,8 +207,11 @@ public class PodEmuIntentFilter extends IntentFilter
         String PLAYBACK_STATE_CHANGED, METADATA_CHANGED, QUEUE_CHANGED, PLAYBACK_COMPLETE, UPDATE_PROGRESS;
 
         String action = intent.getAction();
-        String cmd = null;
+        //String cmd = null;
 
+        PodEmuLog.debug("PEF: broadcast processing started. action=" + action );
+
+        /*
         try
         {
             cmd = intent.getStringExtra("command");
@@ -217,6 +221,8 @@ public class PodEmuIntentFilter extends IntentFilter
             // do nothing as we don't bother
             // cmd is only used for informative purposes
         }
+        PodEmuLog.debug("PEF: cmd=" + cmd );
+        */
 
         MediaPlayback mediaPlayback = MediaPlayback.getInstance();
         if(mediaPlayback == null)
@@ -224,6 +230,11 @@ public class PodEmuIntentFilter extends IntentFilter
             PodEmuLog.error("PEF: broadcast processing attempt before MediaPlayback engine initialized.");
             return null;
         }
+
+
+        /*
+        skipping this part because not relying on internal application broadcasts
+        --------
 
         // unfortunately Android does not provide information about source process for broadcast, so we need
         // to check case by case when possible. Using XOR check only for "certain" applications
@@ -268,134 +279,147 @@ public class PodEmuIntentFilter extends IntentFilter
 
         if( skip_broadcast )
         {
-            PodEmuLog.debugVerbose("PEF: (" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
+            PodEmuLog.debugVerbose("PEF: (" + context.getClass() + ") Broadcast received: " + action);
             PodEmuLog.debugVerbose("PEF: (" + context.getClass() + ") " + intent.getExtras());
             PodEmuLog.debugVerbose(skip_msg);
             return null;
         }
         else
         {
-            PodEmuLog.debug("PEF: (" + context.getClass() + ") Broadcast received: " + cmd + " - " + action);
+            PodEmuLog.debug("PEF: (" + context.getClass() + ") Broadcast received: " + action);
             PodEmuLog.debug("PEF: (" + context.getClass() + ") " + intent.getExtras());
         }
+        */
 
-
-
-        if(action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
+        if(action.equals(PodEmuIntentFilter.INTENT_ACTION))
         {
-            PodEmuLog.debug("PEF: Detected SPOTIFY broadcast");
+            PodEmuLog.debug("PEF: Detected PodEmu internal broadcast");
 
-            length = intent.getIntExtra("length", 0);
-            position = intent.getIntExtra("playbackPosition", 0);
-            id = intent.getStringExtra("id");
-            timeSentInMs = intent.getLongExtra("timeSent", 0L);
-
-            // unfortunately spotify does not provide this information
-            listSize = -1;
-            listPosition = -1;
-
-            METADATA_CHANGED=BroadcastTypes.SPOTIFY_METADATA_CHANGED;
-            PLAYBACK_STATE_CHANGED=BroadcastTypes.SPOTIFY_PLAYBACK_STATE_CHANGED;
-            QUEUE_CHANGED=BroadcastTypes.SPOTIFY_QUEUE_CHANGED;
-            PLAYBACK_COMPLETE="pattern that will never match :)";
-            UPDATE_PROGRESS="pattern that will never match :)";
+            podEmuMessage = intent.getParcelableExtra("PodEmuMessage");
         }
         else
         {
-            if (mediaPlayback.getCtrlAppProcessName().equals("com.aspiro.tidal"))
+            if (action.contains(BroadcastTypes.SPOTIFY_PACKAGE))
             {
-                // TIDAL sending this info differently then others
-                length = intent.getIntExtra("duration", 0)*1000;
-                position = intent.getIntExtra("position", 0);
-            }
-            else
+                PodEmuLog.debug("PEF: Detected SPOTIFY broadcast");
+
+                durationMS = intent.getLongExtra("duration", 0);
+                positionMS = intent.getIntExtra("playbackPosition", 0);
+                id = intent.getStringExtra("id");
+                timeSentInMs = intent.getLongExtra("timeSent", 0L);
+
+                // unfortunately spotify does not provide this information
+                listSize = -1;
+                listPosition = -1;
+
+                METADATA_CHANGED = BroadcastTypes.SPOTIFY_METADATA_CHANGED;
+                PLAYBACK_STATE_CHANGED = BroadcastTypes.SPOTIFY_PLAYBACK_STATE_CHANGED;
+                QUEUE_CHANGED = BroadcastTypes.SPOTIFY_QUEUE_CHANGED;
+                PLAYBACK_COMPLETE = "pattern that will never match :)";
+                UPDATE_PROGRESS = "pattern that will never match :)";
+            } else
             {
-                length = (int) intent.getLongExtra("duration", 0);
-                position = (int) intent.getLongExtra("position", 0);
-            }
-            
-            try
-            {
-                id = String.valueOf(intent.getLongExtra("id", 0));
-            }
-            catch(Exception e)
-            {
-                if(e instanceof java.lang.ClassCastException)
+                if (mediaPlayback.getCtrlAppProcessName().equals("com.aspiro.tidal"))
                 {
-                    id = String.valueOf(intent.getIntExtra("id", 0));
-                }
-                else
+                    // TIDAL sending this info differently then others
+                    durationMS = intent.getIntExtra("duration", 0) * 1000;
+                    positionMS = intent.getIntExtra("position", 0);
+                } else
                 {
-                    throw e;
+                    durationMS = (int) intent.getLongExtra("duration", 0);
+                    positionMS = (int) intent.getLongExtra("position", 0);
                 }
+
+                try
+                {
+                    id = String.valueOf(intent.getLongExtra("id", 0));
+                } catch (Exception e)
+                {
+                    if (e instanceof java.lang.ClassCastException)
+                    {
+                        id = String.valueOf(intent.getIntExtra("id", 0));
+                    } else
+                    {
+                        throw e;
+                    }
+                }
+
+                timeSentInMs = System.currentTimeMillis();
+
+                listSize = (int) intent.getLongExtra("ListSize", -1);
+
+                try
+                {
+                    // some applications provide Integer instead of Long and it causes exception
+                    listPosition = (int) intent.getLongExtra("ListPosition", -1);
+                } catch (Exception e)
+                {
+                    if (e instanceof java.lang.ClassCastException)
+                    {
+                        listPosition = intent.getIntExtra("ListPosition", -1);
+                    } else
+                    {
+                        throw e;
+                    }
+                }
+
+                METADATA_CHANGED = BroadcastTypes.ANDROID_METADATA_CHANGED;
+                PLAYBACK_STATE_CHANGED = BroadcastTypes.ANDROID_PLAYBACK_STATE_CHANGED;
+                QUEUE_CHANGED = BroadcastTypes.ANDROID_QUEUE_CHANGED;
+                PLAYBACK_COMPLETE = BroadcastTypes.ANDROID_PLAYBACK_COMPLETE;
+                UPDATE_PROGRESS = BroadcastTypes.ANDROID_UPDATE_PROGRESS;
             }
 
-            timeSentInMs = System.currentTimeMillis();
 
-            listSize = (int) intent.getLongExtra("ListSize", -1);
-
-            try
+            if (action.contains(METADATA_CHANGED))
             {
-                // some applications provide Integer instead of Long and it causes exception
-                listPosition = (int) intent.getLongExtra("ListPosition", -1);
+                action_code = PodEmuMessage.ACTION_METADATA_CHANGED;
             }
-            catch(Exception e)
+            if (action.contains(PLAYBACK_STATE_CHANGED)
+                    || action.contains(PLAYBACK_COMPLETE)
+                    || action.contains(UPDATE_PROGRESS))
             {
-                if(e instanceof java.lang.ClassCastException)
-                {
-                    listPosition = intent.getIntExtra("ListPosition", -1);
-                }
-                else
-                {
-                    throw e;
-                }
+                action_code = PodEmuMessage.ACTION_PLAYBACK_STATE_CHANGED;
+            }
+            if (action.contains(QUEUE_CHANGED))
+            {
+                action_code = PodEmuMessage.ACTION_QUEUE_CHANGED;
+                // nothing to do here yet
+                // playlist regeneration might be needed
             }
 
-            METADATA_CHANGED=BroadcastTypes.ANDROID_METADATA_CHANGED;
-            PLAYBACK_STATE_CHANGED=BroadcastTypes.ANDROID_PLAYBACK_STATE_CHANGED;
-            QUEUE_CHANGED=BroadcastTypes.ANDROID_QUEUE_CHANGED;
-            PLAYBACK_COMPLETE=BroadcastTypes.ANDROID_PLAYBACK_COMPLETE;
-            UPDATE_PROGRESS=BroadcastTypes.ANDROID_UPDATE_PROGRESS;
-        }
+            artist = intent.getStringExtra("artist");
+            album = intent.getStringExtra("album");
+            track = intent.getStringExtra("track");
+
+            isPlaying = intent.getBooleanExtra("playing", false);
+
+            podEmuMessage.setAlbum(album);
+            podEmuMessage.setArtist(artist);
+            podEmuMessage.setTrackName(track);
+            podEmuMessage.setExternalId(id);
+            podEmuMessage.setDurationMS(durationMS);
+            podEmuMessage.setIsPlaying(isPlaying);
+            podEmuMessage.setPositionMS(positionMS);
+            podEmuMessage.setTimeSent(timeSentInMs);
+            podEmuMessage.setAction(action_code);
+            podEmuMessage.setListSize(listSize);
+            podEmuMessage.setListPosition(listPosition);
+
+        } // end for non PodEmu broadcasts
 
 
-        if (action.contains(METADATA_CHANGED))
-        {
-            action_code=PodEmuMessage.ACTION_METADATA_CHANGED;
-        }
-        if (action.contains(PLAYBACK_STATE_CHANGED)
-                || action.contains(PLAYBACK_COMPLETE)
-                || action.contains(UPDATE_PROGRESS))
-        {
-            action_code=PodEmuMessage.ACTION_PLAYBACK_STATE_CHANGED;
-        }
-        if (action.contains(QUEUE_CHANGED))
-        {
-            action_code=PodEmuMessage.ACTION_QUEUE_CHANGED;
-            // nothing to do here yet
-            // playlist regeneration might be needed
-        }
 
-        artist = intent.getStringExtra("artist");
-        album = intent.getStringExtra("album");
-        track = intent.getStringExtra("track");
 
-        isPlaying = intent.getBooleanExtra("playing", false);
-
-        PodEmuLog.debug("PEF: received message - action:" + action_code + ", isPlaying:" + isPlaying + ", artist:" + artist + ", album:" + album +
-                ", track:"+ track + ", id:" + id + ", length:" + length + ", track:" + listPosition + "/" + listSize);
-
-        podEmuMessage.setAlbum(album);
-        podEmuMessage.setArtist(artist);
-        podEmuMessage.setTrackName(track);
-        podEmuMessage.setExternalId(id);
-        podEmuMessage.setLength(length);
-        podEmuMessage.setIsPlaying(isPlaying);
-        podEmuMessage.setPositionMS(position);
-        podEmuMessage.setTimeSent(timeSentInMs);
-        podEmuMessage.setAction(action_code);
-        podEmuMessage.setListSize(listSize);
-        podEmuMessage.setListPosition(listPosition);
+        PodEmuLog.debug("PEF: received message - action:" + action_code +
+                            ", isPlaying:" + podEmuMessage.isPlaying() +
+                            ", artist:" + podEmuMessage.getArtist() +
+                            ", album:" + podEmuMessage.getAlbum() +
+                            ", track:"+ podEmuMessage.getTrackName() +
+                            ", externalId:" + podEmuMessage.getExternalId() +
+                            ", duration:" + podEmuMessage.getDurationMS() +
+                            ", track:" + podEmuMessage.getListPosition() +
+                            "/" + podEmuMessage.getListSize());
 
         return podEmuMessage;
     }

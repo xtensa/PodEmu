@@ -49,7 +49,7 @@
 
 
 <!-- Controlled App  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
-
+<!--
             <RelativeLayout
                 android:id="@+id/ctrlAppLayout"
                 android:layout_width="fill_parent"
@@ -102,11 +102,11 @@
                     android:text="Default application to be controlled by PodEmu"/>
 
             </RelativeLayout>
-
+-->
 <!-- PodEmu behavior  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
 
 <!-- Auto Switch To App  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
-
+<!--
             <RelativeLayout
                 android:id="@+id/switchToAppLayout"
                 android:layout_width="fill_parent"
@@ -149,14 +149,14 @@
                     />
 
             </RelativeLayout>
-
-
+to be moved: android:layout_below="@id/switchToAppLayout"
+-->
             <!-- Bluetooth  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
             <RelativeLayout
                 android:id="@+id/bluetoothEnableLayout"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/switchToAppLayout"
+
                 android:onClick="toggleBluetoothEnabled"
                 android:layout_marginTop="7dp">
 

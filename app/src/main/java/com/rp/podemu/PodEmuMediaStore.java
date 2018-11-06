@@ -167,11 +167,14 @@ public class PodEmuMediaStore
         if(prevCtrlAppProcessName==null || !prevCtrlAppProcessName.equals(ctrlAppDbName)) rebuildDbRequired = true;
         PodEmuLog.debug("PEMS: rebuild DB required: " + rebuildDbRequired);
 
-        // now we can initialize playback engine and DB engine
-        MediaPlayback.initialize(context, ctrlAppProcessName, ctrlAppDbName);
+        if(rebuildDbRequired)
+        {
+            // now we can initialize playback engine and DB engine
+            MediaPlayback.initialize(context, ctrlAppDbName);
 
-        reinitializePlaylistAndDB();
-
+            reinitializePlaylistAndDB();
+        }
+        MediaPlayback.setCtrlAppProcessName(ctrlAppProcessName);
     }
 
     private void reinitializePlaylistAndDB()
@@ -245,8 +248,8 @@ public class PodEmuMediaStore
         public String genre=null;
         public String uri=null;
         public String external_id=null;
-        public int length = 0;
-        public int track_number = 0;
+        public long duration = 0;
+        public int    track_number = 0;
 
         public Integer artist_id = null;
         public Integer album_id = null;
@@ -270,7 +273,7 @@ public class PodEmuMediaStore
             composer=t.composer;
             uri=t.uri;
             external_id=t.external_id;
-            length=t.length;
+            duration =t.duration;
             track_number=t.track_number;
             artist_id=t.artist_id;
             album_id=t.album_id;
@@ -287,7 +290,7 @@ public class PodEmuMediaStore
             msg.setComposer(composer);
             msg.setUri(uri);
             msg.setExternalId(external_id);
-            msg.setLength(length);
+            msg.setDurationMS(duration);
             msg.setTrackNumber(track_number);
             msg.setListSize(-1);
             msg.setListPosition(-1);
@@ -490,7 +493,7 @@ public class PodEmuMediaStore
         protected static final String COLUMN_TRACK_ID="track_id";
         protected static final String COLUMN_APP="app";
         protected static final String COLUMN_TRACK_NUMBER="track_number";
-        protected static final String COLUMN_LENGTH="length";
+        protected static final String COLUMN_DURATION ="length";
         protected static final String COLUMN_PLAYLIST_ID="playlist_id";
         protected static final String COLUMN_YEAR="year";
         protected static final String COLUMN_ALBUM_ID="album_id";
@@ -556,7 +559,7 @@ public class PodEmuMediaStore
                         COLUMN_URI + " TEXT,\n" +
                         COLUMN_EXTERNAL_ID + " TEXT,\n" + // external id, eg. Spotify ID of the object
                         COLUMN_TRACK_NUMBER + " INTEGER NOT NULL,\n" + // track number in the album
-                        COLUMN_LENGTH + " INTEGER NOT NULL,\n" +
+                        COLUMN_DURATION + " INTEGER NOT NULL,\n" +
                         COLUMN_NAME + " TEXT NOT NULL,\n" +
                         COLUMN_ALBUM_ID + " INTEGER NOT NULL,\n" +
                         COLUMN_ARTIST_ID + " INTEGER NOT NULL,\n" +
@@ -639,7 +642,7 @@ public class PodEmuMediaStore
         values.put(DbHelper.COLUMN_APP, ctrlAppDbName);
         values.put(DbHelper.COLUMN_ID, id);
         values.put(DbHelper.COLUMN_TRACK_NUMBER, track.track_number);
-        values.put(DbHelper.COLUMN_LENGTH, track.length);
+        values.put(DbHelper.COLUMN_DURATION, track.duration);
         values.put(DbHelper.COLUMN_EXTERNAL_ID, track.external_id);
         values.put(DbHelper.COLUMN_ALBUM_ID, track.album_id);
         values.put(DbHelper.COLUMN_ARTIST_ID, track.artist_id);
@@ -1133,7 +1136,7 @@ public class PodEmuMediaStore
                 break;
             case 0x05: // track
                 query += ", " + DbHelper.COLUMN_TRACK_NUMBER +
-                        ", " + DbHelper.COLUMN_LENGTH +
+                        ", " + DbHelper.COLUMN_DURATION +
                         " FROM " +
                         DbHelper.TABLE_TRACKS + where;
                 break;
@@ -1174,7 +1177,7 @@ public class PodEmuMediaStore
                         DbHelper.TABLE_TRACKS + "." + DbHelper.COLUMN_URI + ", " +
                         DbHelper.TABLE_TRACKS + "." + DbHelper.COLUMN_EXTERNAL_ID + ", " +
                         DbHelper.TABLE_TRACKS + "." + DbHelper.COLUMN_TRACK_NUMBER + ", " +
-                        DbHelper.TABLE_TRACKS + "." + DbHelper.COLUMN_LENGTH + ", " +
+                        DbHelper.TABLE_TRACKS + "." + DbHelper.COLUMN_DURATION + ", " +
                         DbHelper.TABLE_ALBUMS + "." + DbHelper.COLUMN_NAME + " AS album_name," +
                         DbHelper.TABLE_ARTISTS + "." + DbHelper.COLUMN_NAME + " AS artist_name," +
                         DbHelper.TABLE_GENRES + "." + DbHelper.COLUMN_NAME + " AS genre_name," +
@@ -1205,7 +1208,7 @@ public class PodEmuMediaStore
             Track track=new Track();
             track.name         = selectionCursor.getString(selectionCursor.getColumnIndex("track_name"));
             track.track_number = selectionCursor.getInt(selectionCursor.getColumnIndex(DbHelper.COLUMN_TRACK_NUMBER));
-            track.length       = selectionCursor.getInt(selectionCursor.getColumnIndex(DbHelper.COLUMN_LENGTH));
+            track.duration     = selectionCursor.getLong(selectionCursor.getColumnIndex(DbHelper.COLUMN_DURATION));
             track.album        = selectionCursor.getString(selectionCursor.getColumnIndex("album_name"));
             track.artist       = selectionCursor.getString(selectionCursor.getColumnIndex("artist_name"));
             track.genre        = selectionCursor.getString(selectionCursor.getColumnIndex("genre_name"));

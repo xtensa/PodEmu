@@ -175,7 +175,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
                 final int nread = buf.position();
                 if (nread > 0) {
-                  //Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
+                  //Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.duration)));
                   return nread;
                 } else {
                   return 0;
@@ -232,7 +232,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 }
                 if (amtWritten <= 0) {
                     throw new IOException("Error writing " + writeLength
-                            + " bytes at offset " + offset + " length=" + src.length);
+                            + " bytes at offset " + offset + " duration=" + src.length);
                 }
 
                 Log.d(TAG, "Wrote amt=" + amtWritten + " attempted=" + writeLength);

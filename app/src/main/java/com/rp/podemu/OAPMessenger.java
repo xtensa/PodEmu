@@ -24,8 +24,6 @@
 package com.rp.podemu;
 
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -205,8 +203,8 @@ public class OAPMessenger
         if (line_cmd_pos == 2)
         {
         /*
-         * Byte nr 2 is msg length (only in case of normal messages)
-         * Next line calculates total msg length to be received by adding
+         * Byte nr 2 is msg duration (only in case of normal messages)
+         * Next line calculates total msg duration to be received by adding
          * additional bytes:
          *     2 for control bytes (0xFF 0x55)
          *     1 for msg len
@@ -223,8 +221,8 @@ public class OAPMessenger
             {
                 /*
                  * this is potential extended image message candidate
-                 * extended image message has 3 bytes allocated to message length
-                 * instead of one byte. Thanks to that total message length could
+                 * extended image message has 3 bytes allocated to message duration
+                 * instead of one byte. Thanks to that total message duration could
                  * be more than 259 bytes. Byte 2 is treated as indicator of potential
                  * ext image msg. Length bytes are assumed to be 3 and 4
                  *
@@ -257,7 +255,7 @@ public class OAPMessenger
                 // extended image message detected
             else if (line_ext_pos == 8)
             {
-                // assumptions: length is in bytes 3 and 4 which gives maximum length of 65025
+                // assumptions: duration is in bytes 3 and 4 which gives maximum duration of 65025
                 (line_cmd_len) = (((ext_image_buf[3] & 0xff) << 8) | (ext_image_buf[4] & 0xff)) + 6;
                 (line_cmd_pos) = 8;
                 // now putting the bytes in their "correct" place
@@ -292,13 +290,13 @@ public class OAPMessenger
 
         if (!is_extended_image && line_cmd_len > 259)
         {
-            PodEmuLog.debug("OAPM: Line " + line + ": ERROR: message length cannot exceed 259 bytes");
+            PodEmuLog.debug("OAPM: Line " + line + ": ERROR: message duration cannot exceed 259 bytes");
             return -1;
         }
 
         if (is_extended_image && line_cmd_len > 65025 + 6)
         {
-            PodEmuLog.debug("OAPM: Line " + line + ": ERROR: extended message length cannot exceed 65031 bytes");
+            PodEmuLog.debug("OAPM: Line " + line + ": ERROR: extended message duration cannot exceed 65031 bytes");
             return -1;
         }
 
@@ -348,7 +346,7 @@ public class OAPMessenger
      * and finally generates proper reply to serial interface.
      *
      * @param line_buf     - byte buffer that contains the message
-     * @param line_cmd_len - total length of the message contained in line_buf
+     * @param line_cmd_len - total duration of the message contained in line_buf
      * @param is_ext       - indicator if message should be treated as extended image message
      */
     public void oap_process_msg(byte[] line_buf, int line_cmd_len, boolean is_ext)
@@ -1478,7 +1476,7 @@ public class OAPMessenger
     /**
      * Engine: playback
      * @cmd 0x0006
-     * @response int(4) - chapter length in millis
+     * @response int(4) - chapter duration in millis
      * @response int(4) - elapsed time in millis
      */
     private void oap_04_write_chapter_status()
@@ -1537,7 +1535,7 @@ public class OAPMessenger
         switch (rtype)
         {
             case 0x00: // Track Capabilities and Information
-                int length = mediaPlayback.getCurrentPlaylist().getTrack(song_nr).length;
+                long length = mediaPlayback.getCurrentPlaylist().getTrack(song_nr).duration;
                 msg02[7] = (byte) ((length >> 24) & 0xff);
                 msg02[8] = (byte) ((length >> 16) & 0xff);
                 msg02[9] = (byte) ((length >> 8) & 0xff);
@@ -1732,7 +1730,7 @@ public class OAPMessenger
 
     /**
      * @cmd 0x00 0x1D
-     * @response length(4)  Track length in milliseconds
+     * @response duration(4)  Track duration in milliseconds
      * @response time(4)    Elapsed time in milliseconds
      * @response status(1)  Status:
      * 0x00 = Stop
@@ -1742,8 +1740,8 @@ public class OAPMessenger
     private void oap_04_write_info()
     {
         byte msg[] = new byte[11];
-        int length = mediaPlayback.getCurrentPlaylist().getCurrentTrack().length;
-        int time = mediaPlayback.getCurrentTrackPositionMS();
+        long length = mediaPlayback.getCurrentPlaylist().getCurrentTrack().duration;
+        long time = mediaPlayback.getCurrentTrackPositionMS();
         msg[0] = 0x00;
         msg[1] = 0x1D;
         msg[2] = (byte) ((length >> 24) & 0xff);
@@ -1892,7 +1890,7 @@ public class OAPMessenger
 
         if (!mediaPlayback.isPlaying()) return;
 
-        int pos = mediaPlayback.getCurrentTrackPositionMS();
+        long pos = mediaPlayback.getCurrentTrackPositionMS();
         byte cmd[] = {
                 0x00,
                 0x27,
@@ -2117,7 +2115,7 @@ public class OAPMessenger
      * Calculates checksum of provided message
      *
      * @param buf - buffer containing the message
-     * @param len - length of the message in buf
+     * @param len - duration of the message in buf
      * @return - calculates checksum
      */
     public byte oap_calc_checksum(byte buf[], int len)
@@ -2151,7 +2149,7 @@ public class OAPMessenger
      * Transforms byte array to human readable form in hex format
      *
      * @param buf - buffer containing byte array
-     * @param len - length of the byte array contained by buf
+     * @param len - duration of the byte array contained by buf
      * @return - resulting string
      */
     public static String oap_hex_to_str(byte buf[], int len)
@@ -2169,7 +2167,7 @@ public class OAPMessenger
 
     /**
      * Converts the message to human readable form and put it to logs. Message is expected
-     * to be in correct format - especially length should be correct. Otherwise errors could occur.
+     * to be in correct format - especially duration should be correct. Otherwise errors could occur.
      *
      * @param msg    - buffer containing the message
      * @param in_out - true=IN, false=OUT
@@ -2199,7 +2197,7 @@ public class OAPMessenger
         if (len > 2) tmp += String.format("%02X  ", msg[5 + pos_shift]);
         else tmp += "    ";
         tmp += "|  ";
-        // 3 bytes are for mode and command length
+        // 3 bytes are for mode and command duration
         for (j = 6; j < len + 6 - 3; j++)
         {
             tmp += String.format("%02X ", msg[j + pos_shift]);
@@ -2225,7 +2223,7 @@ public class OAPMessenger
      * Builds iPod serial message and writes it to serial line
      *
      * @param bytes  - command and parameters
-     * @param len    - total length of command+parameters
+     * @param len    - total duration of command+parameters
      * @param mode   - mode that should be used
      */
     private void oap_write_cmd(byte bytes[], int len, byte mode)
@@ -2236,7 +2234,7 @@ public class OAPMessenger
 
         if (len > 254)
         {
-            PodEmuLog.debug("ERROR: Message length cannot be greater than 255");
+            PodEmuLog.debug("ERROR: Message duration cannot be greater than 255");
             return;
         }
 
@@ -2275,7 +2273,7 @@ public class OAPMessenger
      * normal message (not extended image message)
      *
      * @param bytes - command and parameters
-     * @param len   - total length of command+parameters
+     * @param len   - total duration of command+parameters
      */
     private void oap_04_write_cmd(byte bytes[], int len)
     {
@@ -2285,7 +2283,7 @@ public class OAPMessenger
 
     /**
      * Builds iPod serial message and writes it to serial line. Message is expected to be
-     * normal message (not extended image message). Full byte[] length will be written.
+     * normal message (not extended image message). Full byte[] duration will be written.
      *
      * @param bytes - command and parameters
      */
@@ -2348,7 +2346,7 @@ public class OAPMessenger
      * and to process this block
      *
      * @param data - image block data buffer
-     * @param len  - length of the image block contained in data
+     * @param len  - duration of the image block contained in data
      */
     private void oap_receive_image_msg(byte[] data, int len)
     {
@@ -2364,7 +2362,7 @@ public class OAPMessenger
         }
 /*
         PodEmuLog.debug("PARAMS:");
-        for (int h=0;h<data.length;h++)
+        for (int h=0;h<data.duration;h++)
             PodEmuLog.debug("Byte "+h+": "+String.format("%02X", data[h]));
 */
         int block_number = ((data[0] & 0xff) << 8) | (data[1] & 0xff);
@@ -2516,7 +2514,7 @@ public class OAPMessenger
     {
         if (b.length < 4)
         {
-            PodEmuLog.error("byte array length is less then 4");
+            PodEmuLog.error("byte array duration is less then 4");
             return;
         }
 
@@ -2537,7 +2535,7 @@ public class OAPMessenger
     {
         if (b.length < 4+start_pos)
         {
-            PodEmuLog.error("byte array length is less then 4");
+            PodEmuLog.error("byte array duration is less then 4");
             return 0;
         }
 

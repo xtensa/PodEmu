@@ -24,6 +24,7 @@ import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
@@ -32,21 +33,28 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.hardware.usb.UsbManager;
+import android.media.MediaMetadata;
+import android.media.session.MediaSessionManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.media.session.MediaController;
 import android.widget.TextView;
 
 import java.lang.ref.WeakReference;
+import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity
@@ -58,11 +66,9 @@ public class MainActivity extends AppCompatActivity
     private TextView dockStatusText=null;
     private TextView ctrlAppStatusTitle=null;
     private TextView ctrlAppStatusText=null;
-    private PodEmuLog podEmuLog;
     private int iPodConnected=OAPMessenger.IPOD_MODE_DISCONNECTED;
 
 
-    private String ctrlAppProcessName;
     private boolean bluetoothEnabled;
     private boolean bluetoothIsBle;
     private int autoSwitchToApp;
@@ -77,19 +83,8 @@ public class MainActivity extends AppCompatActivity
 
     private boolean isBtOn = true;
 
-    //public static LooperThread looperThread;
-
-    public void setCtrlAppProcessName(String processName)
-    {
-        ctrlAppProcessName = processName;
-    }
-
-    public String getCtrlAppProcessName()
-    {
-        return ctrlAppProcessName;
-    }
-
     public boolean isBtOn() { return isBtOn; }
+
 
 
     public void action_next(View v)
@@ -250,7 +245,10 @@ public class MainActivity extends AppCompatActivity
             //}
 
             // Start background service
-            serviceIntent = new Intent(this, PodEmuService.class);
+            serviceIntent  = new Intent(this, PodEmuService.class);
+            //listenerIntent = new Intent(this, NotificationService.class);
+            //startService(listenerIntent);
+
 
             updateSerialStatus();
             updateIPodStatus();
@@ -289,15 +287,17 @@ public class MainActivity extends AppCompatActivity
                 if(action.contains(BluetoothDevice.ACTION_ACL_CONNECTED)
                         && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName() == SerialInterface_BT.getInstance().getName()))
                 {
-                    PodEmuLog.debug("PES: Bluetooth device '" + SerialInterface_BT.getInstance().getName() + "' connected.");
+                    PodEmuLog.debug("MA: Bluetooth device '" + SerialInterface_BT.getInstance().getName() + "' connected.");
                     start_service(null);
                 }
                 else
                 {
+                    PodEmuLog.debug("MA: broadcast processing requested");
                     PodEmuMessage podEmuMessage = PodEmuIntentFilter.processBroadcast(context, intent);
                     // if null is received then broadcast could be not from "our" app
-                    if(podEmuMessage!=null)
+                    if (podEmuMessage != null)
                     {
+                        PodEmuLog.debug("MA: received PodEmuMessage");
                         currentlyPlaying.bulk_update(podEmuMessage);
                         if (podEmuMessage.getAction() != PodEmuMessage.ACTION_QUEUE_CHANGED)
                         {
@@ -305,7 +305,6 @@ public class MainActivity extends AppCompatActivity
                         }
                     }
                 }
-
 
             }
             catch(Exception e)
@@ -322,14 +321,12 @@ public class MainActivity extends AppCompatActivity
     {
         try
         {
-            ImageView appLogo = (ImageView) findViewById(R.id.CTRL_app_icon);
+
             SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
-            ctrlAppProcessName = sharedPref.getString("ControlledAppProcessName", "unknown app");
             autoSwitchToApp = sharedPref.getInt("autoSwitchToApp", 0);
             bluetoothEnabled=(sharedPref.getInt("bluetoothEnabled", 0)!=0);
             bluetoothIsBle = sharedPref.getBoolean("bluetoothIsBle", false);
             String enableDebug = sharedPref.getString("enableDebug", "false");
-            Boolean ctrlAppUpdated = sharedPref.getBoolean("ControlledAppUpdated", false);
             Boolean playlistCountModeUpdated=sharedPref.getBoolean("PlaylistCountModeUpdated", false);
             boolean enableTranslit = sharedPref.getBoolean("CyrillicTransliteration", false);
             int forceSimpleMode = sharedPref.getInt("ForceSimpleMode", 0);
@@ -341,11 +338,7 @@ public class MainActivity extends AppCompatActivity
                 PodEmuMediaStore.initialize(this);
             }
 
-            // update ctrlApp only if it was changed or MediaPlayback engine is not yet initialized
-            if(ctrlAppUpdated || MediaPlayback.getInstance()==null)
-            {
-                PodEmuMediaStore.getInstance().setCtrlAppProcessName(ctrlAppProcessName);
-            }
+
             if(playlistCountModeUpdated)
             {
                 PodEmuMediaStore.getInstance().setPlaylistCountMode(playlistCountMode);
@@ -362,6 +355,8 @@ public class MainActivity extends AppCompatActivity
                 podEmuService.setForceSimpleMode(forceSimpleMode);
             }
 
+            PodEmuMediaStore.getInstance().setCtrlAppProcessName("unknown");
+
             if(MediaPlayback.getInstance()!=null)
             {
                 currentlyPlaying.bulk_update(MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrack().toPodEmuMessage());
@@ -369,35 +364,7 @@ public class MainActivity extends AppCompatActivity
                 updateCurrentlyPlayingDisplay();
             }
 
-            PackageManager pm = getPackageManager();
-            ApplicationInfo appInfo;
 
-            try
-            {
-                appInfo = pm.getApplicationInfo(ctrlAppProcessName, PackageManager.GET_META_DATA);
-
-                ctrlAppStatusTitle.setText("Controlled app: " + appInfo.loadLabel(pm));
-                ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0xff, 0xff));
-
-                if(ctrlAppUpdated && currentlyPlaying.isPlaying())
-                {
-                    // invoke play_pause button to switch the app
-                    MediaPlayback mediaPlayback=MediaPlayback.getInstance();
-                    mediaPlayback.action_play_pause();
-                }
-                SharedPreferences.Editor editor = sharedPref.edit();
-                editor.putBoolean("ControlledAppUpdated", false);
-                editor.apply();
-
-                appLogo.setImageDrawable(appInfo.loadIcon(pm));
-            }
-            catch (PackageManager.NameNotFoundException e)
-            {
-                ctrlAppStatusTitle.setText("Please go to the settings and setup controlled music application");
-                ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
-
-                appLogo.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.questionmark)));
-            }
         }
         catch(Exception e)
         {
@@ -408,6 +375,55 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    private void updateAppInfo()
+    {
+        PackageManager pm = getPackageManager();
+        ApplicationInfo appInfo;
+        String appName = "unknown";
+        MediaController mediaController = MediaPlayback.getActiveMediaController();
+        Bitmap trackIcon = null;
+
+        if(mediaController != null)
+        {
+            trackIcon = mediaController.getMetadata().getBitmap(MediaMetadata.METADATA_KEY_ART);
+            if (trackIcon == null)
+                trackIcon = mediaController.getMetadata().getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+            if (trackIcon == null)
+                trackIcon = mediaController.getMetadata().getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
+        }
+
+        if(currentlyPlaying==null) return;
+        appName = currentlyPlaying.getApplication();
+
+        PodEmuLog.debug("MA: setting AppInfo to " + appName);
+
+
+            try
+            {
+                appInfo = pm.getApplicationInfo(appName, PackageManager.GET_META_DATA);
+                ctrlAppStatusTitle.setText("App: " + appInfo.loadLabel(pm));
+                ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0xff, 0xff));
+
+                if(trackIcon != null)
+                    setAppLogo(new BitmapDrawable(getResources(), trackIcon) );
+                else
+                    setAppLogo(appInfo.loadIcon(pm));
+
+            } catch (PackageManager.NameNotFoundException e)
+            {
+                ctrlAppStatusTitle.setText("Unknown app");
+                ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
+
+                setAppLogo(ContextCompat.getDrawable(this, (R.drawable.questionmark)));
+            }
+
+    }
+
+    private void setAppLogo(Drawable drawable)
+    {
+        ImageView appLogo = findViewById(R.id.CTRL_app_icon);
+        appLogo.setImageDrawable( drawable);
+    }
 
     @Override
     protected void onPause()
@@ -445,8 +461,6 @@ public class MainActivity extends AppCompatActivity
             iF = new PodEmuIntentFilter();
             iF.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
             iF.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
-//            iF.addDataScheme("content");
-//            iF.addDataAuthority(ctrlAppProcessName, null);
 
             registerReceiver(mReceiver, iF);
 
@@ -489,6 +503,35 @@ public class MainActivity extends AppCompatActivity
                     editor.apply();
                 }
             }
+        }
+
+        ComponentName componentName = new ComponentName(getApplicationContext(), NotificationListener2.class);
+        MediaSessionManager mediaSessionManager = (MediaSessionManager)getApplicationContext().getSystemService(Context.MEDIA_SESSION_SERVICE);
+        List<MediaController> mediaControllerList = null;
+
+        try
+        {
+            mediaControllerList = mediaSessionManager.getActiveSessions(componentName);
+        }
+        catch(Exception e)
+        {
+            PodEmuLog.error("MA: Notification Listener permissions not granted");
+        }
+        if(mediaControllerList == null)
+        {
+            new AlertDialog.Builder(this)
+                    .setTitle("Warning")
+                    .setMessage("To display information about currently playing track PodEmu need to have access to Notifications. Please enable it on the next screen.")
+                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener()
+                    {
+                        public void onClick(DialogInterface dialog, int which)
+                        {
+                            startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
+                        }
+                    })
+
+                    .setIcon(android.R.drawable.ic_dialog_info)
+                    .show();
         }
 
     }
@@ -671,15 +714,20 @@ public class MainActivity extends AppCompatActivity
 
     private void updateCurrentlyPlayingDisplay()
     {
+        if(!currentlyPlaying.isInitialized()) return;
         ctrlAppStatusText.setText(
                 "Artist: " + currentlyPlaying.getArtist() + "\n" +
                 " Album: " + currentlyPlaying.getAlbum() + "\n" +
                 " Track: " + currentlyPlaying.getTrackName() + "\n" +
-                "Length: " + currentlyPlaying.getLengthHumanReadable() + "\n" +
+                "Length: " + currentlyPlaying.getLengthHumanReadable() +
+                        (currentlyPlaying.isPlaying()?" (playing)":" (paused)") + "\n" +
                 //"Track NR: " + MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrackPos() + "/" +
                 //        MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount() + "\n" +
                 ""
         );
+        PodEmuMediaStore.getInstance().setCtrlAppProcessName(currentlyPlaying.getApplication());
+
+        updateAppInfo();
 
     }
 
@@ -806,7 +854,7 @@ public class MainActivity extends AppCompatActivity
     {
         try
         {
-            Intent intent = getPackageManager().getLaunchIntentForPackage(ctrlAppProcessName);
+            Intent intent = getPackageManager().getLaunchIntentForPackage(currentlyPlaying.getApplication());
             if(intent!=null)
                 startActivity(intent);
         }

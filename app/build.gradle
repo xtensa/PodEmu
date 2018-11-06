@@ -22,14 +22,14 @@ def getNewVersionName()
 }
 
 android {
-    compileSdkVersion 26
+    compileSdkVersion 28
     buildToolsVersion '27.0.3'
 
 
     defaultConfig {
         applicationId "com.rp.podemu"
-        minSdkVersion 14
-        targetSdkVersion 26
+        minSdkVersion 21
+        targetSdkVersion 28
         versionCode getRevision()
         versionName getNewVersionName()
     }

@@ -29,7 +29,7 @@ public class MediaPlayback_Generic extends MediaPlayback
 
 
     private boolean isPlaying=false;
-    private int positionMS;
+    private long positionMS;
     private long timeSent;
 
     MediaPlayback_Generic()
@@ -69,9 +69,9 @@ public class MediaPlayback_Generic extends MediaPlayback
      * postion once it is paused or unpaused.
      * @return position in miliseconds
      */
-    public int getCurrentTrackPositionMS()
+    public long getCurrentTrackPositionMS()
     {
-        int position;
+        long position;
 
         // if playback is active then calculate real position, otherwise return last known position
         if(isPlaying)
@@ -155,7 +155,7 @@ public class MediaPlayback_Generic extends MediaPlayback
             }
 
             track.id = track.track_number; // this is true only for generic playlists
-            track.length = msg.getLength();
+            track.duration = msg.getDurationMS();
             track.external_id = msg.getExternalId();
             track.name = msg.getTrackName();
             track.album = msg.getAlbum();
