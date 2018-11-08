@@ -30,7 +30,9 @@ import java.util.ArrayList;
  */
 public class PodEmuIntentFilter extends IntentFilter
 {
-    public final static String INTENT_ACTION="com.rp.podemu.METADATA_CHANGED";
+    public final static String INTENT_ACTION_METADATA_CHANGED ="com.rp.podemu.METADATA_CHANGED";
+    public final static String INTENT_ACTION_NOTIFY_MAIN_ACTIVITY_RESUMED="com.podemu.rp.NOTIFY_MA_RESUMED";
+
     private static ArrayList<String> appList = new ArrayList<>(0);
     private static boolean appListInitialized=false;
     private static void initializeAppList()
@@ -92,7 +94,8 @@ public class PodEmuIntentFilter extends IntentFilter
         }
 */
 
-        this.addAction(INTENT_ACTION);
+        this.addAction(INTENT_ACTION_METADATA_CHANGED);
+        this.addAction(INTENT_ACTION_NOTIFY_MAIN_ACTIVITY_RESUMED);
 
     }
 
@@ -291,7 +294,7 @@ public class PodEmuIntentFilter extends IntentFilter
         }
         */
 
-        if(action.equals(PodEmuIntentFilter.INTENT_ACTION))
+        if(action.equals(PodEmuIntentFilter.INTENT_ACTION_METADATA_CHANGED))
         {
             PodEmuLog.debug("PEF: Detected PodEmu internal broadcast");
 
@@ -317,14 +320,16 @@ public class PodEmuIntentFilter extends IntentFilter
                 QUEUE_CHANGED = BroadcastTypes.SPOTIFY_QUEUE_CHANGED;
                 PLAYBACK_COMPLETE = "pattern that will never match :)";
                 UPDATE_PROGRESS = "pattern that will never match :)";
-            } else
+            }
+            else
             {
                 if (mediaPlayback.getCtrlAppProcessName().equals("com.aspiro.tidal"))
                 {
                     // TIDAL sending this info differently then others
                     durationMS = intent.getIntExtra("duration", 0) * 1000;
                     positionMS = intent.getIntExtra("position", 0);
-                } else
+                }
+                else
                 {
                     durationMS = (int) intent.getLongExtra("duration", 0);
                     positionMS = (int) intent.getLongExtra("position", 0);
@@ -333,12 +338,14 @@ public class PodEmuIntentFilter extends IntentFilter
                 try
                 {
                     id = String.valueOf(intent.getLongExtra("id", 0));
-                } catch (Exception e)
+                }
+                catch (Exception e)
                 {
                     if (e instanceof java.lang.ClassCastException)
                     {
                         id = String.valueOf(intent.getIntExtra("id", 0));
-                    } else
+                    }
+                    else
                     {
                         throw e;
                     }
@@ -352,12 +359,14 @@ public class PodEmuIntentFilter extends IntentFilter
                 {
                     // some applications provide Integer instead of Long and it causes exception
                     listPosition = (int) intent.getLongExtra("ListPosition", -1);
-                } catch (Exception e)
+                }
+                catch (Exception e)
                 {
                     if (e instanceof java.lang.ClassCastException)
                     {
                         listPosition = intent.getIntExtra("ListPosition", -1);
-                    } else
+                    }
+                    else
                     {
                         throw e;
                     }

@@ -42,7 +42,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.support.v4.content.ContextCompat;
+//import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
@@ -355,15 +355,15 @@ public class MainActivity extends AppCompatActivity
                 podEmuService.setForceSimpleMode(forceSimpleMode);
             }
 
-            PodEmuMediaStore.getInstance().setCtrlAppProcessName("unknown");
+            String ctrlApp = PodEmuMediaStore.getInstance().getCtrlAppProcessName();
+            if(ctrlApp==null) ctrlApp = "unknown";
+            // the next line is required to initialize MediaStore and DB
+            PodEmuMediaStore.getInstance().setCtrlAppProcessName(ctrlApp);
 
-            if(MediaPlayback.getInstance()!=null)
-            {
-                currentlyPlaying.bulk_update(MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrack().toPodEmuMessage());
-                currentlyPlaying.setEnableCyrillicTransliteration(enableTranslit);
-                updateCurrentlyPlayingDisplay();
-            }
+            currentlyPlaying.bulk_update(MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrack().toPodEmuMessage());
+            currentlyPlaying.setEnableCyrillicTransliteration(enableTranslit);
 
+            updateCurrentlyPlayingDisplay();
 
         }
         catch(Exception e)
@@ -391,6 +391,10 @@ public class MainActivity extends AppCompatActivity
             if (trackIcon == null)
                 trackIcon = mediaController.getMetadata().getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
         }
+        else
+        {
+            PodEmuLog.debug("MA: cannot load icon because mediaController is not initialized");
+        }
 
         if(currentlyPlaying==null) return;
         appName = currentlyPlaying.getApplication();
@@ -409,12 +413,13 @@ public class MainActivity extends AppCompatActivity
                 else
                     setAppLogo(appInfo.loadIcon(pm));
 
-            } catch (PackageManager.NameNotFoundException e)
+            }
+            catch (PackageManager.NameNotFoundException e)
             {
                 ctrlAppStatusTitle.setText("Unknown app");
                 ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
 
-                setAppLogo(ContextCompat.getDrawable(this, (R.drawable.questionmark)));
+                setAppLogo(getDrawable(R.drawable.questionmark));
             }
 
     }
@@ -466,6 +471,10 @@ public class MainActivity extends AppCompatActivity
 
             PodEmuLog.printSystemInfo();
 
+            //Intent intent = new Intent(PodEmuIntentFilter.INTENT_ACTION_NOTIFY_MAIN_ACTIVITY_RESUMED,
+            //                            null, getApplicationContext(), PodEmuService.class);
+            //sendBroadcast(intent);
+
             PodEmuLog.debug("MA: onResume done");
         }
         catch(Exception e)
@@ -505,7 +514,7 @@ public class MainActivity extends AppCompatActivity
             }
         }
 
-        ComponentName componentName = new ComponentName(getApplicationContext(), NotificationListener2.class);
+        ComponentName componentName = new ComponentName(getApplicationContext(), NotificationListener3.class);
         MediaSessionManager mediaSessionManager = (MediaSessionManager)getApplicationContext().getSystemService(Context.MEDIA_SESSION_SERVICE);
         List<MediaController> mediaControllerList = null;
 
@@ -628,7 +637,7 @@ public class MainActivity extends AppCompatActivity
 
                 if (serialInterface instanceof SerialInterface_BT || serialInterface instanceof SerialInterface_BLE)
                 {
-                    serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.bluetooth)));
+                    serialInterfaceImage.setImageDrawable(getDrawable(R.drawable.bluetooth));
                     this.serialStatusHint.setText(String.format("Bluetooth adapter\nName: " + serialInterface.getName() +
                             "\nMAC: " + serialInterface.getAddress()));
                 } else
@@ -637,7 +646,7 @@ public class MainActivity extends AppCompatActivity
                             String.format("VID: 0x%04X, ", serialInterface.getVID()) +
                                     String.format("PID: 0x%04X\n", serialInterface.getPID()) +
                                     "Cable: " + serialInterface.getName());
-                    serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.usb_serial_480x480)));
+                    serialInterfaceImage.setImageDrawable(getDrawable(R.drawable.usb_serial_480x480));
                 }
 
                 // once service is bound we can launch controlled app
@@ -660,7 +669,7 @@ public class MainActivity extends AppCompatActivity
             this.serialStatusText.setText("disconnected");
 
             this.serialStatusHint.setText(R.string.serial_status_hint);
-            serialInterfaceImage.setImageDrawable(ContextCompat.getDrawable(this, (R.drawable.usb_serial_480x480)));
+            serialInterfaceImage.setImageDrawable(getDrawable(R.drawable.usb_serial_480x480));
         }
 
 
@@ -715,7 +724,7 @@ public class MainActivity extends AppCompatActivity
     private void updateCurrentlyPlayingDisplay()
     {
         if(!currentlyPlaying.isInitialized()) return;
-        ctrlAppStatusText.setText(
+        String text =
                 "Artist: " + currentlyPlaying.getArtist() + "\n" +
                 " Album: " + currentlyPlaying.getAlbum() + "\n" +
                 " Track: " + currentlyPlaying.getTrackName() + "\n" +
@@ -723,8 +732,9 @@ public class MainActivity extends AppCompatActivity
                         (currentlyPlaying.isPlaying()?" (playing)":" (paused)") + "\n" +
                 //"Track NR: " + MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrackPos() + "/" +
                 //        MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount() + "\n" +
-                ""
-        );
+                "";
+        PodEmuLog.debug("MA: currently playing\n" + text + "   App: " + currentlyPlaying.getApplication());
+        ctrlAppStatusText.setText(text);
         PodEmuMediaStore.getInstance().setCtrlAppProcessName(currentlyPlaying.getApplication());
 
         updateAppInfo();
@@ -822,6 +832,7 @@ public class MainActivity extends AppCompatActivity
                 }
                 else
                 {
+                    PodEmuLog.error("UPDATE in MA on service connected Title: " + podEmuService.getCurrentlyPlaying().getTrackName());
                     // otherwise update currently playing
                     currentlyPlaying.bulk_update(podEmuService.getCurrentlyPlaying());
                     updateCurrentlyPlayingDisplay();

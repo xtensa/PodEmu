@@ -8,4 +8,5 @@
 *.log
 app/release/app-release-*
 app/release/output.json
-
+/.idea/caches
+/.idea/codeStyles

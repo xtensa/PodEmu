@@ -89,7 +89,8 @@ public class PodEmuMessage implements Parcelable
     public void setListPosition(int listPosition)  { this.listPosition = listPosition; }
 
     public void setEnableCyrillicTransliteration(boolean enableTranslit) { enableCyrillicTransliteration = enableTranslit; }
-
+    // TODO: should initialize
+    public void initialize() {isInitialized=true;}
 
     private Map<Character,String> translitMap = new HashMap<>();
 

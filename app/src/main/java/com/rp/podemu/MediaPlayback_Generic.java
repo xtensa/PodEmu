@@ -173,6 +173,10 @@ public class MediaPlayback_Generic extends MediaPlayback
 
             //currentPlaylist.getCurrentTrack().copyFrom(track1);
 
+            podEmuMediaStore.setCtrlAppProcessName(msg.getApplication()
+
+            );
+
         }
     }
 

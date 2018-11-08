@@ -45,7 +45,7 @@ public abstract class MediaPlayback
 
     public static MediaController getActiveMediaController()
     {
-        ComponentName componentName = new ComponentName(context, NotificationListener2.class);
+        ComponentName componentName = new ComponentName(context, NotificationListener3.class);
 
         MediaSessionManager mediaSessionManager = (MediaSessionManager)context.getSystemService(Context.MEDIA_SESSION_SERVICE);
         List<MediaController> mediaControllerList = null;
@@ -78,12 +78,12 @@ public abstract class MediaPlayback
         ctrlAppProcessName = app;
     }
 
-    public static void initialize(Context c, String a)
+    public static void initialize(Context c)
     {
         context=c;
 
         //ctrlAppDbName = appDbName;
-        instance = new MediaPlayback_Generic();
+        if(instance==null) instance = new MediaPlayback_Generic();
 
     }
 

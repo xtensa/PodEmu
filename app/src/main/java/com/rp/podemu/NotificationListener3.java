@@ -4,12 +4,10 @@ import android.annotation.TargetApi;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.media.MediaMetadata;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
-import android.net.Uri;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
@@ -21,7 +19,7 @@ import java.util.List;
  * changes in this class to be applied.
  * Otherwise old service is cached and updated service is not loaded into memory
  */
-public class NotificationListener2 extends NotificationListenerService
+public class NotificationListener3 extends NotificationListenerService
 {
 
     static String TAG="PENL";
@@ -36,16 +34,16 @@ public class NotificationListener2 extends NotificationListenerService
     class SessionChangedListener implements MediaSessionManager.OnActiveSessionsChangedListener
     {
         /* renamed from: a */
-        final /* synthetic */ NotificationListener2 notificationListenerTMP1;
+        final /* synthetic */ NotificationListener3 notificationListenerTMP1;
 
-        SessionChangedListener(NotificationListener2 notificationListener)
+        SessionChangedListener(NotificationListener3 notificationListener)
         {
             this.notificationListenerTMP1 = notificationListener;
         }
 
         public void onActiveSessionsChanged(List<MediaController> list)
         {
-            PodEmuLog.log(TAG + ": onActiveSessionsChanged");
+            PodEmuLog.debug(TAG + ": onActiveSessionsChanged");
             /*
             if (playerFragment.f13549e != null && playerFragment.f13549e.equals("NotificationListener"))
             {
@@ -61,16 +59,16 @@ public class NotificationListener2 extends NotificationListenerService
     class SessionChangeThread implements Runnable
     {
         /* renamed from: a */
-        final /* synthetic */ NotificationListener2 notificationListenerTMP2;
+        final /* synthetic */ NotificationListener3 notificationListenerTMP2;
 
-        SessionChangeThread(NotificationListener2 notificationListener)
+        SessionChangeThread(NotificationListener3 notificationListener)
         {
             this.notificationListenerTMP2 = notificationListener;
         }
 
         public void run()
         {
-            PodEmuLog.log(TAG + ": SessionChangeThread - execution");
+            PodEmuLog.debug(TAG + ": SessionChangeThread - execution");
             if (this.notificationListenerTMP2.mediaSessionManager != null)
             {
                 this.notificationListenerTMP2.parseActiveSessions
@@ -92,7 +90,7 @@ public class NotificationListener2 extends NotificationListenerService
     @Override
     public void onNotificationPosted(StatusBarNotification statusBarNotification)
     {
-        PodEmuLog.log(TAG + ": notification received " + statusBarNotification.toString());
+        PodEmuLog.debug(TAG + ": notification received " + statusBarNotification.toString());
         //PodEmuLog.log( TAG + ":    TICKER : " + statusBarNotification.getNotification().tickerText.toString());
 
         parseActiveSessions();
@@ -128,9 +126,65 @@ public class NotificationListener2 extends NotificationListenerService
 
 
 
+        //=================================================
+
+        int selectedID = 0;
+        for(int i=0;i<mediaControllersList.size();i++)
+        {
+            MediaController mediaController = mediaControllersList.get(i);
+
+            PodEmuLog.debug(TAG + ": === === SESSION " + i);
+            if(mediaController.getMetadata()!=null)
+            {
+                application = mediaController.getPackageName();
+
+                isPlaying = (mediaController.getPlaybackState().getState() == PlaybackState.STATE_PLAYING);
+
+                trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_TITLE);
+                if (trackTitle == null)
+                    trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
+
+                trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM);
+                if (trackAlbum == null)
+                    trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_COMPILATION);
+
+                trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ARTIST);
+                if (trackArtist == null)
+                    trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST);
+
+                trackDuration = mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_DURATION);
+                trackPosition = mediaController.getPlaybackState().getPosition();
+
+                trackNum = (int) mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER);
+                trackCount = (int) mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_NUM_TRACKS);
+            }
+
+            PodEmuLog.debug(TAG + ":    APPLICATION : " + application);
+            PodEmuLog.debug(TAG + ":          TITLE : " + trackTitle);
+            PodEmuLog.debug(TAG + ":          ALBUM : " + trackAlbum);
+            PodEmuLog.debug(TAG + ":         ARTIST : " + trackArtist);
+            PodEmuLog.debug(TAG + ":       DURATION : " + trackDuration);
+            PodEmuLog.debug(TAG + ":       POSITION : " + trackPosition);
+            PodEmuLog.debug(TAG + ":    PLAY STATUS : " + isPlaying);
+            PodEmuLog.debug(TAG + ":    TRACK COUNT : " + trackCount);
+            PodEmuLog.debug(TAG + ":   TRACK NUMBER : " + trackNum);
+
+            if(sessionsFound == false && application != null)
+            {
+                selectedID = i;
+                sessionsFound = true;
+            }
+
+        }
+        PodEmuLog.debug(TAG + ":   Selected session : " + selectedID);
+        //=================================================
+
+
+
+
         if(mediaControllersList != null && mediaControllersList.size()>0)
         {
-            MediaController mediaController = mediaControllersList.get(0);
+            MediaController mediaController = mediaControllersList.get(selectedID);
             String applicationTMP = mediaController.getPackageName();
 
             if(mediaController.getMetadata()!=null)
@@ -157,15 +211,14 @@ public class NotificationListener2 extends NotificationListenerService
                 trackNum   = (int)mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER);
                 trackCount = (int)mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_NUM_TRACKS);
 
-                sessionsFound = true;
             }
 
         }
 
         if(!sessionsFound)
         {
-            PodEmuLog.log(TAG + ":  APPLICATION : " + application);
-            PodEmuLog.log(TAG + ": EMPTY OR NOT ACTIVE SESSION");
+            PodEmuLog.debug(TAG + ":  APPLICATION : " + application);
+            PodEmuLog.debug(TAG + ": EMPTY OR NOT ACTIVE SESSION");
         }
 
         /*
@@ -185,15 +238,15 @@ public class NotificationListener2 extends NotificationListenerService
                 trackNum   = -1;
             }
 
-            PodEmuLog.log(TAG + ":    APPLICATION : " + application);
-            PodEmuLog.log(TAG + ":          TITLE : " + trackTitle);
-            PodEmuLog.log(TAG + ":          ALBUM : " + trackAlbum);
-            PodEmuLog.log(TAG + ":         ARTIST : " + trackArtist);
-            PodEmuLog.log(TAG + ":       DURATION : " + trackDuration);
-            PodEmuLog.log(TAG + ":       POSITION : " + trackPosition);
-            PodEmuLog.log(TAG + ":    PLAY STATUS : " + isPlaying);
-            PodEmuLog.log(TAG + ":    TRACK COUNT : " + trackCount);
-            PodEmuLog.log(TAG + ":   TRACK NUMBER : " + trackNum);
+            PodEmuLog.debug(TAG + ":    APPLICATION : " + application);
+            PodEmuLog.debug(TAG + ":          TITLE : " + trackTitle);
+            PodEmuLog.debug(TAG + ":          ALBUM : " + trackAlbum);
+            PodEmuLog.debug(TAG + ":         ARTIST : " + trackArtist);
+            PodEmuLog.debug(TAG + ":       DURATION : " + trackDuration);
+            PodEmuLog.debug(TAG + ":       POSITION : " + trackPosition);
+            PodEmuLog.debug(TAG + ":    PLAY STATUS : " + isPlaying);
+            PodEmuLog.debug(TAG + ":    TRACK COUNT : " + trackCount);
+            PodEmuLog.debug(TAG + ":   TRACK NUMBER : " + trackNum);
 
 
             PodEmuMessage podEmuMessage = new PodEmuMessage();
@@ -209,7 +262,7 @@ public class NotificationListener2 extends NotificationListenerService
             podEmuMessage.setAction(PodEmuMessage.ACTION_METADATA_CHANGED);
 
             Intent intent = new Intent();
-            intent.setAction(PodEmuIntentFilter.INTENT_ACTION);
+            intent.setAction(PodEmuIntentFilter.INTENT_ACTION_METADATA_CHANGED);
             intent.putExtra("PodEmuMessage", podEmuMessage);
             sendBroadcast(intent);
         }
@@ -223,7 +276,7 @@ public class NotificationListener2 extends NotificationListenerService
     @Override
     public void onNotificationRemoved(StatusBarNotification statusBarNotification)
     {
-        PodEmuLog.log(TAG + ": notification removed" + statusBarNotification.toString());
+        PodEmuLog.debug(TAG + ": notification removed" + statusBarNotification.toString());
         parseActiveSessions();
         super.onNotificationRemoved(statusBarNotification);
     }
@@ -232,7 +285,7 @@ public class NotificationListener2 extends NotificationListenerService
     {
 
 
-        PodEmuLog.log(TAG + ": listener class created");
+        PodEmuLog.debug(TAG + ": listener class created");
 
         mediaSessionManager = (MediaSessionManager)getSystemService(Context.MEDIA_SESSION_SERVICE);
         //mediaSessionManager.addOnActiveSessionsChangedListener(sessionsChangedListener,componentName);
@@ -251,7 +304,7 @@ public class NotificationListener2 extends NotificationListenerService
     public void onListenerConnected()
     {
 
-        PodEmuLog.log(TAG + ": XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX listener connected for " + this.getClass() );
+        PodEmuLog.debug(TAG + ": XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX listener connected for " + this.getClass() );
 
         mediaSessionManager.addOnActiveSessionsChangedListener(onActiveSessionChangedListener, getComponentName());
 
@@ -280,7 +333,7 @@ public class NotificationListener2 extends NotificationListenerService
     @Override
     public int onStartCommand(Intent i, int startId, int i2)
     {
-        PodEmuLog.log(TAG + ": onStartCommand");
+        PodEmuLog.debug(TAG + ": onStartCommand");
 
 
         return START_STICKY;
@@ -290,7 +343,7 @@ public class NotificationListener2 extends NotificationListenerService
     {
         if(this.componentName==null)
         {
-            this.componentName = new ComponentName(this.getApplicationContext(), NotificationListener2.class);
+            this.componentName = new ComponentName(this.getApplicationContext(), NotificationListener3.class);
         }
         return this.componentName;
     }

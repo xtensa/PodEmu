@@ -34,7 +34,6 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.support.v4.app.NotificationCompat;
 
 import java.util.Vector;
 
@@ -299,7 +298,7 @@ public class PodEmuService extends Service
                                 // if we got here then probably BT is disabled. Aborting service.
                                 PodEmuLog.error("PES: reinitialization failed. Closing service!");
                                 serialInterfaceBuilder.detach();
-                                stopSelf();
+                                closeServiceGracefully();
                                 throw serialIFException;
 
                                 //PodEmuLog.error("PES: serial interface initialization failed. Restarting...");
@@ -335,7 +334,7 @@ public class PodEmuService extends Service
                                         serialInterface.close();
                                         bufferThread.interrupt();
                                         pollingThread.interrupt();
-                                        stopSelf();
+                                        closeServiceGracefully();
                                     }
                                 }
 
@@ -416,17 +415,26 @@ public class PodEmuService extends Service
 
             reloadSettings();
 
-// Creates an explicit intent for an Activity in your app
+            // Creates an explicit intent for an Activity in your app
             Intent resultIntent = new Intent(this, MainActivity.class);
             PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, resultIntent, 0);
 
+            // Intent to handle Close button
+            Intent closeServiceIntent = new Intent(INTENT_ACTION_CLOSE_SERVICE);
+            PendingIntent closeIntent = PendingIntent.getBroadcast(this, 0, closeServiceIntent, 0);
+
+            Notification.Action closeAction = new Notification.Action.Builder(R.drawable.ic_action_trash,
+                                                            "Close PodEmu", closeIntent)
+                    .build();
+
             Notification notification =
-                    new NotificationCompat.Builder(this)
+                    new Notification.Builder(this)
                             .setSmallIcon(R.drawable.notification_icon)
                             .setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.drawable.podemu_icon))
                             .setContentTitle("PodEmu")
                             .setContentText("iPod emulation is running")
                             .setContentIntent(pendingIntent)
+                            .addAction(closeAction)
                             .build();
             startForeground(1, notification);
 
@@ -610,7 +618,7 @@ public class PodEmuService extends Service
     {
         super.onCreate();
 
-        //Intent listenerIntent = new Intent(this, NotificationListener2.class);
+        //Intent listenerIntent = new Intent(this, NotificationListener3.class);
         //startService(listenerIntent);
 
         try
@@ -682,15 +690,17 @@ public class PodEmuService extends Service
         MediaPlayback mediaPlaybackInstance=MediaPlayback.getInstance();
         serialInterfaceBuilder.detach();
 
-        Message message = mHandler.obtainMessage(0);
-        message.arg1 = 2; // indicate ipod dock connection status changed
-        message.arg2 = OAPMessenger.IPOD_MODE_DISCONNECTED;
-        mHandler.sendMessage(message);
+        if (mHandler != null)
+        {
+            Message message = mHandler.obtainMessage(0);
+            message.arg1 = 2; // indicate ipod dock connection status changed
+            message.arg2 = OAPMessenger.IPOD_MODE_DISCONNECTED;
+            mHandler.sendMessage(message);
 
-        message = mHandler.obtainMessage(0);
-        message.arg1 = 3; // indicate serial connection status changed
-        mHandler.sendMessage(message);
-
+            message = mHandler.obtainMessage(0);
+            message.arg1 = 3; // indicate serial connection status changed
+            mHandler.sendMessage(message);
+        }
         mediaPlaybackInstance.action_stop();
         isBTConnected = false;
 
@@ -719,16 +729,22 @@ public class PodEmuService extends Service
                 {
                     PodEmuLog.debug("PES: BT device disconnected: " + ((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName());
                 }
+                BluetoothDevice btDev = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 
                 if(action.equals(INTENT_ACTION_CLOSE_SERVICE))
                 {
                     PodEmuLog.debug("PES: closing service in broadcast request");
-                    stopSelf();
+                    closeServiceGracefully();
                 }
-
-                BluetoothDevice btDev = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-
-                if (       action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
+                else if(action.equals(PodEmuIntentFilter.INTENT_ACTION_NOTIFY_MAIN_ACTIVITY_RESUMED))
+                {
+                    PodEmuLog.error("PES: received MA resume notification");
+                    Intent maIntent = new Intent(PodEmuIntentFilter.INTENT_ACTION_METADATA_CHANGED, null, getApplicationContext(), MainActivity.class);
+                    maIntent.putExtra("PodEmuMessage", getCurrentlyPlaying());
+                    PodEmuLog.error("SENT Title: " + getCurrentlyPlaying().getTrackName());
+                    sendBroadcast(maIntent);
+                }
+                else if (       action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
                         || action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
                         || (  action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)
                             && (                 isBTConnected &&     btDev != null &&
@@ -766,6 +782,7 @@ public class PodEmuService extends Service
                         podEmuMessage.setEnableCyrillicTransliteration(enableCyrillicTransliteration);
                         oapMessenger.respondPendingResponse("notification received", OAPMessenger.IPOD_SUCCESS);
                         mediaPlaybackInstance.updateCurrentlyPlayingTrack(podEmuMessage);
+
                     }
                 }
             }

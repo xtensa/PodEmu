@@ -250,7 +250,7 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
         }
         catch(InterruptedException e)
         {
-            PodEmuLog.debug("SIBLE: connection wait interrupted.");
+            PodEmuLog.debug("SIBT: connection wait interrupted.");
         }
 
         PodEmuLog.debug("SIBT: init finishing with status: " + isConnected());

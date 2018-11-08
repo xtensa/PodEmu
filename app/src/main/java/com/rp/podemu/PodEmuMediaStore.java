@@ -144,14 +144,18 @@ public class PodEmuMediaStore
         if(selectionSortOrder<1 || selectionSortOrder>6) selectionSortOrder = SORT_BY_SONG;
     }
 
+    public String getCtrlAppProcessName()
+    {
+        return ctrlAppProcessName;
+    }
+
     public void setCtrlAppProcessName(String app)
     {
-
+        String prevCtrlAppDbName = ctrlAppDbName;
         ctrlAppProcessName = app;
-        String prevCtrlAppProcessName = ctrlAppDbName;
 
         PodEmuLog.debug("PEMS: setting CTRL APP process name to: " + ctrlAppProcessName);
-        PodEmuLog.debug("PEMS: CTRL APP db name to: " + ctrlAppDbName);
+        PodEmuLog.debug("PEMS: setting CTRL APP db name to: " + ctrlAppDbName);
 
         switch (app)
         {
@@ -164,13 +168,13 @@ public class PodEmuMediaStore
         PodEmuLog.debug("PEMS: CTRL APP updated db name to: " + ctrlAppDbName);
 
         // if controlled app changed, we probably need to rebuild the db
-        if(prevCtrlAppProcessName==null || !prevCtrlAppProcessName.equals(ctrlAppDbName)) rebuildDbRequired = true;
+        if(prevCtrlAppDbName==null || !prevCtrlAppDbName.equals(ctrlAppDbName)) rebuildDbRequired = true;
         PodEmuLog.debug("PEMS: rebuild DB required: " + rebuildDbRequired);
 
         if(rebuildDbRequired)
         {
             // now we can initialize playback engine and DB engine
-            MediaPlayback.initialize(context, ctrlAppDbName);
+            MediaPlayback.initialize(context);
 
             reinitializePlaylistAndDB();
         }
@@ -294,6 +298,8 @@ public class PodEmuMediaStore
             msg.setTrackNumber(track_number);
             msg.setListSize(-1);
             msg.setListPosition(-1);
+            msg.setApplication(ctrlAppProcessName);
+            msg.initialize();
 
             return msg;
         }

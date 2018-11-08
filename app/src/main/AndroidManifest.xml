@@ -101,7 +101,7 @@
         </service>
 
 
-        <service android:name=".NotificationListener2"
+        <service android:name=".NotificationListener3"
                  android:label="PodEmu Music Listener"
                  android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
                  android:enabled="true"
@@ -110,8 +110,6 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
-
-
 
     </application>
 
