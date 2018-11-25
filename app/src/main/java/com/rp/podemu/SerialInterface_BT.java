@@ -347,12 +347,13 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
         PodEmuLog.debug("SIBT: close requested");
         if (mConnectThread != null)
         {
-            mConnectThread.cancel();
             PodEmuLog.debug("SIBT: close() resetting mConnectThread");
+            mConnectThread.cancel();
             mConnectThread = null;
         }
         if (mConnectedThread != null)
         {
+            PodEmuLog.debug("SIBT: close() resetting mConnectedThread");
             mConnectedThread.cancel();
             mConnectedThread = null;
         }
@@ -364,6 +365,7 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
             mAcceptThread = null;
         }
         */
+        serialInterfaceBTInstance = null;
 
         setState(STATE_NONE);
     }
@@ -454,12 +456,13 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
         PodEmuLog.debug("SIBT: new BT communication started");
         if (mConnectThread != null)
         {
-            mConnectThread.cancel();
             PodEmuLog.debug("SIBT: connected() resetting mConnectThread");
+            mConnectThread.cancel();
             mConnectThread = null;
         }
         if (mConnectedThread != null)
         {
+            PodEmuLog.debug("SIBT: connected() resetting mConnectedThread");
             mConnectedThread.cancel();
             mConnectedThread = null;
         }
@@ -543,8 +546,13 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
             mConnectedThread = null;
         }
         mConnectThread = new ConnectThread(device);
-        mConnectThread.start();
-        setState(STATE_CONNECTING);
+        //if(mConnectedThread.mmSocket != null)
+        {
+            mConnectThread.start();
+            setState(STATE_CONNECTING);
+        }
+        //else
+        //    this.close();
     }
 
 
@@ -669,6 +677,15 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
             mmDevice = device;
             BluetoothSocket tmp = null;
 
+            if(!btAdapter.isEnabled())
+            {
+                mmSocket = null;
+                this.cancel();
+//                mConnectedThread.cancel();
+                PodEmuService.stopService(baseContext);
+                return;
+            }
+
             // Get a BluetoothSocket for a connection with the
             // given BluetoothDevice
             try
@@ -722,6 +739,13 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
                 SerialInterface_BT.this.start();
                 return;
             }
+            catch(Exception e)
+            {
+                PodEmuLog.debug("SIBT: ConnectThread - connection failed - BT disabled");
+                connectionFailed();
+                PodEmuService.stopService(baseContext);
+            }
+
 
             // Reset the ConnectThread because we're done
             synchronized (SerialInterface_BT.this)
@@ -737,6 +761,7 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
 
         public void cancel()
         {
+            if(mmSocket == null) return;
             try
             {
                 mmSocket.close();
@@ -762,7 +787,7 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
 
         public ConnectedThread(BluetoothSocket socket)
         {
-            //PodEmuLog.debug("SIBT: ConnectedThread create ConnectedThread");
+            PodEmuLog.debug("SIBT: ConnectedThread create ConnectedThread");
             mmSocket = socket;
             InputStream tmpIn = null;
             OutputStream tmpOut = null;
@@ -777,6 +802,12 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
             {
                 PodEmuLog.debug("SIBT: ConnectedThread temp sockets not created");
                 PodEmuLog.printStackTrace(e);
+            }
+            catch (Exception e)
+            {
+                PodEmuLog.debug("SIBT: ConnectedThread - connection failed - BT disabled");
+                connectionFailed();
+                PodEmuService.stopService(baseContext);
             }
 
             mmInStream = tmpIn;
@@ -857,7 +888,9 @@ public class SerialInterface_BT extends SerialInterface_Common implements Serial
         {
             try
             {
-                mmSocket.close();
+                if(mmSocket != null)  mmSocket.close();
+                if(mmInStream!=null)  mmInStream.close();
+                if(mmOutStream!=null) mmOutStream.close();
             }
             catch (IOException e)
             {

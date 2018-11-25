@@ -19,7 +19,7 @@ import java.util.List;
  * changes in this class to be applied.
  * Otherwise old service is cached and updated service is not loaded into memory
  */
-public class NotificationListener3 extends NotificationListenerService
+public class NotificationListener4 extends NotificationListenerService
 {
 
     static String TAG="PENL";
@@ -34,9 +34,9 @@ public class NotificationListener3 extends NotificationListenerService
     class SessionChangedListener implements MediaSessionManager.OnActiveSessionsChangedListener
     {
         /* renamed from: a */
-        final /* synthetic */ NotificationListener3 notificationListenerTMP1;
+        final /* synthetic */ NotificationListener4 notificationListenerTMP1;
 
-        SessionChangedListener(NotificationListener3 notificationListener)
+        SessionChangedListener(NotificationListener4 notificationListener)
         {
             this.notificationListenerTMP1 = notificationListener;
         }
@@ -59,9 +59,9 @@ public class NotificationListener3 extends NotificationListenerService
     class SessionChangeThread implements Runnable
     {
         /* renamed from: a */
-        final /* synthetic */ NotificationListener3 notificationListenerTMP2;
+        final /* synthetic */ NotificationListener4 notificationListenerTMP2;
 
-        SessionChangeThread(NotificationListener3 notificationListener)
+        SessionChangeThread(NotificationListener4 notificationListener)
         {
             this.notificationListenerTMP2 = notificationListener;
         }
@@ -115,6 +115,7 @@ public class NotificationListener3 extends NotificationListenerService
         int    trackNum = -1;
         int    trackCount = -1;
         Boolean isPlaying = false;
+        Long   timeSent = System.currentTimeMillis();
 
 
         /*
@@ -169,7 +170,7 @@ public class NotificationListener3 extends NotificationListenerService
             PodEmuLog.debug(TAG + ":    TRACK COUNT : " + trackCount);
             PodEmuLog.debug(TAG + ":   TRACK NUMBER : " + trackNum);
 
-            if(sessionsFound == false && application != null)
+            if(!sessionsFound && application != null)
             {
                 selectedID = i;
                 sessionsFound = true;
@@ -238,6 +239,7 @@ public class NotificationListener3 extends NotificationListenerService
                 trackNum   = -1;
             }
 
+            /*
             PodEmuLog.debug(TAG + ":    APPLICATION : " + application);
             PodEmuLog.debug(TAG + ":          TITLE : " + trackTitle);
             PodEmuLog.debug(TAG + ":          ALBUM : " + trackAlbum);
@@ -247,7 +249,7 @@ public class NotificationListener3 extends NotificationListenerService
             PodEmuLog.debug(TAG + ":    PLAY STATUS : " + isPlaying);
             PodEmuLog.debug(TAG + ":    TRACK COUNT : " + trackCount);
             PodEmuLog.debug(TAG + ":   TRACK NUMBER : " + trackNum);
-
+            */
 
             PodEmuMessage podEmuMessage = new PodEmuMessage();
             podEmuMessage.setApplication(application);
@@ -260,10 +262,12 @@ public class NotificationListener3 extends NotificationListenerService
             podEmuMessage.setListSize(trackCount);
             podEmuMessage.setListPosition(trackNum);
             podEmuMessage.setAction(PodEmuMessage.ACTION_METADATA_CHANGED);
+            podEmuMessage.setTimeSent(timeSent);
 
             Intent intent = new Intent();
             intent.setAction(PodEmuIntentFilter.INTENT_ACTION_METADATA_CHANGED);
             intent.putExtra("PodEmuMessage", podEmuMessage);
+            PodEmuLog.debug(TAG + ": sending internal broadcast with PodEmuMessage");
             sendBroadcast(intent);
         }
         else
@@ -343,7 +347,7 @@ public class NotificationListener3 extends NotificationListenerService
     {
         if(this.componentName==null)
         {
-            this.componentName = new ComponentName(this.getApplicationContext(), NotificationListener3.class);
+            this.componentName = new ComponentName(this.getApplicationContext(), NotificationListener4.class);
         }
         return this.componentName;
     }

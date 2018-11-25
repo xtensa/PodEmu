@@ -24,11 +24,6 @@ package com.rp.podemu;
 public class PodEmuMediaDB_Generic extends PodEmuMediaDB
 {
 
-    @Override
-    public void signalConfigurationUpdated(PodEmuMediaStore mediaStore)
-    {
-        rebuildDB(mediaStore);
-    }
 
     @Override
     public void rebuildDB(PodEmuMediaStore mediaStore)
@@ -36,9 +31,9 @@ public class PodEmuMediaDB_Generic extends PodEmuMediaDB
         rebuildDB(mediaStore, PodEmuMediaStore.getInstance().getPlaylistCountSize());
     }
 
-    public void rebuildDB(PodEmuMediaStore mediaStore, int trackCount)
+    public synchronized void rebuildDB(PodEmuMediaStore mediaStore, int trackCount)
     {
-        PodEmuLog.debug("PEDB: rebuildDB start, trackCount=" + trackCount);
+        PodEmuLog.debug("PEDB: FUNCTION START rebuildDB, trackCount=" + trackCount);
 
         PodEmuMediaStore.Artist artist = mediaStore.new Artist();
         PodEmuMediaStore.Genre genre = mediaStore.new Genre();
@@ -85,7 +80,7 @@ public class PodEmuMediaDB_Generic extends PodEmuMediaDB
 
         mediaStore.rebuildDbRequired = false;
 
-        PodEmuLog.debug("PEDB: rebuildDB finished");
+        PodEmuLog.debug("PEDB: FUNCTION END rebuildDB");
 
     }
 

@@ -56,12 +56,13 @@ public class PodEmuService extends Service
     private int failedReadCount=0;
     public Bitmap dockIconBitmap=null;
     public boolean isDockIconLoaded=false;
-    public static boolean isAppLaunched=false;
+    //public static boolean isAppLaunched=false;
     private static String baudRate;
     private static int forceSimpleMode;
     private static boolean bluetoothEnabled;
     private static boolean isBTConnected=false;
     private static boolean enableCyrillicTransliteration=false;
+    private static int intentId=0;
 
     public static String INTENT_ACTION_CLOSE_SERVICE="com.podemu.rp.ACTION_CLOSE_SERVICE";
 
@@ -331,16 +332,16 @@ public class PodEmuService extends Service
                                     if (failedReadCount > 100) // 10 seconds
                                     {
                                         PodEmuLog.error("PES: Something wrong happen. Reading from serial interface constantly failing. Terminating service.");
-                                        serialInterface.close();
-                                        bufferThread.interrupt();
-                                        pollingThread.interrupt();
+                                        //serialInterface.close();
+                                        //bufferThread.interrupt();
+                                        //pollingThread.interrupt();
                                         closeServiceGracefully();
                                     }
                                 }
 
 
                                 // Reading incoming data
-                                // TODO: maybe some day will rewrite to read callback mechanism
+                                // TODO: maybe some day will rewrite to read using callback mechanism
                                 while (true)
                                 {
                                     try
@@ -417,11 +418,11 @@ public class PodEmuService extends Service
 
             // Creates an explicit intent for an Activity in your app
             Intent resultIntent = new Intent(this, MainActivity.class);
-            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, resultIntent, 0);
+            PendingIntent pendingIntent = PendingIntent.getActivity(this, ++intentId, resultIntent, 0);
 
             // Intent to handle Close button
             Intent closeServiceIntent = new Intent(INTENT_ACTION_CLOSE_SERVICE);
-            PendingIntent closeIntent = PendingIntent.getBroadcast(this, 0, closeServiceIntent, 0);
+            PendingIntent closeIntent = PendingIntent.getBroadcast(this, ++intentId, closeServiceIntent, 0);
 
             Notification.Action closeAction = new Notification.Action.Builder(R.drawable.ic_action_trash,
                                                             "Close PodEmu", closeIntent)
@@ -466,30 +467,6 @@ public class PodEmuService extends Service
                                         mediaPlayback.setTrackStatusChanged(false);
                                         //oapMessenger.oap_04_write_polling_playback_stopped();
                                         oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback.getCurrentPlaylist().getCurrentTrackPos());
-
-                                        // repeat notification two times
-                                        final MediaPlayback mediaPlayback1 = mediaPlayback;
-                                        /*
-                                        mHandler.postDelayed(new Runnable()
-                                        {
-                                            @Override
-                                            public void run()
-                                            {
-                                                oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback1.getCurrentPlaylist().getCurrentTrackPos());
-                                            }
-                                        }, 200);
-                                        */
-
-                                        /*
-                                        mHandler.postDelayed(new Runnable()
-                                        {
-                                            @Override
-                                            public void run()
-                                            {
-                                                oapMessenger.oap_04_write_polling_track_status_changed(mediaPlayback1.getCurrentPlaylist().getCurrentTrackPos());
-                                            }
-                                        }, 2000);
-                                        */
                                     }
 
                                     oapMessenger.oap_04_write_polling_elapsed_time();
@@ -506,12 +483,12 @@ public class PodEmuService extends Service
 
                                 // abort pending commands if waited too long
                                 if (    oapMessenger.getPendingResponseStatus() &&
-                                        System.currentTimeMillis() - oapMessenger.getPendingResponseSince() >= 2000)
+                                        System.currentTimeMillis() - oapMessenger.getPendingResponseSince() >= 1500)
                                 {
                                     oapMessenger.abortPendingResponse("PES: time limit exceeded");
                                 }
 
-                                Thread.sleep(500);
+                                Thread.sleep(MediaPlayback.getPollingInteval());
                             }
 
                         } catch (InterruptedException e)
@@ -559,8 +536,8 @@ public class PodEmuService extends Service
                                     MediaPlayback.getInstance().updateCurrentlyPlayingTrack(podEmuMessage);
                                     podEmuMessageVector.remove(0);
                                 }
-                                oapMessenger.flush();
-/*
+
+                                /*
                                 if ( bluetoothEnabled && serialInterface instanceof SerialInterface_BT )
                                 {
                                     long currTimeMillis = System.currentTimeMillis();
@@ -636,6 +613,7 @@ public class PodEmuService extends Service
             iF.addAction(INTENT_ACTION_CLOSE_SERVICE);
             registerReceiver(mReceiver, iF);
             reloadSettings();
+            setMediaEngine();
         }
         catch(Exception e)
         {
@@ -689,6 +667,10 @@ public class PodEmuService extends Service
     {
         MediaPlayback mediaPlaybackInstance=MediaPlayback.getInstance();
         serialInterfaceBuilder.detach();
+
+        if(serialInterface!=null) serialInterface.close();
+        if(bufferThread!=null)    bufferThread.interrupt();
+        if(pollingThread!=null)   pollingThread.interrupt();
 
         if (mHandler != null)
         {
@@ -782,7 +764,6 @@ public class PodEmuService extends Service
                         podEmuMessage.setEnableCyrillicTransliteration(enableCyrillicTransliteration);
                         oapMessenger.respondPendingResponse("notification received", OAPMessenger.IPOD_SUCCESS);
                         mediaPlaybackInstance.updateCurrentlyPlayingTrack(podEmuMessage);
-
                     }
                 }
             }

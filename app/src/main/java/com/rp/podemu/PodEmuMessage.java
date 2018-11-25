@@ -273,7 +273,6 @@ public class PodEmuMessage implements Parcelable
         out.writeInt(track_number);
         out.writeInt(listSize);
         out.writeInt(listPosition);
-
     }
 
 

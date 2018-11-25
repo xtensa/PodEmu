@@ -421,13 +421,14 @@ public class PodEmuIntentFilter extends IntentFilter
 
 
         PodEmuLog.debug("PEF: received message - action:" + action_code +
-                            ", isPlaying:" + podEmuMessage.isPlaying() +
-                            ", artist:" + podEmuMessage.getArtist() +
-                            ", album:" + podEmuMessage.getAlbum() +
-                            ", track:"+ podEmuMessage.getTrackName() +
-                            ", externalId:" + podEmuMessage.getExternalId() +
-                            ", duration:" + podEmuMessage.getDurationMS() +
-                            ", track:" + podEmuMessage.getListPosition() +
+                            ",\n application: " + podEmuMessage.getApplication() +
+                            ",\n isPlaying: " + podEmuMessage.isPlaying() +
+                            ",\n artist: " + podEmuMessage.getArtist() +
+                            ",\n album: " + podEmuMessage.getAlbum() +
+                            ",\n track: "+ podEmuMessage.getTrackName() +
+                            ",\n externalId: " + podEmuMessage.getExternalId() +
+                            ",\n position: " + podEmuMessage.getPositionMS() + "/" + podEmuMessage.getDurationMS() +
+                            ",\n track: " + podEmuMessage.getListPosition() +
                             "/" + podEmuMessage.getListSize());
 
         return podEmuMessage;

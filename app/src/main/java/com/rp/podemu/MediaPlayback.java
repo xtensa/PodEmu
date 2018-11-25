@@ -40,12 +40,15 @@ public abstract class MediaPlayback
     protected static Context context=null;
     protected static String ctrlAppProcessName=null;
     //protected static String ctrlAppDbName=null;
+    protected final static long POLLING_INTERVAL_TARGET = 500;
+    protected static long pollingInterval = POLLING_INTERVAL_TARGET;
+
     private long lastPrevExecuted=System.currentTimeMillis();
 
 
     public static MediaController getActiveMediaController()
     {
-        ComponentName componentName = new ComponentName(context, NotificationListener3.class);
+        ComponentName componentName = new ComponentName(context, NotificationListener4.class);
 
         MediaSessionManager mediaSessionManager = (MediaSessionManager)context.getSystemService(Context.MEDIA_SESSION_SERVICE);
         List<MediaController> mediaControllerList = null;
@@ -99,6 +102,11 @@ public abstract class MediaPlayback
 
     public abstract long getCurrentTrackPositionMS();
 
+    public static long getPollingInteval()
+    {
+        return pollingInterval;
+    }
+
     public void execute_action(int keyCode)
     {
         Intent intent;
@@ -110,21 +118,18 @@ public abstract class MediaPlayback
         }
         PodEmuLog.debug("MPlayback: executing action for " + ctrlAppProcessName);
 
+        intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        intent.setPackage(ctrlAppProcessName);
+        keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_DOWN, keyCode, 0);
+        intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
+        context.sendOrderedBroadcast(intent, null);
 
-        //if(false)
-        {
-            intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
-            intent.setPackage(ctrlAppProcessName);
-            keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_DOWN, keyCode, 0);
-            intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
-            context.sendOrderedBroadcast(intent, null);
+        intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        intent.setPackage(ctrlAppProcessName);
+        keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_UP, keyCode, 0);
+        intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
+        context.sendOrderedBroadcast(intent, null);
 
-            intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
-            intent.setPackage(ctrlAppProcessName);
-            keyEvent = new KeyEvent(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), KeyEvent.ACTION_UP, keyCode, 0);
-            intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
-            context.sendOrderedBroadcast(intent, null);
-        }
     }
 
     public void execute_action_long_press(int keyCode) {
@@ -161,6 +166,8 @@ public abstract class MediaPlayback
             getCurrentPlaylist().setIncrement(+1);
             //getCurrentPlaylist().setCurrentTrack(newTrackPos);
         }
+
+        PodEmuLog.error("PEMP: action NEXT, time = " + System.currentTimeMillis());
 
         MediaController mediaController=getActiveMediaController();
         if( mediaController != null) // && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_SKIP_TO_NEXT) == PlaybackState.ACTION_SKIP_TO_NEXT)
@@ -350,8 +357,18 @@ public abstract class MediaPlayback
 
     public void action_stop_ff_rev()
     {
-        if(isPlaying())
+        if(!isPlaying()) return;
+
+        PodEmuLog.debug("PEMP: action STOP_FF_REV requested");
+        MediaController mediaController=getActiveMediaController();
+        if( mediaController != null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_PLAY) == PlaybackState.ACTION_PLAY)
         {
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_STOP_FF_REV)");
+            mediaController.getTransportControls().play();
+        }
+        else
+        {
+            PodEmuLog.debug("PEMP: executing action through KeyEvent");
             execute_action(KeyEvent.KEYCODE_MEDIA_PLAY);
         }
     }

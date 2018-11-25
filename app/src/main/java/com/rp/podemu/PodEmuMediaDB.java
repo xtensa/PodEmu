@@ -53,10 +53,4 @@ public abstract class PodEmuMediaDB
 
     public abstract void rebuildDB(PodEmuMediaStore mediaStore, int trackCount);
 
-    /**
-     * This function is only required for Generic DB. For others it should be empty.
-     * @param mediaStore
-     */
-    public abstract void signalConfigurationUpdated(PodEmuMediaStore mediaStore);
-
 }

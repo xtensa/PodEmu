@@ -38,11 +38,11 @@ import android.graphics.drawable.Drawable;
 import android.hardware.usb.UsbManager;
 import android.media.MediaMetadata;
 import android.media.session.MediaSessionManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-//import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
@@ -71,14 +71,14 @@ public class MainActivity extends AppCompatActivity
 
     private boolean bluetoothEnabled;
     private boolean bluetoothIsBle;
-    private int autoSwitchToApp;
+    //private int autoSwitchToApp;
     private Intent serviceIntent;
     private SerialInterfaceBuilder serialInterfaceBuilder;
     private PodEmuIntentFilter iF;
     private PodEmuService podEmuService;
     private boolean serviceBound = false;
     private int REQUEST_ENABLE_BT = 176;
-    private boolean btRequestFailed = false;
+    private static boolean btRequestFailed = false;
     public PodEmuMessage currentlyPlaying=new PodEmuMessage();
 
     private boolean isBtOn = true;
@@ -117,18 +117,60 @@ public class MainActivity extends AppCompatActivity
         }
         else
         {
+            BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
+
+            if( bluetoothEnabled && !bt.isEnabled() )
+            {
+                PodEmuLog.debug("MA: bt requested but not enabled. Not starting service.");
+                requestBluetoothPermissions();
+                return;
+            }
             PodEmuLog.debug("MA: Start service initiated...");
-            start_service(v);
+            start_service();
         }
     }
 
-    public void start_service(View v)
+    private void requestBluetoothPermissions()
+    {
+        BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
+        if (bt == null)
+        {
+            //Does not support Bluetooth
+            PodEmuLog.debug("MA: bluetooth is not supported.");
+        }
+        else
+        {
+            btRequestFailed   = false;
+
+            if (!bt.isEnabled())
+            {
+
+                Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
+            }
+            SharedPreferences sharedPref = getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
+            boolean firstTimeWarning = sharedPref.getBoolean("firstTimeMainActivityBleWarning", true);
+
+            if(bluetoothEnabled && bluetoothIsBle && firstTimeWarning)
+            {
+                // needed to set the context
+                SerialInterface_BLE.getInstance(getBaseContext());
+                SerialInterface_BLE.checkLocationPermissions(this);
+                SharedPreferences.Editor editor = sharedPref.edit();
+                editor.putBoolean("firstTimeMainActivityBleWarning", false);
+                editor.apply();
+            }
+        }
+
+    }
+
+    public void start_service()
     {
 
         try
         {
             SerialInterface serialInterface = serialInterfaceBuilder.getSerialInterface();
-                // reconnect usb
+            // reconnect usb
 
             updateSerialStatus();
             if (serialInterface != null || isBtOn)
@@ -139,8 +181,7 @@ public class MainActivity extends AppCompatActivity
                 {
                     PodEmuLog.debug("MA: Service successfully bound");
                     serviceBound = true;
-                }
-                else
+                } else
                 {
                     PodEmuLog.debug("MA: Service NOT bound");
                 }
@@ -148,8 +189,7 @@ public class MainActivity extends AppCompatActivity
                 updateServiceButton();
             }
 
-        }
-        catch(Exception e)
+        } catch (Exception e)
         {
             PodEmuLog.printStackTrace(e);
             throw e;
@@ -288,7 +328,7 @@ public class MainActivity extends AppCompatActivity
                         && (((BluetoothDevice)intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getName() == SerialInterface_BT.getInstance().getName()))
                 {
                     PodEmuLog.debug("MA: Bluetooth device '" + SerialInterface_BT.getInstance().getName() + "' connected.");
-                    start_service(null);
+                    start_service();
                 }
                 else
                 {
@@ -323,7 +363,7 @@ public class MainActivity extends AppCompatActivity
         {
 
             SharedPreferences sharedPref = this.getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
-            autoSwitchToApp = sharedPref.getInt("autoSwitchToApp", 0);
+            //autoSwitchToApp = sharedPref.getInt("autoSwitchToApp", 0);
             bluetoothEnabled=(sharedPref.getInt("bluetoothEnabled", 0)!=0);
             bluetoothIsBle = sharedPref.getBoolean("bluetoothIsBle", false);
             String enableDebug = sharedPref.getString("enableDebug", "false");
@@ -341,7 +381,7 @@ public class MainActivity extends AppCompatActivity
 
             if(playlistCountModeUpdated)
             {
-                PodEmuMediaStore.getInstance().setPlaylistCountMode(playlistCountMode);
+                PodEmuMediaStore.getInstance().setPlaylistCountMode(playlistCountMode, 0);
             }
 
             if (enableDebug.equals("true"))
@@ -356,13 +396,18 @@ public class MainActivity extends AppCompatActivity
             }
 
             String ctrlApp = PodEmuMediaStore.getInstance().getCtrlAppProcessName();
-            if(ctrlApp==null) ctrlApp = "unknown";
-            // the next line is required to initialize MediaStore and DB
-            PodEmuMediaStore.getInstance().setCtrlAppProcessName(ctrlApp);
+            if(ctrlApp==null)
+            {
+                ctrlApp = "unknown";
+                // the next line is required to initialize MediaStore and DB
+                PodEmuMediaStore.getInstance().setCtrlAppProcessName(ctrlApp);
+            }
 
             currentlyPlaying.bulk_update(MediaPlayback.getInstance().getCurrentPlaylist().getCurrentTrack().toPodEmuMessage());
+            currentlyPlaying.setIsPlaying(MediaPlayback.getInstance().isPlaying());
             currentlyPlaying.setEnableCyrillicTransliteration(enableTranslit);
 
+            PodEmuLog.debug("MA: LoadPreferances, isPlaying=" + currentlyPlaying.isPlaying());
             updateCurrentlyPlayingDisplay();
 
         }
@@ -402,25 +447,25 @@ public class MainActivity extends AppCompatActivity
         PodEmuLog.debug("MA: setting AppInfo to " + appName);
 
 
-            try
-            {
-                appInfo = pm.getApplicationInfo(appName, PackageManager.GET_META_DATA);
-                ctrlAppStatusTitle.setText("App: " + appInfo.loadLabel(pm));
-                ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0xff, 0xff));
+        try
+        {
+            appInfo = pm.getApplicationInfo(appName, PackageManager.GET_META_DATA);
+            ctrlAppStatusTitle.setText("App: " + appInfo.loadLabel(pm));
+            ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0xff, 0xff));
 
-                if(trackIcon != null)
-                    setAppLogo(new BitmapDrawable(getResources(), trackIcon) );
-                else
-                    setAppLogo(appInfo.loadIcon(pm));
+            if(trackIcon != null)
+                setAppLogo(new BitmapDrawable(getResources(), trackIcon) );
+            else
+                setAppLogo(appInfo.loadIcon(pm));
 
-            }
-            catch (PackageManager.NameNotFoundException e)
-            {
-                ctrlAppStatusTitle.setText("Unknown app");
-                ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+            ctrlAppStatusTitle.setText("Unknown app");
+            ctrlAppStatusTitle.setTextColor(Color.rgb(0xff, 0x00, 0x00));
 
-                setAppLogo(getDrawable(R.drawable.questionmark));
-            }
+            setAppLogo(getDrawable(R.drawable.questionmark));
+        }
 
     }
 
@@ -437,15 +482,21 @@ public class MainActivity extends AppCompatActivity
 
         try
         {
-            unregisterReceiver(mReceiver);
+            if(!(Build.VERSION.SDK_INT>=24 && isInMultiWindowMode()))
+                unregisterReceiver(mReceiver);
 
             PodEmuLog.debug("MA: onPause done");
+        }
+        catch(IllegalArgumentException e)
+        {
+            // do nothing - receiver might have not been registered
         }
         catch(Exception e)
         {
             PodEmuLog.printStackTrace(e);
             throw e;
         }
+
 
     }
 
@@ -458,9 +509,18 @@ public class MainActivity extends AppCompatActivity
         try
         {
             loadPreferences();
-            //if( bluetoothEnabled )
+            if( bluetoothEnabled && !btRequestFailed )
             {
-                start_service(null);
+                BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
+
+                if( !bt.isEnabled() )
+                {
+                    PodEmuLog.debug("MA: bt requested but not enabled. Not starting service.");
+                    requestBluetoothPermissions();
+                }
+                else
+
+                    start_service();
             }
 
             iF = new PodEmuIntentFilter();
@@ -475,7 +535,7 @@ public class MainActivity extends AppCompatActivity
             //                            null, getApplicationContext(), PodEmuService.class);
             //sendBroadcast(intent);
 
-            PodEmuLog.debug("MA: onResume done");
+
         }
         catch(Exception e)
         {
@@ -483,38 +543,7 @@ public class MainActivity extends AppCompatActivity
             throw e;
         }
 
-        if ( bluetoothEnabled && !btRequestFailed)
-        {
-            BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
-            if (bt == null)
-            {
-                //Does not support Bluetooth
-                PodEmuLog.debug("MA: bluetooth is not supported.");
-            }
-            else
-            {
-                if (!bt.isEnabled())
-                {
-
-                    Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                    startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
-                }
-                SharedPreferences sharedPref = getSharedPreferences("PODEMU_PREFS", Context.MODE_PRIVATE);
-                boolean firstTimeWarning = sharedPref.getBoolean("firstTimeMainActivityBleWarning", true);
-
-                if(bluetoothEnabled && bluetoothIsBle && firstTimeWarning)
-                {
-                    // needed to set the context
-                    SerialInterface_BLE.getInstance(getBaseContext());
-                    SerialInterface_BLE.checkLocationPermissions(this);
-                    SharedPreferences.Editor editor = sharedPref.edit();
-                    editor.putBoolean("firstTimeMainActivityBleWarning", false);
-                    editor.apply();
-                }
-            }
-        }
-
-        ComponentName componentName = new ComponentName(getApplicationContext(), NotificationListener3.class);
+        ComponentName componentName = new ComponentName(getApplicationContext(), NotificationListener4.class);
         MediaSessionManager mediaSessionManager = (MediaSessionManager)getApplicationContext().getSystemService(Context.MEDIA_SESSION_SERVICE);
         List<MediaController> mediaControllerList = null;
 
@@ -543,6 +572,8 @@ public class MainActivity extends AppCompatActivity
                     .show();
         }
 
+        PodEmuLog.debug("MA: onResume done");
+
     }
 
     @Override
@@ -556,11 +587,16 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data)
     {
+        PodEmuLog.debug("TTT: " + requestCode + ", " + resultCode);
         if (requestCode == REQUEST_ENABLE_BT)
         {
             if (resultCode != RESULT_OK)
             {
                 btRequestFailed = true;
+            }
+            else
+            {
+                start_service();
             }
         }
     }
@@ -580,18 +616,29 @@ public class MainActivity extends AppCompatActivity
 
         try
         {
+            unregisterReceiver(mReceiver);
+        }
+        catch(Exception e)
+        {
+            // do nothing. If register was unregistered in onPause, unregistering it again
+            // will call an exception that we can safely ignore.
+        }
+
+        try
+        {
             PodEmuLog.debug("MA: onDestroy");
             //unregisterReceiver(mReceiver);
             //stopService(serviceIntent);
 
-            if (serviceBound)
-            {
-                unbindService(serviceConnection);
-                serviceBound = false;
-            }
+            unbindService(serviceConnection);
+            serviceBound = false;
 
             // this is main thread looper, so no need to quit()
             //mHandler.getLooper().quit();
+        }
+        catch(IllegalArgumentException e)
+        {
+            // do nothing - receiver might have not been registered
         }
         catch(Exception e)
         {
@@ -649,12 +696,14 @@ public class MainActivity extends AppCompatActivity
                     serialInterfaceImage.setImageDrawable(getDrawable(R.drawable.usb_serial_480x480));
                 }
 
+                /*
                 // once service is bound we can launch controlled app
                 if (!podEmuService.isAppLaunched && autoSwitchToApp==1)
                 {
                     launchControlledApp(null);
                     podEmuService.isAppLaunched = true;
                 }
+                */
             }
             else if(serialInterface.isConnecting())
             {
@@ -664,7 +713,7 @@ public class MainActivity extends AppCompatActivity
         }
         else
         {
-            podEmuService.isAppLaunched = false;
+            //podEmuService.isAppLaunched = false;
             this.serialStatusText.setTextColor(Color.rgb(0xff,0x00,0x00));
             this.serialStatusText.setText("disconnected");
 
@@ -735,7 +784,11 @@ public class MainActivity extends AppCompatActivity
                 "";
         PodEmuLog.debug("MA: currently playing\n" + text + "   App: " + currentlyPlaying.getApplication());
         ctrlAppStatusText.setText(text);
+
         PodEmuMediaStore.getInstance().setCtrlAppProcessName(currentlyPlaying.getApplication());
+        if(currentlyPlaying.getListSize()>0 &&
+                currentlyPlaying.getListSize() != MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount())
+            PodEmuMediaStore.getInstance().setPlaylistCountMode(PodEmuMediaStore.MODE_PLAYLIST_SIZE_NORMAL, currentlyPlaying.getListSize());
 
         updateAppInfo();
 
@@ -822,10 +875,11 @@ public class MainActivity extends AppCompatActivity
                 podEmuService = binder.getService();
                 serviceBound = true;
                 podEmuService.setHandler(mHandler);
-                podEmuService.setMediaEngine();
+                //podEmuService.setMediaEngine();
 
                 if (currentlyPlaying.getTrackName() != null)
                 {
+                    PodEmuLog.debug("MA: adding track to queue: " + currentlyPlaying.getTrackName());
                     // update service only if we have this information
                     // otherwise we can overwrite information that service already has (eg. if we are rebinding)
                     podEmuService.registerMessage(currentlyPlaying);

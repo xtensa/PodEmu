@@ -31,6 +31,9 @@ public class MediaPlayback_Generic extends MediaPlayback
     private boolean isPlaying=false;
     private long positionMS;
     private long timeSent;
+    private final String TAG="PEMPGen";
+    private static long prevTime=0;
+
 
     MediaPlayback_Generic()
     {
@@ -52,7 +55,7 @@ public class MediaPlayback_Generic extends MediaPlayback
         return trackStatusChanged;
     }
 
-    public void setTrackStatusChanged(boolean status)
+    public synchronized void setTrackStatusChanged(boolean status)
     {
         trackStatusChanged = status;
     }
@@ -71,17 +74,28 @@ public class MediaPlayback_Generic extends MediaPlayback
      */
     public long getCurrentTrackPositionMS()
     {
-        long position;
+        long position, currentTime = System.currentTimeMillis();
 
+        PodEmuLog.debug(TAG + ": getCurrentTrackPositionMS, positionMS=" + positionMS + ", currentTime=" 
+                + System.currentTimeMillis() + ", timeSent=" + timeSent);
+        
         // if playback is active then calculate real position, otherwise return last known position
         if(isPlaying)
         {
-            position = positionMS + (int)(System.currentTimeMillis() - timeSent);
+            position = positionMS + (currentTime - timeSent);
         }
         else
         {
             position = positionMS;
         }
+        long delta =  currentTime - prevTime;
+        if(delta<POLLING_INTERVAL_TARGET*1.5)
+        {
+            pollingInterval -= (delta - POLLING_INTERVAL_TARGET)/2;
+        }
+        PodEmuLog.error(TAG + ": delta=" + delta + ", calculated pollingInterval=" + pollingInterval);
+
+        prevTime = currentTime;
         return position;
     }
 
@@ -94,67 +108,98 @@ public class MediaPlayback_Generic extends MediaPlayback
 
 
 
-    public void    updateCurrentlyPlayingTrack(PodEmuMessage msg)
+    public synchronized void    updateCurrentlyPlayingTrack(PodEmuMessage msg)
     {
-        trackStatusChanged = true;
+        PodEmuLog.debug(TAG + ": FUNCTION START updateCurrentlyPlayingTrack");
+        PodEmuMediaStore.Track track = currentPlaylist.getCurrentTrack();
+        int action = msg.getAction();
 
-        if(msg.getAction()!=PodEmuMessage.ACTION_QUEUE_CHANGED)
+        if(        ((track.album  != null && track.album.equals(msg.getAlbum())) || track.album == null )
+                && ((track.artist != null && track.artist.equals(msg.getArtist())) || track.artist == null )
+                && ((track.name   != null && track.name.equals(msg.getTrackName())) || track.name == null )
+                && ((track.id     != null && track.id == (msg.getListPosition() == -1 ? track.id : msg.getListPosition() ) ) || track.id == null )
+        //        && (currentPlaylist.getTrackCount() == msg.getListSize())
+                && track.duration == msg.getDurationMS()
+        )
         {
-            PodEmuMediaStore.Track track;
+            PodEmuLog.error(TAG + ": isPlaying=" + isPlaying + ", newIsPlaying=" + isPlaying());
+
+            if(isPlaying == msg.isPlaying())
+            {
+                if (positionMS >= 0)
+                {
+                    PodEmuLog.error(TAG + ": updating time to " + positionMS);
+                    timeSent = msg.getTimeSent();
+                    positionMS = msg.getPositionMS();
+                }
+                PodEmuLog.debug(TAG + ": skipping track update. Tracks are the same, play status not changed.");
+                return;
+            }
+            else
+            {
+                action = PodEmuMessage.ACTION_PLAYBACK_STATE_CHANGED;
+            }
+        }
+
+        if(action!=PodEmuMessage.ACTION_QUEUE_CHANGED)
+        {
             int listSize = msg.getListSize();
             boolean dummy_playlist=false;
             PodEmuMediaStore podEmuMediaStore=PodEmuMediaStore.getInstance();
-
-
-            if(msg.getAction() == PodEmuMessage.ACTION_METADATA_CHANGED) currentPlaylist.positionIncrement();
 
             isPlaying = msg.isPlaying();
             timeSent = msg.getTimeSent();
             positionMS = msg.getPositionMS();
 
+            PodEmuLog.debug(TAG + ": updateCurrentlyPlayingTrack: track " + msg.getListPosition() + "/" + listSize + ", prev_size=" + currentPlaylist.getTrackCount());
+            if( listSize>0 )
+            {
+                PodEmuMediaStore.getInstance().setPlaylistCountMode(PodEmuMediaStore.MODE_PLAYLIST_SIZE_NORMAL, listSize);
+            }
             // some media application does not provide listSize and listPosition information
             // if so, we should mimic it to fool the dock
-            if(listSize<0)
+            else
             {
                 listSize = PodEmuMediaStore.getInstance().getPlaylistCountSize();
+                PodEmuMediaStore.getInstance().setPlaylistCountMode(PodEmuMediaStore.MODE_PLAYLIST_SIZE_DEFAULT, listSize);
                 dummy_playlist = true;
             }
-            PodEmuLog.debug("PEMSGen: updateCurrentlyPlayingTrack: track " + msg.getListPosition() + "/" + listSize + ", prev_size=" + currentPlaylist.getTrackCount());
+            PodEmuLog.debug(TAG + ": updated listSize: " + listSize + ", prev track count: " + currentPlaylist.getTrackCount());
 
 
             // if total song count changed then we need to rebuild DB
             if (currentPlaylist.getTrackCount() != listSize)
             {
-                PodEmuMediaDB.getInstance().rebuildDB(PodEmuMediaStore.getInstance(), listSize);
+                // this is done by setPlayListCountMode
+                //PodEmuMediaDB.getInstance().rebuildDB(PodEmuMediaStore.getInstance(), listSize);
 
                 // update playback engine playlist and selection
                 PodEmuMediaStore.getInstance().selectionReset();
                 this.setCurrentPlaylist(PodEmuMediaStore.getInstance().selectionBuildPlaylist());
 
-                // TODO: check if initialization for tracks is ok
                 podEmuMediaStore.selectionReset();
                 podEmuMediaStore.selectionInitializeDB(1 /* 1=playlist */);
+                MediaPlayback.getInstance().setCurrentPlaylist(PodEmuMediaStore.getInstance().selectionBuildPlaylist());
 
-                if( msg.getListSize()>0 )
-                {
-                    PodEmuMediaStore.getInstance().setPlaylistCountMode(PodEmuMediaStore.MODE_PLAYLIST_SIZE_NORMAL);
-                }
-                currentPlaylist.setCurrentTrackPosToStart();
+                if(dummy_playlist) currentPlaylist.setCurrentTrackPosToStart();
             }
 
+            int trackNumber;
             if(dummy_playlist)
             {
-                track = currentPlaylist.getCurrentTrack();
-                track.track_number = currentPlaylist.getCurrentTrackPos();
+                if(action == PodEmuMessage.ACTION_METADATA_CHANGED) currentPlaylist.positionIncrement();
+                trackNumber = currentPlaylist.getCurrentTrackPos();
             }
             else
             {
-                currentPlaylist.setCurrentTrack(msg.getListPosition());
-                track = currentPlaylist.getCurrentTrack();
-                track.track_number = msg.getListPosition();
+                currentPlaylist.setCurrentTrack(msg.getListPosition()-1);
+                trackNumber = msg.getListPosition();
             }
+            // we need to set "pointer" to updated track number
+            track = currentPlaylist.getCurrentTrack();
 
-            track.id = track.track_number; // this is true only for generic playlists
+            track.track_number = trackNumber;
+            track.id = track.track_number;
             track.duration = msg.getDurationMS();
             track.external_id = msg.getExternalId();
             track.name = msg.getTrackName();
@@ -171,13 +216,14 @@ public class MediaPlayback_Generic extends MediaPlayback
             // finally update the title in the db and set track
             podEmuMediaStore.updateTrack(track);
 
-            //currentPlaylist.getCurrentTrack().copyFrom(track1);
+            //currentPlaylist.getCurrentTrack().copyFrom(track1); <- no need for that, track is updated
 
-            podEmuMediaStore.setCtrlAppProcessName(msg.getApplication()
 
-            );
+            podEmuMediaStore.setCtrlAppProcessName(msg.getApplication());
 
         }
+        PodEmuLog.debug(TAG + ": metadata updated, time = " + System.currentTimeMillis());
+        setTrackStatusChanged(true);
     }
 
 }

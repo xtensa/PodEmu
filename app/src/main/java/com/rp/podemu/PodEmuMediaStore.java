@@ -79,13 +79,14 @@ public class PodEmuMediaStore
     private int nextTrackId =0;
     private int nextPlaylistId =0;
     private int playlistCountMode = MODE_PLAYLIST_SIZE_DEFAULT;
+    private int playlistCountStatic = 0;
 
     private Cursor selectionCursor=null;
     private byte selectionSortOrder=SORT_BY_SONG;
 
     // this class is a singletone
     private static PodEmuMediaStore podEmuMediaStoreInstance=null;
-    public static void initialize(Context c)
+    synchronized public static void initialize(Context c)
     {
         if(context==null || context!=c)
         {
@@ -100,28 +101,32 @@ public class PodEmuMediaStore
 
     }
 
-    public void setPlaylistCountMode(int playlistCountMode)
+    synchronized public void setPlaylistCountMode(int playlistCountMode, int size)
     {
+        PodEmuLog.debug("PEMS: FUNCTION START setPlaylistCountMode, mode=" + playlistCountMode + ", size=" + size);
         PodEmuMediaDB instance=PodEmuMediaDB.getInstance();
+
+        if(playlistCountMode == MODE_PLAYLIST_SIZE_NORMAL && size<=0)
+        {
+            PodEmuLog.error("PEMS: mode normal but provided size is not positive value");
+            return;
+        }
 
         rebuildDbRequired = ( rebuildDbRequired || (this.playlistCountMode != playlistCountMode) );
 
         this.playlistCountMode = playlistCountMode;
+        this.playlistCountStatic = size;
         reinitializePlaylistAndDB();
 
-        if(instance!=null)
-        {
-            instance.signalConfigurationUpdated(this);
-        }
     }
 
-    public int getPlaylistCountMode()
+    synchronized public int getPlaylistCountMode()
     {
         return this.playlistCountMode;
     }
 
     // helper function
-    public int getPlaylistCountSize()
+    synchronized public int getPlaylistCountSize()
     {
         switch (this.playlistCountMode)
         {
@@ -130,32 +135,32 @@ public class PodEmuMediaStore
             case MODE_PLAYLIST_SIZE_FIXED:
                 return 11;
             case MODE_PLAYLIST_SIZE_NORMAL:
-                return MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount();
+                return playlistCountStatic;
             case MODE_PLAYLIST_SIZE_TRIPLE:
             default:
                 return 3;
         }
     }
 
-    public void setSelectionSortOrder(byte sortOrder)
+    synchronized public void setSelectionSortOrder(byte sortOrder)
     {
         selectionSortOrder = sortOrder;
 
         if(selectionSortOrder<1 || selectionSortOrder>6) selectionSortOrder = SORT_BY_SONG;
     }
 
-    public String getCtrlAppProcessName()
+    synchronized public String getCtrlAppProcessName()
     {
         return ctrlAppProcessName;
     }
 
-    public void setCtrlAppProcessName(String app)
+    synchronized public void setCtrlAppProcessName(String app)
     {
-        String prevCtrlAppDbName = ctrlAppDbName;
+        String prevCtrlAppProcessName = ctrlAppProcessName;
         ctrlAppProcessName = app;
 
         PodEmuLog.debug("PEMS: setting CTRL APP process name to: " + ctrlAppProcessName);
-        PodEmuLog.debug("PEMS: setting CTRL APP db name to: " + ctrlAppDbName);
+        //PodEmuLog.debug("PEMS: setting CTRL APP db name to: " + ctrlAppDbName);
 
         switch (app)
         {
@@ -165,24 +170,27 @@ public class PodEmuMediaStore
             default:
                 ctrlAppDbName = "generic";
         }
-        PodEmuLog.debug("PEMS: CTRL APP updated db name to: " + ctrlAppDbName);
+        //PodEmuLog.debug("PEMS: CTRL APP updated db name to: " + ctrlAppDbName);
 
         // if controlled app changed, we probably need to rebuild the db
-        if(prevCtrlAppDbName==null || !prevCtrlAppDbName.equals(ctrlAppDbName)) rebuildDbRequired = true;
-        PodEmuLog.debug("PEMS: rebuild DB required: " + rebuildDbRequired);
+        if(prevCtrlAppProcessName==null
+                || !prevCtrlAppProcessName.equals(ctrlAppProcessName)
+                ) rebuildDbRequired = true;
+        PodEmuLog.debug("PEMS: rebuild DB required=" + rebuildDbRequired);
 
         if(rebuildDbRequired)
         {
             // now we can initialize playback engine and DB engine
             MediaPlayback.initialize(context);
-
             reinitializePlaylistAndDB();
+
+            MediaPlayback.setCtrlAppProcessName(ctrlAppProcessName);
         }
-        MediaPlayback.setCtrlAppProcessName(ctrlAppProcessName);
     }
 
-    private void reinitializePlaylistAndDB()
+    synchronized private void reinitializePlaylistAndDB()
     {
+        PodEmuLog.debug("PEMS: FUNCTION START reinitializePlaylistAndDB, rebuildDbRequired=" + rebuildDbRequired);
         updateNextIds();
 
         if(PodEmuMediaDB.getInstance()==null)
@@ -193,15 +201,18 @@ public class PodEmuMediaStore
         if(rebuildDbRequired)
         {
             PodEmuMediaDB.getInstance().rebuildDB(this);
-        }
+            selectionReset();
+            selectionInitializeDB(1 /* 1=playlist */);
+            MediaPlayback.getInstance().setCurrentPlaylist(selectionBuildPlaylist());
 
-        //PodEmuMediaDB.getInstance().rebuildDB(PodEmuMediaStore.getInstance());
-        // now we need to initialize currentlyPlayingPlaylist and set track start
-        selectionSetTrack(0);
-        MediaPlayback.getInstance().getCurrentPlaylist().setCurrentTrackPosToStart();
+            //PodEmuMediaDB.getInstance().rebuildDB(PodEmuMediaStore.getInstance());
+            // now we need to initialize currentlyPlayingPlaylist and set track start
+            selectionSetTrack(0);
+            MediaPlayback.getInstance().getCurrentPlaylist().setCurrentTrackPosToStart();
+        }
     }
 
-    public void updateNextIds()
+    synchronized public void updateNextIds()
     {
         Cursor c=db.rawQuery("select count(1) as count from " + DbHelper.TABLE_ARTISTS, null);
         c.moveToFirst();
@@ -252,7 +263,7 @@ public class PodEmuMediaStore
         public String genre=null;
         public String uri=null;
         public String external_id=null;
-        public long duration = 0;
+        public long   duration = 0;
         public int    track_number = 0;
 
         public Integer artist_id = null;
@@ -296,9 +307,10 @@ public class PodEmuMediaStore
             msg.setExternalId(external_id);
             msg.setDurationMS(duration);
             msg.setTrackNumber(track_number);
-            msg.setListSize(-1);
-            msg.setListPosition(-1);
+            msg.setListSize(getPlaylistCountSize());
+            msg.setListPosition((id==null?-1:id));
             msg.setApplication(ctrlAppProcessName);
+            msg.setAction(PodEmuMessage.ACTION_METADATA_CHANGED);
             msg.initialize();
 
             return msg;
@@ -321,7 +333,7 @@ public class PodEmuMediaStore
         public boolean isShuffleOn = false;
 
         public static final int REPEAT_MODE_OFF = 0;
-        public static final int REPEAT_MODE_track = 1;
+        public static final int REPEAT_MODE_TRACK = 1;
         public static final int REPEAT_MODE_ALL = 2;
         public int repeat_mode = REPEAT_MODE_OFF;
 
@@ -355,10 +367,12 @@ public class PodEmuMediaStore
             return "[" + this.getClass().getCanonicalName().replaceAll(".*PodEmuMediaStore","") + " {id="+id+", name="+name+", uri="+uri+", external_id="+external_id+"} ]";
         }
 
-        public void add(Track track)
+        synchronized public void add(Track track)
         {
             if(track!=null)
             {
+                PodEmuLog.error("PEMS: adding new track: " + track.name);
+
                 trackList.put(trackCount, track);
                 trackCount++;
             }
@@ -394,13 +408,13 @@ public class PodEmuMediaStore
             return trackList.get(pos);
         }
 
-        public void setCurrentTrack(int pos)
+        synchronized public void setCurrentTrack(int pos)
         {
-            PodEmuLog.debug("PEMS: setCurrentTrack: " + pos);
+            PodEmuLog.debug("PEMS: setCurrentTrack: " + pos + ", prevTrack: " + currentTrack);
 
             if(pos>=trackCount || pos<0)
             {
-                PodEmuLog.error("PEMS: playlist set request out of boundaries (playlist size: " + trackCount + ", jump request: " + pos);
+                PodEmuLog.error("PEMS: playlist set request out of boundaries (playlist size: " + trackCount + ", jumpto request: " + pos + ")");
             }
             else
             {
@@ -408,33 +422,34 @@ public class PodEmuMediaStore
             }
         }
 
-        public void positionPlusPlus()
+        synchronized public void positionPlusPlus()
         {
             int pos = (currentTrack+1)%trackCount;
             setCurrentTrack(pos);
         }
 
 
-        public void positionMinusMinus()
+        synchronized public void positionMinusMinus()
         {
             int pos = (currentTrack+trackCount-1)%trackCount;
             setCurrentTrack(pos);
         }
 
-        public void positionIncrement()
+        synchronized public void positionIncrement()
         {
+            PodEmuLog.error("PEMS: positionIncrement");
             if(increment>0) positionPlusPlus();
             else positionMinusMinus();
         }
 
-        public void setCurrentTrackPosToStart()
+        synchronized public void setCurrentTrackPosToStart()
         {
             currentTrack = 0;
             if ( PodEmuMediaStore.getInstance().getPlaylistCountMode() ==
                     PodEmuMediaStore.MODE_PLAYLIST_SIZE_TRIPLE ) setCurrentTrackToCenter();
         }
 
-        private void setCurrentTrackToCenter()
+        synchronized private void setCurrentTrackToCenter()
         {
             setCurrentTrack( (getTrackCount() - 1) / 2);
         }
@@ -640,7 +655,7 @@ public class PodEmuMediaStore
 
     //-----------------------------------------------------------------//
 
-    public Integer addTrack(Track track)
+    synchronized public Integer addTrack(Track track)
     {
         int id= nextTrackId;
         ContentValues values = new ContentValues();
@@ -677,7 +692,7 @@ public class PodEmuMediaStore
         return id;
     }
 
-    public synchronized void updateTrack(Track track)
+    synchronized public void updateTrack(Track track)
     {
         ContentValues values = new ContentValues();
 
@@ -713,7 +728,7 @@ public class PodEmuMediaStore
      * @param artist - album object to be added to the database
      * @return - return record id. Null in case of error.
      */
-    public synchronized Integer addArtist(Artist artist)
+    synchronized public Integer addArtist(Artist artist)
     {
         int id= nextArtistId;
         ContentValues values = new ContentValues();
@@ -749,7 +764,7 @@ public class PodEmuMediaStore
      * @param album - album object to be added to the database
      * @return - return record id. Null in case of error.
      */
-    public synchronized Integer addAlbum(Album album)
+    synchronized public Integer addAlbum(Album album)
     {
         int id= nextAlbumId;
         ContentValues values = new ContentValues();
@@ -782,7 +797,7 @@ public class PodEmuMediaStore
         return id;
     }
 
-    public synchronized Integer addGenre(Genre genre)
+    synchronized public Integer addGenre(Genre genre)
     {
         int id= nextGenreId;
         ContentValues values = new ContentValues();
@@ -896,7 +911,7 @@ public class PodEmuMediaStore
         return id;
     }
 
-    public void clear()
+    synchronized public void clear()
     {
         PodEmuLog.debug("PEMS: clear");
 
@@ -922,9 +937,9 @@ public class PodEmuMediaStore
 
     //-----------------------------------------------------------------------//
 
-    public void selectionReset()
+    synchronized public void selectionReset()
     {
-        PodEmuLog.debug("PEMS: selectionReset");
+        PodEmuLog.debug("PEMS: FUNCTION START selectionReset");
 
         selectionPlaylist = 0xffffffff;
         selectionGenre = 0xffffffff;
@@ -941,7 +956,7 @@ public class PodEmuMediaStore
      * @param pos - position on selection
      * @return - id in DB, -1 in case of error
      */
-    public int selectionMapPosToId(int pos)
+    synchronized public int selectionMapPosToId(int pos)
     {
         int id;
 
@@ -966,7 +981,7 @@ public class PodEmuMediaStore
         return id;
     }
 
-    public void selectionSetPlaylist(int playlist_id)
+    synchronized public void selectionSetPlaylist(int playlist_id)
     {
         PodEmuLog.debug("PEMS: selectionSetPlaylist:" + playlist_id);
 
@@ -980,7 +995,7 @@ public class PodEmuMediaStore
         rebuildSelectionQueryRequired = true;
     }
 
-    public void selectionSetGenre(int genre_id)
+    synchronized public void selectionSetGenre(int genre_id)
     {
         PodEmuLog.debug("PEMS: selectionSetGenre:" + genre_id);
 
@@ -993,7 +1008,7 @@ public class PodEmuMediaStore
         rebuildSelectionQueryRequired = true;
     }
 
-    public void selectionSetArtist(int artist_id)
+    synchronized public void selectionSetArtist(int artist_id)
     {
         PodEmuLog.debug("PEMS: selectionSetArtist:" + artist_id);
 
@@ -1005,7 +1020,7 @@ public class PodEmuMediaStore
         rebuildSelectionQueryRequired = true;
     }
 
-    public void selectionSetComposer(int composer_id)
+    synchronized public void selectionSetComposer(int composer_id)
     {
         PodEmuLog.debug("PEMS: selectionSetComposer:" + composer_id);
 
@@ -1016,7 +1031,7 @@ public class PodEmuMediaStore
         rebuildSelectionQueryRequired = true;
     }
 
-    public void selectionSetAlbum(int album_id)
+    synchronized public void selectionSetAlbum(int album_id)
     {
         PodEmuLog.debug("PEMS: selectionSetAlbum:" + album_id);
 
@@ -1027,14 +1042,14 @@ public class PodEmuMediaStore
     }
 
 
-    public void selectionSetTrack(int track_id)
+    synchronized public void selectionSetTrack(int track_id)
     {
-        PodEmuLog.debug("PEMS: selectionSetTrack:" + track_id);
+        PodEmuLog.debug("PEMS: FUNCTION START selectionSetTrack");
 
-        selectionTrack = track_id;
-
-        MediaPlayback.getInstance().setCurrentPlaylist(selectionBuildPlaylist());
+        if(MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount() == 0)
+            MediaPlayback.getInstance().setCurrentPlaylist(selectionBuildPlaylist());
         MediaPlayback.getInstance().getCurrentPlaylist().setCurrentTrack(track_id);
+        PodEmuLog.debug("PEMS: FUNCTION END selectionSetTrack, trackCount: " + MediaPlayback.getInstance().getCurrentPlaylist().getTrackCount());
     }
 
 
@@ -1172,9 +1187,9 @@ public class PodEmuMediaStore
      * Function returns the playlist basing on current selection
      * @return
      */
-    public PodEmuMediaStore.Playlist selectionBuildPlaylist()
+    synchronized public PodEmuMediaStore.Playlist selectionBuildPlaylist()
     {
-        PodEmuLog.debug("PEMS: selectionBuildPlaylist");
+        PodEmuLog.debug("PEMS: FUNCTION START selectionBuildPlaylist");
 
         String where=selectionPrepareWhere();
         String query="SELECT " +
@@ -1225,6 +1240,8 @@ public class PodEmuMediaStore
 
             if(selectionCursor.isLast()) break;
         } while(selectionCursor.moveToNext());
+
+        PodEmuLog.debug("PEMS: FUNCTION END selectionBuildPlaylist, trackCount: " + newPlaylist.getTrackCount());
 
         return newPlaylist;
     }

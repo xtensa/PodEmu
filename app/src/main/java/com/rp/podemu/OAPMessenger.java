@@ -1202,6 +1202,7 @@ public class OAPMessenger
                         case 0x07: // end skip FF/REV
                             PodEmuLog.debug("OAPM: AIR_MODE IN  - end skip FF/REV");
                             MediaPlayback.getInstance().action_stop_ff_rev();
+                            respondPendingResponse("stop FF/REV executed", IPOD_SUCCESS);
                             break;
                         case 0x08: // next chapter
                             PodEmuLog.debug("OAPM: AIR_MODE IN  - next chapter (NOT IMPLEMENTED)");
@@ -1740,21 +1741,22 @@ public class OAPMessenger
     private void oap_04_write_info()
     {
         byte msg[] = new byte[11];
-        long length = mediaPlayback.getCurrentPlaylist().getCurrentTrack().duration;
+        long duration = mediaPlayback.getCurrentPlaylist().getCurrentTrack().duration;
         long time = mediaPlayback.getCurrentTrackPositionMS();
         msg[0] = 0x00;
         msg[1] = 0x1D;
-        msg[2] = (byte) ((length >> 24) & 0xff);
-        msg[3] = (byte) ((length >> 16) & 0xff);
-        msg[4] = (byte) ((length >> 8) & 0xff);
-        msg[5] = (byte) ((length) & 0xff);
+        msg[2] = (byte) ((duration >> 24) & 0xff);
+        msg[3] = (byte) ((duration >> 16) & 0xff);
+        msg[4] = (byte) ((duration >> 8) & 0xff);
+        msg[5] = (byte) ((duration) & 0xff);
         msg[6] = (byte) ((time >> 24) & 0xff);
         msg[7] = (byte) ((time >> 16) & 0xff);
         msg[8] = (byte) ((time >> 8) & 0xff);
         msg[9] = (byte) ((time) & 0xff);
         msg[10] = (byte) (mediaPlayback.isPlaying() ? 0x01 : 0x02);
         oap_04_write_cmd(msg);
-        PodEmuLog.debug("OAPM: AIR_MODE OUT - written track info. Length: " + length + ". Position: " + time);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - written track info. Duration: " + duration +
+                ". Position: " + time + ". Is playing: " + mediaPlayback.isPlaying());
     }
 
 
@@ -1789,7 +1791,7 @@ public class OAPMessenger
         else
         {
             oap_04_write_string(cmd,track.name);
-            PodEmuLog.debug("OAPM: AIR_MODE OUT - written track title " + track.name);
+            PodEmuLog.debug("OAPM: AIR_MODE OUT - written track title: " + track.name);
         }
     }
 
@@ -1810,7 +1812,7 @@ public class OAPMessenger
         else
         {
             oap_04_write_string(cmd, track.artist);
-            PodEmuLog.debug("OAPM: AIR_MODE OUT - written track artist " + track.artist);
+            PodEmuLog.debug("OAPM: AIR_MODE OUT - written track artist: " + track.artist);
         }
     }
 
@@ -1862,6 +1864,8 @@ public class OAPMessenger
      */
     public void oap_04_write_polling_track_status_changed(int pos)
     {
+        PodEmuLog.error("OAPM: FUNCTION START oap_04_write_polling_track_status_changed, prev="
+                + prev_polling_position + ", pos=" + pos);
         if(!polling_mode) return;
         if(prev_polling_position==pos) return;
         prev_polling_position = pos;
@@ -2292,13 +2296,6 @@ public class OAPMessenger
         oap_04_write_cmd(bytes, bytes.length);
     }
 
-    /**
-     * sends currently playing information to iPod
-     */
-    public void flush()
-    {
-        // TODO write flush body
-    }
 
     /**
      * Enables or disables polling mode.
