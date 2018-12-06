@@ -61,6 +61,7 @@ PodEmu in action:
 
 </table>
 
+
 ## Requirements
 
  - Android device with USB host support (USB host support not required if you are using FT311D or FT312D dongles, or Bluetooth)
@@ -126,7 +127,6 @@ Additionally, please remember, that in order support track/album/artist/playlist
 
 If you don't see your favourite app in the table above, don't worry, most probably it will still work with PodEmu.
 
-
 ListSize and ListPosition information is very important to be able to see the total amount of songs in the playlist from the docking station and to be able to select random song from list and jump to it. Whenever this information is missing PodEmu will not know how many songs are in the the current playlist and will not support "jump to" command. In such case you will see one album, that contains 11 songs.  Also remember, that even if ListSize information is provided, PodEmu don't know track names "a priori". Therefore, first time you browse them from docking station, you will see titles like "Track XYZ" for all of them. However, once the song is played, it's title is remembered at given position. This list is flushed when total count of song is changed or application is restarted.
 
 ## How it works
@@ -139,7 +139,13 @@ Audio is transmitted through "calssic" analog lines. For metadata serial interfa
 
 Both channels mentioned above could be connected directly using wires, or bluetooth modules. Below you can find multiple options available to connect your Android device with iPod 30-pins interface.
 
-`Note for all diagrams below: `R1/D1 elements are only required for those cars/docking stations where car or docking station expects the pin 18 to be pulled up to 3.3V by iPod. Otherwise it will not recognize iPod connection. R1 is required to limit the current and D1 is added to protect the dongle (could be ommitted to be honest). If you are not sure if you car needs it, it is safe to start without R1/D1 and if car does not recognize connection, then just add it.
+Audio channel can be connected directly, by wires, or with use of BT module that supports A2DP profile, for example XS3868, RN52, BK8000L.
+
+Data channel could be connected by wires. In this case you will need any USB-to-serial interface like FT232R, FT231X, FT311D, FT312D, PL2303, CP2102, CP2105, CP2108 or CP2110. Alternatively, you can also connect it with any BT module that supports SPP profile (except BLE devices which are too slow). For BT you can use modules like HC05, HC06, RN52.
+
+Obviously you will also need to power all the modules up. There are multiple ways to do it. Below is an example of wiring diagram for XS3868 and HC05 modules that are powered up by LM2596, but you can use any power suply that can provide appropreate voltage and current.
+
+`Note for all diagrams below:` R1/D1 elements are only required for those cars/docking stations where car or docking station expects the pin 18 to be pulled up to 3.3V by iPod. Otherwise it will not recognize iPod connection. R1 is required to limit the current and D1 is added to protect the dongle (could be ommitted to be honest). If you are not sure if you car needs it, it is safe to start without R1/D1 and if car does not recognize connection, then just add it.
 
 
 ## Connection diagram: Wired
