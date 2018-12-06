@@ -547,7 +547,7 @@ to be moved: android:layout_below="@id/switchToAppLayout"
                     android:paddingLeft="8dp"
                     android:textStyle="bold"
                     android:textColor="@color/settingsItemText"
-                    android:text="Debug disabled"/>
+                    android:text="Enable debug collecting"/>
 
                 <CheckedTextView
                     android:layout_width="wrap_content"

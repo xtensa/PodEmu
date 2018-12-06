@@ -1818,7 +1818,7 @@ public class OAPMessenger
 
 
     /**
-     * @param song_number - song number to which we should provide information
+     * @param song_number - song number for which we should provide information
      * @cmd 0x00 0x25
      * @response string     Album returned as null terminated string
      */

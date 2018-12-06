@@ -122,13 +122,13 @@ public class MediaPlayback_Generic extends MediaPlayback
                 && track.duration == msg.getDurationMS()
         )
         {
-            PodEmuLog.error(TAG + ": isPlaying=" + isPlaying + ", newIsPlaying=" + isPlaying());
+            //PodEmuLog.error(TAG + ": isPlaying=" + isPlaying + ", newIsPlaying=" + isPlaying());
 
             if(isPlaying == msg.isPlaying())
             {
                 if (positionMS >= 0)
                 {
-                    PodEmuLog.error(TAG + ": updating time to " + positionMS);
+                    //PodEmuLog.error(TAG + ": updating time to " + positionMS);
                     timeSent = msg.getTimeSent();
                     positionMS = msg.getPositionMS();
                 }

@@ -842,20 +842,21 @@ public class SettingsActivity extends AppCompatActivity
 
     private void setDebugInfo()
     {
-        PodEmuLog.checkPermissions();
-        String enableDebug = sharedPref.getString("enableDebug", "false");
 
-        TextView enableDebugValue = (TextView) findViewById(R.id.enableDebugValue);
+        PodEmuLog.checkPermissions();
         CheckedTextView enableDebugHint = (CheckedTextView) findViewById(R.id.enableDebugHint);
+
+        String enableDebug = sharedPref.getString("enableDebug", "false");
+        //TextView enableDebugValue = (TextView) findViewById(R.id.enableDebugValue);
 
         if( enableDebug.equals("true") )
         {
-            enableDebugValue.setText("Debug Enabled");
+            //enableDebugValue.setText("Debug Enabled");
             enableDebugHint.setChecked(true);
         }
         else
         {
-            enableDebugValue.setText("Debug Disabled");
+            //enableDebugValue.setText("Debug Disabled");
             enableDebugHint.setChecked(false);
         }
 

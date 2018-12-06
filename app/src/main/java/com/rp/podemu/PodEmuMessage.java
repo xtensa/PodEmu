@@ -89,12 +89,20 @@ public class PodEmuMessage implements Parcelable
     public void setListPosition(int listPosition)  { this.listPosition = listPosition; }
 
     public void setEnableCyrillicTransliteration(boolean enableTranslit) { enableCyrillicTransliteration = enableTranslit; }
+
+    public boolean isEnabledCyrillicTransliteration() { return enableCyrillicTransliteration; }
+
     // TODO: should initialize
     public void initialize() {isInitialized=true;}
 
     private Map<Character,String> translitMap = new HashMap<>();
 
     public PodEmuMessage()
+    {
+        populateTranslitMap();
+    }
+
+    public void populateTranslitMap()
     {
         translitMap.put('А',"A");
         translitMap.put('Б',"B");
@@ -192,6 +200,7 @@ public class PodEmuMessage implements Parcelable
             this.setListSize(msg.getListSize());
             this.setListPosition(msg.getListPosition());
             this.setApplication(msg.getApplication());
+            //this.setEnableCyrillicTransliteration(msg.isEnabledCyrillicTransliteration());
             this.isInitialized = true;
         }
     }
@@ -229,9 +238,12 @@ public class PodEmuMessage implements Parcelable
 
     private String diacriticsReplace(char c, boolean nextCharIsLowerCase)
     {
-        String str = translitMap.get(c);
+        String str = translitMap.get(Character.valueOf(c));
         if(str == null)
+        {
+            //PodEmuLog.error("char '" + c + "' not found, count: " + translitMap.size() );
             str = String.valueOf(c);
+        }
         else if(str.length()>1 && nextCharIsLowerCase)
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -242,7 +254,7 @@ public class PodEmuMessage implements Parcelable
             }
             str = stringBuilder.toString();
         }
-        //PodEmuLog.error("PEM: translit: " + str);
+        //PodEmuLog.error("PEM: char: " + c + ", translit: " + str);
         return str;
     }
 
@@ -293,6 +305,8 @@ public class PodEmuMessage implements Parcelable
 
     private PodEmuMessage(Parcel in)
     {
+        populateTranslitMap();
+
         // order is meaningful
         artist = in.readString();
         album = in.readString();

@@ -371,7 +371,7 @@ public class PodEmuMediaStore
         {
             if(track!=null)
             {
-                PodEmuLog.error("PEMS: adding new track: " + track.name);
+                //PodEmuLog.error("PEMS: adding new track: " + track.name);
 
                 trackList.put(trackCount, track);
                 trackCount++;
@@ -437,7 +437,6 @@ public class PodEmuMediaStore
 
         synchronized public void positionIncrement()
         {
-            PodEmuLog.error("PEMS: positionIncrement");
             if(increment>0) positionPlusPlus();
             else positionMinusMinus();
         }
