@@ -28,9 +28,9 @@ PodEmu in action:
 </tr>
 
 <tr>
-<td align="center"><img width="250" src="screenshots/Screenshot_01.png?raw=true" /></td>
-<td align="center"><img width="250" src="screenshots/Screenshot_02.png?raw=true" /></td>
-<td align="center"><img width="250" src="screenshots/Screenshot_03.png?raw=true" /></td>
+<td align="center"><img width="250" src="screenshots/screen_01.png?raw=true" /></td>
+<td align="center"><img width="250" src="screenshots/screen_02.png?raw=true" /></td>
+<td align="center"><img width="250" src="screenshots/screen_03.png?raw=true" /></td>
 <td></td>
 </tr>
 
@@ -42,9 +42,9 @@ PodEmu in action:
 
 
 <tr>
-<td align="center"><img width="250" src="screenshots/Screenshot_04.png?raw=true" /></td>
-<td align="center"><img width="250" src="screenshots/Screenshot_05.png?raw=true" /></td>
-<td align="center"><img width="250" src="screenshots/Screenshot_06.png?raw=true" /></td>
+<td align="center"><img width="250" src="screenshots/screen_04.png?raw=true" /></td>
+<td align="center"><img width="250" src="screenshots/screen_05.png?raw=true" /></td>
+<td align="center"><img width="250" src="screenshots/screen_06.png?raw=true" /></td>
 </tr>
 
 <tr>
@@ -54,9 +54,9 @@ PodEmu in action:
 </tr>
 
 <tr>
-<td align="center"><img width="250" src="screenshots/Screenshot_07.png?raw=true" /></td>
-<td align="center"><img width="250" src="screenshots/Screenshot_08.png?raw=true" /></td>
-<td align="center"><img width="250" src="screenshots/Screenshot_09.png?raw=true" /></td>
+<td align="center"><img width="250" src="screenshots/screen_07.png?raw=true" /></td>
+<td align="center"><img width="250" src="screenshots/screen_08.png?raw=true" /></td>
+<td align="center"><img width="250" src="screenshots/screen_09.png?raw=true" /></td>
 </tr>
 
 </table>
