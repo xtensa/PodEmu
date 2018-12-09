@@ -88,6 +88,7 @@ public class MediaPlayback_Generic extends MediaPlayback
         {
             position = positionMS;
         }
+        /*
         long delta =  currentTime - prevTime;
         if(delta<POLLING_INTERVAL_TARGET*1.5)
         {
@@ -96,6 +97,8 @@ public class MediaPlayback_Generic extends MediaPlayback
         PodEmuLog.error(TAG + ": delta=" + delta + ", calculated pollingInterval=" + pollingInterval);
 
         prevTime = currentTime;
+        */
+
         return position;
     }
 
@@ -184,22 +187,24 @@ public class MediaPlayback_Generic extends MediaPlayback
                 if(dummy_playlist) currentPlaylist.setCurrentTrackPosToStart();
             }
 
-            int trackNumber;
+            int trackID;
             if(dummy_playlist)
             {
                 if(action == PodEmuMessage.ACTION_METADATA_CHANGED) currentPlaylist.positionIncrement();
-                trackNumber = currentPlaylist.getCurrentTrackPos();
+                trackID = currentPlaylist.getCurrentTrackPos();
             }
             else
             {
-                currentPlaylist.setCurrentTrack(msg.getListPosition()-1);
-                trackNumber = msg.getListPosition();
+                int inc=-1;
+                if(msg.getApplication().equals("com.amazon.mp3")) inc=0;
+                trackID = msg.getListPosition() + inc;
+                currentPlaylist.setCurrentTrack(trackID);
             }
             // we need to set "pointer" to updated track number
             track = currentPlaylist.getCurrentTrack();
 
-            track.track_number = trackNumber;
-            track.id = track.track_number;
+            track.track_number = trackID+1;
+            track.id = trackID;
             track.duration = msg.getDurationMS();
             track.external_id = msg.getExternalId();
             track.name = msg.getTrackName();

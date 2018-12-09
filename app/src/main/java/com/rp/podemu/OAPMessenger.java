@@ -1123,11 +1123,13 @@ public class OAPMessenger
                     }
 
                     int pos=byte_array_to_int(params);
+                    int currentPosition=mediaPlayback.getCurrentPlaylist().getCurrentTrackPos();
                     //int currentPos = mediaPlayback.getCurrentPlaylist().getCurrentTrackPos();
                     if( pos == 0xFFFFFFFF) pos=0;
 
                     mediaPlayback.setCurrentPlaylist(podEmuMediaStore.selectionBuildPlaylist());
-                    mediaPlayback.getCurrentPlaylist().setCurrentTrackPosToStart();
+                    //mediaPlayback.getCurrentPlaylist().setCurrentTrackPosToStart();
+                    mediaPlayback.getCurrentPlaylist().setCurrentTrack(currentPosition);
 
                     /*
                      * Do not immediately respond with SUCCESS. Wait for broadcast instead.
@@ -1142,10 +1144,9 @@ public class OAPMessenger
                     else
                     {
                         setPendingResponse(cmd, Math.abs(count));
+                        if(!mediaPlayback.jumpToTrack(pos))
+                            respondPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
                     }
-
-                    if(!mediaPlayback.jumpTrackCount(count))
-                        respondPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
 
                     break;
                 }
@@ -1333,9 +1334,10 @@ public class OAPMessenger
                         break;
                     }
 
-                    int count = mediaPlayback.calcTrackCountFromPosition(byte_array_to_int(params));
+                    int pos = byte_array_to_int(params);
+                    int count = mediaPlayback.calcTrackCountFromPosition(pos);
                     setPendingResponse(cmd, Math.abs(count));
-                    if(!mediaPlayback.jumpTrackCount(count))
+                    if(!mediaPlayback.jumpToTrack(pos))
                         respondPendingResponse("mediaPlayback.jumpTo failed", IPOD_ERROR_CMD_FAILED);
 
                 }

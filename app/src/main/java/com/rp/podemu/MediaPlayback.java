@@ -409,11 +409,36 @@ public abstract class MediaPlayback
             }
         }
 
-        PodEmuLog.debug("PEMS.Playlist: calculated track jump is: " + count);
+        PodEmuLog.debug("PEMP: calculated track jump is: " + count);
         return count;
     }
 
-    public boolean jumpTrackCount(int count)
+
+    public boolean jumpToTrack(int pos)
+    {
+        PodEmuLog.debug("PEMP: jumpToTrack: " + pos);
+
+        // skipToQueueItem does not work correctly so unfortunately we cannot use it
+        /*
+        MediaController mediaController=getActiveMediaController();
+        if( mediaController != null && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_SKIP_TO_QUEUE_ITEM) == PlaybackState.ACTION_SKIP_TO_QUEUE_ITEM)
+        {
+            PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_SKIP_TO_QUEUE_ITEM)");
+            mediaController.getTransportControls().skipToQueueItem(pos);
+        }
+        else
+        */
+        {
+            int count = calcTrackCountFromPosition(pos);
+            PodEmuLog.debug("PEMP: executing action through jumpTrackCount, count=" + count);
+            jumpTrackCount(count);
+        }
+
+        return true;
+    }
+
+
+    private boolean jumpTrackCount(int count)
     {
         long timeElapsed = MediaPlayback.getInstance().getCurrentTrackPositionMS();
 

@@ -410,7 +410,7 @@ public class PodEmuMediaStore
 
         synchronized public void setCurrentTrack(int pos)
         {
-            PodEmuLog.debug("PEMS: setCurrentTrack: " + pos + ", prevTrack: " + currentTrack);
+            PodEmuLog.error("PEMS: setCurrentTrack: " + pos + ", prevTrack: " + currentTrack);
 
             if(pos>=trackCount || pos<0)
             {
@@ -443,9 +443,21 @@ public class PodEmuMediaStore
 
         synchronized public void setCurrentTrackPosToStart()
         {
-            currentTrack = 0;
-            if ( PodEmuMediaStore.getInstance().getPlaylistCountMode() ==
-                    PodEmuMediaStore.MODE_PLAYLIST_SIZE_TRIPLE ) setCurrentTrackToCenter();
+            PodEmuLog.error("PEMS: setCurrentTrackPosToStart START: mode=" + PodEmuMediaStore.getInstance().getPlaylistCountMode() + ", currentTrack=" + currentTrack);
+            switch(PodEmuMediaStore.getInstance().getPlaylistCountMode())
+            {
+                case PodEmuMediaStore.MODE_PLAYLIST_SIZE_TRIPLE:
+                case PodEmuMediaStore.MODE_PLAYLIST_SIZE_FIXED:
+                    setCurrentTrackToCenter();
+                    break;
+                case PodEmuMediaStore.MODE_PLAYLIST_SIZE_NORMAL:
+                    // do nothing because this info is received from player
+                    break;
+                default:
+                    PodEmuLog.error("PEMS: setCurrentTrackPosToStart: setting to 0");
+                    currentTrack = 0;
+            }
+            PodEmuLog.error("PEMS: setCurrentTrackPosToStart END: set to " + currentTrack);
         }
 
         synchronized private void setCurrentTrackToCenter()

@@ -52,7 +52,7 @@ public class NotificationListener4 extends NotificationListenerService
             }
             */
 
-            notificationListenerTMP1.parseActiveSessions(list);
+            if(notificationListenerTMP1 != null) notificationListenerTMP1.parseActiveSessions(list);
         }
     }
 
@@ -125,14 +125,14 @@ public class NotificationListener4 extends NotificationListenerService
         trackArtist = extras.getString("android.text");
         */
 
-
-
         //=================================================
 
         int selectedID = 0;
         for(int i=0;i<mediaControllersList.size();i++)
         {
             MediaController mediaController = mediaControllersList.get(i);
+
+            if(mediaController==null || mediaController.getPlaybackState()==null) continue;
 
             PodEmuLog.debug(TAG + ": === === SESSION " + i);
             if(mediaController.getMetadata()!=null)
