@@ -118,6 +118,8 @@ public class NotificationListener4 extends NotificationListenerService
         Long   timeSent = System.currentTimeMillis();
 
 
+        try
+        {
         /*
         Bundle extras = statusBarNotification.getNotification().extras;
         trackTitle  = extras.getString("android.title");
@@ -125,102 +127,99 @@ public class NotificationListener4 extends NotificationListenerService
         trackArtist = extras.getString("android.text");
         */
 
-        //=================================================
+            //=================================================
 
-        int selectedID = 0;
-        for(int i=0;i<mediaControllersList.size();i++)
-        {
-            MediaController mediaController = mediaControllersList.get(i);
-
-            if(mediaController==null || mediaController.getPlaybackState()==null) continue;
-
-            PodEmuLog.debug(TAG + ": === === SESSION " + i);
-            if(mediaController.getMetadata()!=null)
+            int selectedID = -1;
+            for (int i = 0; i < mediaControllersList.size(); i++)
             {
-                application = mediaController.getPackageName();
+                MediaController mediaController = mediaControllersList.get(i);
 
-                isPlaying = (mediaController.getPlaybackState().getState() == PlaybackState.STATE_PLAYING);
+                if (mediaController == null || mediaController.getPlaybackState() == null) continue;
 
-                trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_TITLE);
-                if (trackTitle == null)
-                    trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
+                PodEmuLog.debug(TAG + ": === === SESSION " + i);
+                if (mediaController.getMetadata() != null)
+                {
+                    application = mediaController.getPackageName();
 
-                trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM);
-                if (trackAlbum == null)
-                    trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_COMPILATION);
+                    isPlaying = (mediaController.getPlaybackState().getState() == PlaybackState.STATE_PLAYING);
 
-                trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ARTIST);
-                if (trackArtist == null)
-                    trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST);
+                    trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_TITLE);
+                    if (trackTitle == null)
+                        trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
 
-                trackDuration = mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_DURATION);
-                trackPosition = mediaController.getPlaybackState().getPosition();
+                    trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM);
+                    if (trackAlbum == null)
+                        trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_COMPILATION);
 
-                trackNum = (int) mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER);
-                trackCount = (int) mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_NUM_TRACKS);
-            }
+                    trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ARTIST);
+                    if (trackArtist == null)
+                        trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST);
 
-            PodEmuLog.debug(TAG + ":    APPLICATION : " + application);
-            PodEmuLog.debug(TAG + ":          TITLE : " + trackTitle);
-            PodEmuLog.debug(TAG + ":          ALBUM : " + trackAlbum);
-            PodEmuLog.debug(TAG + ":         ARTIST : " + trackArtist);
-            PodEmuLog.debug(TAG + ":       DURATION : " + trackDuration);
-            PodEmuLog.debug(TAG + ":       POSITION : " + trackPosition);
-            PodEmuLog.debug(TAG + ":    PLAY STATUS : " + isPlaying);
-            PodEmuLog.debug(TAG + ":    TRACK COUNT : " + trackCount);
-            PodEmuLog.debug(TAG + ":   TRACK NUMBER : " + trackNum);
+                    trackDuration = mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_DURATION);
+                    trackPosition = mediaController.getPlaybackState().getPosition();
 
-            if(!sessionsFound && application != null)
-            {
-                selectedID = i;
-                sessionsFound = true;
-            }
+                    trackNum = (int) mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER);
+                    trackCount = (int) mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_NUM_TRACKS);
+                }
 
-        }
-        PodEmuLog.debug(TAG + ":   Selected session : " + selectedID);
-        //=================================================
+                PodEmuLog.debug(TAG + ":    APPLICATION : " + application);
+                PodEmuLog.debug(TAG + ":          TITLE : " + trackTitle);
+                PodEmuLog.debug(TAG + ":          ALBUM : " + trackAlbum);
+                PodEmuLog.debug(TAG + ":         ARTIST : " + trackArtist);
+                PodEmuLog.debug(TAG + ":       DURATION : " + trackDuration);
+                PodEmuLog.debug(TAG + ":       POSITION : " + trackPosition);
+                PodEmuLog.debug(TAG + ":    PLAY STATUS : " + isPlaying);
+                PodEmuLog.debug(TAG + ":    TRACK COUNT : " + trackCount);
+                PodEmuLog.debug(TAG + ":   TRACK NUMBER : " + trackNum);
 
-
-
-
-        if(mediaControllersList != null && mediaControllersList.size()>0)
-        {
-            MediaController mediaController = mediaControllersList.get(selectedID);
-            String applicationTMP = mediaController.getPackageName();
-
-            if(mediaController.getMetadata()!=null)
-            {
-                application = applicationTMP;
-
-                isPlaying  = (mediaController.getPlaybackState().getState() == PlaybackState.STATE_PLAYING);
-
-                trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_TITLE);
-                if (trackTitle == null)
-                    trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
-
-                trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM);
-                if(trackAlbum==null)
-                    trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_COMPILATION);
-
-                trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ARTIST);
-                if (trackArtist == null)
-                    trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST);
-
-                trackDuration = mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_DURATION);
-                trackPosition = mediaController.getPlaybackState().getPosition();
-
-                trackNum   = (int)mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER);
-                trackCount = (int)mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_NUM_TRACKS);
+                if (!sessionsFound && application != null)
+                {
+                    selectedID = i;
+                    sessionsFound = true;
+                }
 
             }
+            PodEmuLog.debug(TAG + ":   Selected session : " + selectedID);
+            //=================================================
 
-        }
 
-        if(!sessionsFound)
-        {
-            PodEmuLog.debug(TAG + ":  APPLICATION : " + application);
-            PodEmuLog.debug(TAG + ": EMPTY OR NOT ACTIVE SESSION");
-        }
+            if (sessionsFound && mediaControllersList != null && mediaControllersList.size() > 0)
+            {
+                MediaController mediaController = mediaControllersList.get(selectedID);
+                String applicationTMP = mediaController.getPackageName();
+
+                if (mediaController.getMetadata() != null)
+                {
+                    application = applicationTMP;
+
+                    isPlaying = (mediaController.getPlaybackState().getState() == PlaybackState.STATE_PLAYING);
+
+                    trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_TITLE);
+                    if (trackTitle == null)
+                        trackTitle = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
+
+                    trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM);
+                    if (trackAlbum == null)
+                        trackAlbum = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_COMPILATION);
+
+                    trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ARTIST);
+                    if (trackArtist == null)
+                        trackArtist = mediaController.getMetadata().getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST);
+
+                    trackDuration = mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_DURATION);
+                    trackPosition = mediaController.getPlaybackState().getPosition();
+
+                    trackNum = (int) mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER);
+                    trackCount = (int) mediaController.getMetadata().getLong(MediaMetadata.METADATA_KEY_NUM_TRACKS);
+
+                }
+
+            }
+            else
+            {
+                PodEmuLog.debug(TAG + ":  APPLICATION : " + application);
+                PodEmuLog.debug(TAG + ": EMPTY OR NOT ACTIVE SESSION");
+            }
 
         /*
                 Bitmap id = sbn.getNotification().largeIcon;
@@ -231,13 +230,13 @@ public class NotificationListener4 extends NotificationListenerService
             msgrcv.putExtra("icon",byteArray);
         }
          */
-        if( sessionsFound )
-        {
-            if(trackCount==0)
+            if (sessionsFound)
             {
-                trackCount = -1;
-                trackNum   = -1;
-            }
+                if (trackCount == 0)
+                {
+                    trackCount = -1;
+                    trackNum = -1;
+                }
 
             /*
             PodEmuLog.debug(TAG + ":    APPLICATION : " + application);
@@ -251,28 +250,34 @@ public class NotificationListener4 extends NotificationListenerService
             PodEmuLog.debug(TAG + ":   TRACK NUMBER : " + trackNum);
             */
 
-            PodEmuMessage podEmuMessage = new PodEmuMessage();
-            podEmuMessage.setApplication(application);
-            podEmuMessage.setTrackName(trackTitle);
-            podEmuMessage.setAlbum(trackAlbum);
-            podEmuMessage.setArtist(trackArtist);
-            podEmuMessage.setDurationMS(trackDuration);
-            podEmuMessage.setPositionMS(trackPosition);
-            podEmuMessage.setIsPlaying(isPlaying);
-            podEmuMessage.setListSize(trackCount);
-            podEmuMessage.setListPosition(trackNum);
-            podEmuMessage.setAction(PodEmuMessage.ACTION_METADATA_CHANGED);
-            podEmuMessage.setTimeSent(timeSent);
+                PodEmuMessage podEmuMessage = new PodEmuMessage();
+                podEmuMessage.setApplication(application);
+                podEmuMessage.setTrackName(trackTitle);
+                podEmuMessage.setAlbum(trackAlbum);
+                podEmuMessage.setArtist(trackArtist);
+                podEmuMessage.setDurationMS(trackDuration);
+                podEmuMessage.setPositionMS(trackPosition);
+                podEmuMessage.setIsPlaying(isPlaying);
+                podEmuMessage.setListSize(trackCount);
+                podEmuMessage.setListPosition(trackNum);
+                podEmuMessage.setAction(PodEmuMessage.ACTION_METADATA_CHANGED);
+                podEmuMessage.setTimeSent(timeSent);
 
-            Intent intent = new Intent();
-            intent.setAction(PodEmuIntentFilter.INTENT_ACTION_METADATA_CHANGED);
-            intent.putExtra("PodEmuMessage", podEmuMessage);
-            PodEmuLog.debug(TAG + ": sending internal broadcast with PodEmuMessage");
-            sendBroadcast(intent);
+                Intent intent = new Intent();
+                intent.setAction(PodEmuIntentFilter.INTENT_ACTION_METADATA_CHANGED);
+                intent.putExtra("PodEmuMessage", podEmuMessage);
+                PodEmuLog.debug(TAG + ": sending internal broadcast with PodEmuMessage");
+                sendBroadcast(intent);
+            }
+            else
+            {
+                PodEmuLog.log(TAG + ": No sessions found.");
+            }
         }
-        else
+        catch(Exception e)
         {
-            PodEmuLog.log(TAG + ": No sessions found.");
+            PodEmuLog.error(TAG + ": critical error in NotificationListener parser, dumping stack trace");
+            PodEmuLog.printStackTrace(e);
         }
     }
 
