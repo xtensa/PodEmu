@@ -19,7 +19,10 @@
 
 package com.rp.podemu;
 
+import android.annotation.TargetApi;
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothDevice;
@@ -29,11 +32,14 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.hardware.usb.UsbManager;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.support.annotation.NonNull;
 
 import java.util.Vector;
 
@@ -403,6 +409,27 @@ public class PodEmuService extends Service
 
     }
 
+    @NonNull
+    @TargetApi(26)
+    private synchronized String createChannel() {
+        NotificationManager mNotificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
+
+        String name = "PodEmu notification channel";
+        String channel = "PodEmu notification ID";
+        int importance = NotificationManager.IMPORTANCE_LOW;
+
+        NotificationChannel mChannel = new NotificationChannel(channel, name, importance);
+
+        mChannel.enableLights(true);
+        mChannel.setLightColor(Color.BLUE);
+        if (mNotificationManager != null) {
+            mNotificationManager.createNotificationChannel(mChannel);
+        } else {
+            stopSelf();
+        }
+        return channel;
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId)
     {
@@ -428,15 +455,30 @@ public class PodEmuService extends Service
                                                             "Close PodEmu", closeIntent)
                     .build();
 
-            Notification notification =
-                    new Notification.Builder(this)
-                            .setSmallIcon(R.drawable.notification_icon)
-                            .setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.drawable.podemu_icon))
-                            .setContentTitle("PodEmu")
-                            .setContentText("iPod emulation is running")
-                            .setContentIntent(pendingIntent)
-                            .addAction(closeAction)
-                            .build();
+            Notification notification;
+            String channel;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) // >= 8.0
+            {
+                channel = createChannel();
+                notification = new Notification.Builder(this, channel).setSmallIcon(R.drawable.notification_icon)
+                        .setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.drawable.podemu_icon))
+                        .setContentTitle("PodEmu")
+                        .setContentText("iPod emulation is running")
+                        .setContentIntent(pendingIntent)
+                        .addAction(closeAction)
+                        .build();
+            }
+            else
+            {
+                notification = new Notification.Builder(this).setSmallIcon(R.drawable.notification_icon)
+                        .setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.drawable.podemu_icon))
+                        .setContentTitle("PodEmu")
+                        .setContentText("iPod emulation is running")
+                        .setContentIntent(pendingIntent)
+                        .addAction(closeAction)
+                        .build();
+            }
+
             startForeground(1, notification);
 
 

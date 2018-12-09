@@ -119,7 +119,7 @@ public class MainActivity extends AppCompatActivity
         {
             BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
 
-            if( bluetoothEnabled && !bt.isEnabled() )
+            if( bt!=null && bluetoothEnabled && !bt.isEnabled() )
             {
                 PodEmuLog.debug("MA: bt requested but not enabled. Not starting service.");
                 requestBluetoothPermissions();
@@ -513,14 +513,20 @@ public class MainActivity extends AppCompatActivity
             {
                 BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
 
-                if( !bt.isEnabled() )
+                if( bt!=null)
                 {
-                    PodEmuLog.debug("MA: bt requested but not enabled. Not starting service.");
-                    requestBluetoothPermissions();
+                    if( !bt.isEnabled() )
+                    {
+                        PodEmuLog.debug("MA: bt requested but not enabled. Not starting service.");
+                        requestBluetoothPermissions();
+                    }
+                    else
+                        start_service();
                 }
                 else
-
-                    start_service();
+                {
+                    btRequestFailed = true;
+                }
             }
 
             iF = new PodEmuIntentFilter();
