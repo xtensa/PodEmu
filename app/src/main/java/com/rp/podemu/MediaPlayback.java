@@ -282,7 +282,7 @@ public abstract class MediaPlayback
     {
         PodEmuLog.debug("PEMP: action PLAY_PAUSE requested");
         MediaController mediaController=getActiveMediaController();
-        if( mediaController != null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_PLAY_PAUSE) == PlaybackState.ACTION_PLAY_PAUSE)
+        if( mediaController!=null && mediaController.getPlaybackState()!=null && mediaController.getTransportControls()!=null)// && (mediaController.getPlaybackState().getActions() & PlaybackState.ACTION_PLAY_PAUSE) == PlaybackState.ACTION_PLAY_PAUSE)
         {
             PodEmuLog.debug("PEMP: executing action through MediaController (ACTION_PLAY_PAUSE)");
             if(mediaController.getPlaybackState().getState() == PlaybackState.STATE_PLAYING)
