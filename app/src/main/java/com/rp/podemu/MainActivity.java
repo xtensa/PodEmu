@@ -428,7 +428,7 @@ public class MainActivity extends AppCompatActivity
         MediaController mediaController = MediaPlayback.getActiveMediaController();
         Bitmap trackIcon = null;
 
-        if(mediaController != null)
+        if(mediaController != null && mediaController.getMetadata()!=null)
         {
             trackIcon = mediaController.getMetadata().getBitmap(MediaMetadata.METADATA_KEY_ART);
             if (trackIcon == null)

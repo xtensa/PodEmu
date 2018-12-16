@@ -1,3 +1,29 @@
+3.0-61
+    * stability fixes
+
+3.0-53
+    * removed BLE (HC-08) support due to connectivity performance issues
+    * stop service button added in notification
+    * several bugfixing in notification handling
+    * removed controlled app options in settings
+    * Replaced Controlled App functionality with NotificationListener.
+    * Character transliteration
+    * Logo download options
+
+2.16
+    * Major BT connectivity establishment improvements
+    * Support for BLE devices added (although due to low BLE performance it is not recommended to use such devices). Due to BLE support Location permision required, but if you
+ don't use BLE you may not enabling it.
+    * iPod protocol support improvements
+    * bugfixes
+
+2.13
+    * Major BT stability improvements
+    * HC-08 support added
+
+2.10
+    * Bluetooth support added
+
 1.19
     * Core engine rewritten to support future built-in players
     * Support for applications added: TIDAL, PowerAmp, MixZing

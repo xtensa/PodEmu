@@ -167,6 +167,14 @@ Bluetooth setup was tested with HC-05 as serial interface device and XS3868 to s
 
 <img width="500" src="schematics/HC-05%20and%20XS3868.png?raw=true" />
 
+Before start using HC-05 it need to be configured properly. To do this you need to issue the following commands:
+```
+AT+NAME=PodEmuSPP - to change module name. Instead of PodEmuSPP you can use whatever you like.
+AT+UART=57600,1,0 - to change baud rate. This command is mandatory for PodEmu to work correctly.
+```
+
+Instead of using HC-05 and XS3868 you can use any other BT modules that provide SPP and A2DP profiles. SPP is a profile for serial communication. A2DP is a BT profile used for audio connection.
+
 Important notes: 
  - do not short audio ground (pin 2) with power ground (pins 15 and 16). If you do it, significant noise will appear.
  - voltage is set to 3,55V and not to 3,3V. 3.3V is normal operating voltage for HC-05, 3.6V is maximum for HC-05. However 3.6V should be minimum voltage for XS3868. When voltage drops below 3.5V, XS3868 will produce audible warnings. To avoid it, but to stay within HC-05 voltage limits it is recommended to set voltage between 3.5V and 3.6V. There are known cases when slight exceeding 3.6V burned HC-05.
