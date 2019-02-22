@@ -68,6 +68,7 @@ public class PodEmuService extends Service
     private static boolean bluetoothEnabled;
     private static boolean isBTConnected=false;
     private static boolean enableCyrillicTransliteration=false;
+    private static boolean enableMimicAlwaysPlay=false;
     private static int intentId=0;
 
     public static String INTENT_ACTION_CLOSE_SERVICE="com.podemu.rp.ACTION_CLOSE_SERVICE";
@@ -224,6 +225,9 @@ public class PodEmuService extends Service
         forceSimpleMode = (sharedPref.getInt("ForceSimpleMode", 0));
         bluetoothEnabled = (sharedPref.getInt("bluetoothEnabled", 0)!=0);
         enableCyrillicTransliteration = (sharedPref.getBoolean("CyrillicTransliteration", false));
+        enableMimicAlwaysPlay = (sharedPref.getBoolean("MimicAlwaysPlay", false));
+
+        OAPMessenger.setMimicAlwaysPlay(enableMimicAlwaysPlay);
     }
 
     private void runBufferThread()
@@ -388,7 +392,11 @@ public class PodEmuService extends Service
                     }
                     catch (InterruptedException e)
                     {
-                        PodEmuLog.error("PES: buffer thread interrupted! (Thread ID = " + bufferThread.getId() + ")");
+                        if(bufferThread==null)
+                            PodEmuLog.error("PES: buffer thread interrupted! bufferThread is null");
+                        else
+                            PodEmuLog.error("PES: buffer thread interrupted! (Thread ID = " + bufferThread.getId() + ")");
+
                         if(serialInterface!=null) serialInterface.close();
                     }
 

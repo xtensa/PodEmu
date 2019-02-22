@@ -81,6 +81,8 @@ public class OAPMessenger
     private int responsePendingStatus=0;
     private long responsePendingSince;
 
+    private static boolean mimicAlwaysPlay = false;
+    private boolean isPausedByAccessory = false;
 
     // definition of the in/out line if more than one instance of object created
     private static int line = 0;
@@ -160,6 +162,12 @@ public class OAPMessenger
         this.mediaPlayback = mediaPlayback;
     }
 
+
+
+    public static void setMimicAlwaysPlay(boolean mimicAlwaysPlay)
+    {
+        OAPMessenger.mimicAlwaysPlay = mimicAlwaysPlay;
+    }
 
     /**
      * The variables below represents the "iPod state" that is reported
@@ -672,6 +680,7 @@ public class OAPMessenger
                     else if (params.length == 1 && params[0] == (byte) 0x02)
                     {
                         PodEmuLog.debug("OAPM: SIMPLE_MODE IN  - pause");
+                        isPausedByAccessory = true;
                         MediaPlayback.getInstance().action_pause();
                     }
 
@@ -902,7 +911,8 @@ public class OAPMessenger
                 case 0x0016:
                 {
                     PodEmuLog.debug("OAPM: AIR_MODE IN  - switch to main library playlist");
-                    podEmuMediaStore.selectionReset();
+                    if(podEmuMediaStore!=null)
+                        podEmuMediaStore.selectionReset();
 
                     // just in case writing success retval
                     oap_04_write_return_code(cmd, IPOD_SUCCESS);
@@ -1178,6 +1188,7 @@ public class OAPMessenger
                     {
                         case 0x01:
                             PodEmuLog.debug("OAPM: AIR_MODE IN  - play/pause");
+                            isPausedByAccessory = true;
                             MediaPlayback.getInstance().action_play_pause();
                             break;
                         case 0x02:
@@ -1745,6 +1756,14 @@ public class OAPMessenger
         byte msg[] = new byte[11];
         long duration = mediaPlayback.getCurrentPlaylist().getCurrentTrack().duration;
         long time = mediaPlayback.getCurrentTrackPositionMS();
+        boolean isPlaying = mediaPlayback.isPlaying();
+
+        if(isPlaying)
+            isPausedByAccessory = false;
+        else if(!isPausedByAccessory && mimicAlwaysPlay)
+            isPlaying = true;
+
+
         msg[0] = 0x00;
         msg[1] = 0x1D;
         msg[2] = (byte) ((duration >> 24) & 0xff);
@@ -1755,7 +1774,7 @@ public class OAPMessenger
         msg[7] = (byte) ((time >> 16) & 0xff);
         msg[8] = (byte) ((time >> 8) & 0xff);
         msg[9] = (byte) ((time) & 0xff);
-        msg[10] = (byte) (mediaPlayback.isPlaying() ? 0x01 : 0x02);
+        msg[10] = (byte) (isPlaying ? 0x01 : 0x02);
         oap_04_write_cmd(msg);
         PodEmuLog.debug("OAPM: AIR_MODE OUT - written track info. Duration: " + duration +
                 ". Position: " + time + ". Is playing: " + mediaPlayback.isPlaying());

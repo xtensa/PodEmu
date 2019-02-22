@@ -96,4 +96,5 @@ http://www.clipartpanda.com/categories/animated-question-mark-for-powerpoint
     <string name="logoDownloadDisabled">DISABLED</string>
 
     <string name="enableTranslitHint">If your car/docking station has troubles displaying cyrillic or diacritic charachters, you should enable this option. It will replace these characters with latin alphabet.</string>
+    <string name="enableMimicAlwaysPlayHint">Some cars are muting audio input or are trying to forcibly start playback, if the playback is stopped. Enable this option to mimic "playback active" mode even if playback is stopped.</string>
 </resources>

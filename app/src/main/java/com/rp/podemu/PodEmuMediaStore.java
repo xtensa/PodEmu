@@ -447,15 +447,17 @@ public class PodEmuMediaStore
             switch(PodEmuMediaStore.getInstance().getPlaylistCountMode())
             {
                 case PodEmuMediaStore.MODE_PLAYLIST_SIZE_TRIPLE:
-                case PodEmuMediaStore.MODE_PLAYLIST_SIZE_FIXED:
                     setCurrentTrackToCenter();
+                    break;
+                case PodEmuMediaStore.MODE_PLAYLIST_SIZE_FIXED:
+                    setCurrentTrack(0);
                     break;
                 case PodEmuMediaStore.MODE_PLAYLIST_SIZE_NORMAL:
                     // do nothing because this info is received from player
                     break;
                 default:
                     PodEmuLog.error("PEMS: setCurrentTrackPosToStart: setting to 0");
-                    currentTrack = 0;
+                    setCurrentTrack(0);
             }
             PodEmuLog.error("PEMS: setCurrentTrackPosToStart END: set to " + currentTrack);
         }

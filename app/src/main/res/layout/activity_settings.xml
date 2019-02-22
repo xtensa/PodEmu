@@ -448,7 +448,54 @@ to be moved: android:layout_below="@id/switchToAppLayout"
 
             </RelativeLayout>
 
-<!-- BAUD RATE  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+
+
+            <!-- Always Play Enable  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
+            <RelativeLayout
+                android:id="@+id/enableMimicAlwaysPlayLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/playlistCountLayout"
+                android:onClick="toggleTranslit"
+                android:layout_marginTop="7dp">
+
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/enableMimicAlwaysPlayIcon"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_action_circles"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/enableMimicAlwaysPlayName"
+                    android:layout_toRightOf="@id/enableMimicAlwaysPlayIcon"
+                    android:paddingTop="6dp"
+                    android:paddingLeft="8dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/settingsItemText"
+                    android:text="Enable Always Play Mode"/>
+
+                <CheckedTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/enableMimicAlwaysPlayHint"
+                    android:layout_toRightOf="@id/enableMimicAlwaysPlayIcon"
+                    android:layout_below="@id/enableMimicAlwaysPlayName"
+                    android:paddingTop="5dp"
+                    android:paddingLeft="8dp"
+                    android:textColor="@color/settingsItemHint"
+                    android:textStyle="italic"
+                    android:text="@string/enableMimicAlwaysPlayHint"
+                    android:checkMark="?android:attr/listChoiceIndicatorMultiple"
+                    />
+
+            </RelativeLayout>
+
+
+
+            <!-- BAUD RATE  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  -->
 
 
     <RelativeLayout
@@ -456,7 +503,7 @@ to be moved: android:layout_below="@id/switchToAppLayout"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:onClick="selectBaudRate"
-        android:layout_below="@id/playlistCountLayout"
+        android:layout_below="@id/enableMimicAlwaysPlayLayout"
         android:layout_marginTop="7dp"
         >
 

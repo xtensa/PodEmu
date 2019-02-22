@@ -397,6 +397,7 @@ public class SettingsActivity extends AppCompatActivity
         setDebugInfo();
         setToggleForceSimpleMode();
         setToggleCyrillicTransliteration();
+        setToggleMimicAlwaysPlay();
         setToggleBluetoothEnabled();
         //setAutoSwitchToApp();
 
@@ -888,6 +889,14 @@ public class SettingsActivity extends AppCompatActivity
     {
         boolean enableTranslit = sharedPref.getBoolean("CyrillicTransliteration", false);
         CheckedTextView toggleCyrillicTransliteration = (CheckedTextView) findViewById(R.id.enableTranslitHint);
+
+        toggleCyrillicTransliteration.setChecked(enableTranslit);
+    }
+
+    private void setToggleMimicAlwaysPlay()
+    {
+        boolean enableTranslit = sharedPref.getBoolean("MimicAlwaysPlay", false);
+        CheckedTextView toggleCyrillicTransliteration = (CheckedTextView) findViewById(R.id.enableMimicAlwaysPlayHint);
 
         toggleCyrillicTransliteration.setChecked(enableTranslit);
     }
