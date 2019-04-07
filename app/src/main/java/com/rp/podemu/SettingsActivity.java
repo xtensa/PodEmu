@@ -584,6 +584,19 @@ public class SettingsActivity extends AppCompatActivity
         PodEmuLog.debug("PESA: enableTranslit switched to: " + enableTranslit);
     }
 
+    public void toggleMimicAlwaysPlay(View v)
+    {
+
+        //saving to shared preferences
+        SharedPreferences.Editor editor = sharedPref.edit();
+        boolean enableMimicAlwaysPlay=!(sharedPref.getBoolean("MimicAlwaysPlay", false));
+        editor.putBoolean("MimicAlwaysPlay", enableMimicAlwaysPlay);
+        editor.apply();
+        setToggleMimicAlwaysPlay();
+
+        PodEmuLog.debug("PESA: MimicAlwaysPlay switched to: " + enableMimicAlwaysPlay);
+    }
+
     public void logoDownloadBehaviour(View v)
     {
         LogoDownloadBehaviourDialogFragment logoDownloadBehaviourDialog = new LogoDownloadBehaviourDialogFragment();
@@ -895,10 +908,11 @@ public class SettingsActivity extends AppCompatActivity
 
     private void setToggleMimicAlwaysPlay()
     {
-        boolean enableTranslit = sharedPref.getBoolean("MimicAlwaysPlay", false);
-        CheckedTextView toggleCyrillicTransliteration = (CheckedTextView) findViewById(R.id.enableMimicAlwaysPlayHint);
+        boolean enableMimicAlwaysPlay = sharedPref.getBoolean("MimicAlwaysPlay", false);
+        CheckedTextView toggleMimimcAlwaysPlay = (CheckedTextView) findViewById(R.id.enableMimicAlwaysPlayHint);
 
-        toggleCyrillicTransliteration.setChecked(enableTranslit);
+        toggleMimimcAlwaysPlay.setChecked(enableMimicAlwaysPlay);
+        OAPMessenger.setMimicAlwaysPlay(enableMimicAlwaysPlay);
     }
 
     private void setToggleBluetoothEnabled()

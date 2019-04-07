@@ -442,7 +442,7 @@ public class OAPMessenger
                     // writing current mode
                     byte msg[] = new byte[2];
                     msg[0] = 0x04;
-                    msg[1] = (byte) ipod_mode;
+                    msg[1] = (byte) (ipod_mode == IPOD_MODE_AIR ? 1 : 0);
                     oap_write_cmd(msg, 2, (byte) 0x00);
                     PodEmuLog.debug("OAPM: sent current mode");
                 } break;
@@ -1885,7 +1885,7 @@ public class OAPMessenger
      */
     public void oap_04_write_polling_track_status_changed(int pos)
     {
-        PodEmuLog.error("OAPM: FUNCTION START oap_04_write_polling_track_status_changed, prev="
+        PodEmuLog.debug("OAPM: FUNCTION START oap_04_write_polling_track_status_changed, prev="
                 + prev_polling_position + ", pos=" + pos);
         if(!polling_mode) return;
         if(prev_polling_position==pos) return;

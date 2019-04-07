@@ -456,7 +456,7 @@ to be moved: android:layout_below="@id/switchToAppLayout"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/playlistCountLayout"
-                android:onClick="toggleTranslit"
+                android:onClick="toggleMimicAlwaysPlay"
                 android:layout_marginTop="7dp">
 
                 <ImageView
