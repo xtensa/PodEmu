@@ -504,7 +504,9 @@ public class PodEmuService extends Service
                     {
                         try
                         {
-                            boolean stopCommandSent=false;
+                            boolean statusPausedCommandSent=false;
+                            boolean statusPlayingCommandSent=false;
+
                             MediaPlayback mediaPlayback=MediaPlayback.getInstance();
 
                             while (true) // service main loop
@@ -521,13 +523,25 @@ public class PodEmuService extends Service
 
                                     oapMessenger.oap_04_write_polling_elapsed_time();
 
-                                    // stop polling message should be sent only once, when playback is really stopped
-                                    if(!mediaPlayback.isPlaying() && !stopCommandSent)
+                                    if(mediaPlayback.isPlaying())
                                     {
-                                        oapMessenger.oap_04_write_polling_playback_stopped();
-                                        stopCommandSent=true;
+                                        statusPausedCommandSent = false;
+                                        if(!statusPlayingCommandSent)
+                                        {
+                                            oapMessenger.oap_04_write_polling_extended_status(OAPMessenger.EXTENDED_STATUS_PLAYING);
+                                            statusPlayingCommandSent = true;
+                                        }
                                     }
-                                    if(mediaPlayback.isPlaying()) stopCommandSent=false;
+                                    else
+                                    {
+                                        statusPlayingCommandSent = false;
+                                        //oapMessenger.oap_04_write_polling_playback_stopped();
+                                        if(!statusPausedCommandSent)
+                                        {
+                                            oapMessenger.oap_04_write_polling_extended_status(OAPMessenger.EXTENDED_STATUS_PAUSED);
+                                            statusPausedCommandSent = true;
+                                        }
+                                    }
 
                                 }
 

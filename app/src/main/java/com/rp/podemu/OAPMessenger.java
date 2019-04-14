@@ -76,6 +76,14 @@ public class OAPMessenger
     private static int image_bytes_per_line = 0;
     private static int current_byte_in_line=0;
 
+
+    public static final byte EXTENDED_STATUS_STOPPED = 0x02;
+    public static final byte EXTENDED_STATUS_FFW_STARTED = 0x05;
+    public static final byte EXTENDED_STATUS_REW_STARTED = 0x06;
+    public static final byte EXTENDED_STATUS_SEEK_STOPPED = 0x07;
+    public static final byte EXTENDED_STATUS_PLAYING = 0x0A;
+    public static final byte EXTENDED_STATUS_PAUSED = 0x0B;
+
     // processing action mechanism variables
     private int responsePendingCmd;
     private int responsePendingStatus=0;
@@ -1871,10 +1879,28 @@ public class OAPMessenger
         byte cmd[] = {
                 0x00,
                 0x27,
-                0x00, // playback stopped
+                0x00 // playback stopped
         };
         oap_04_write_cmd(cmd);
         PodEmuLog.debug("OAPM: AIR_MODE OUT - polling message: playback stopped");
+    }
+
+    /**
+     * @cmd 0x00 0x27
+     * @response number(4) time elapsed on current song
+     */
+    public void oap_04_write_polling_extended_status(byte status)
+    {
+        if(!polling_mode) return;
+
+        byte cmd[] = {
+                0x00,
+                0x27,
+                0x06, // extended status
+                status
+        };
+        oap_04_write_cmd(cmd);
+        PodEmuLog.debug("OAPM: AIR_MODE OUT - polling message: extended status - (" + status + ")");
     }
 
 
