@@ -567,10 +567,27 @@ public class OAPMessenger
                     oap_write_cmd(msg, 2, (byte) 0x00);
 
                 } break;
+                case 0x24: // GetiPodOptions
+                {
+                    byte[] msg = new byte[9];
+                    PodEmuLog.debug("OAPM: received GetiPodOptions request" );
+                    msg[0] = 0x25;
+                    msg[1] = 0x00;
+                    msg[2] = 0x00;
+                    msg[3] = 0x00;
+                    msg[4] = 0x00;
+                    msg[5] = 0x00;
+                    msg[6] = 0x00;
+                    msg[7] = 0x00;
+                    msg[8] = 0x00;
+
+                    oap_write_cmd(msg, msg.length, (byte) 0x00);
+
+                } break;
                 case 0x28: // RetDeviceInfo
                 {
                     byte[] msg = new byte[3];
-                    PodEmuLog.debug("OAPM: accessory info received" );
+                    PodEmuLog.debug("OAPM: received RetDeviceInfo" );
                     if(scmd2==0x01) // name received
                     {
                         SerialInterfaceBuilder.getSerialInterface().setAccessoryName(new String(params));
