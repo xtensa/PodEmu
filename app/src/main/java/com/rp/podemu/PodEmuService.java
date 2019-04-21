@@ -790,15 +790,21 @@ public class PodEmuService extends Service
                     PodEmuLog.error("SENT Title: " + getCurrentlyPlaying().getTrackName());
                     sendBroadcast(maIntent);
                 }
-                else if (       action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
+                else if (  action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
                         || action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
-                        || (  action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-                            && (                 isBTConnected &&     btDev != null &&
-                                                    SerialInterface_BT.getInstance(getBaseContext()) != null &&
-                                    (btDev.getName().equals(SerialInterface_BT.getInstance().getName())) )
-                            )
-                   )
+                        || action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+                )
                 {
+                    if(action.contains(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+                            &&  !(                 isBTConnected &&     btDev != null &&
+                                SerialInterface_BT.getInstance(getBaseContext()) != null &&
+                                (btDev.getName().equals(SerialInterface_BT.getInstance().getName())) )
+                    )
+                    {
+                        PodEmuLog.debug("PES: not our BT device disconnected. Doing nothing.");
+                        return;
+                    }
+
                     PodEmuLog.debug("PES: PodEmu serial interface disconnected. Initiating closing service.");
                     if(        !action.contains(UsbManager.ACTION_USB_DEVICE_DETACHED)
                             && !action.contains(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
