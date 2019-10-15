@@ -217,6 +217,8 @@ My personal implementation of this dongle looks like this:
 
 <img width="500" src="schematics/PodEmu%20RN52%20build.jpg?raw=true" />
 
+EasyEDA project files: https://easyeda.com/e-lab/podemu-module
+
 ## Reporting issues and requesting enhancements
 
 Please use "Issues" tab on GitHub to report a problem or request an enhancement. You can also report a problem directly from application. For this, just enable "Enable debug collecting" option in settings, then reproduce the issue, and then use option "Send debug to developer". This will send debug file with all logs from application. Don't worry, it will not collect your personal data. However, while sending, please don't forget to describe the problem you are encounting - otherwise your email will be ignored.
